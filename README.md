@@ -6,7 +6,11 @@ The app installs these with one tap ("Get site plugins"). You can also install a
 
 ## Plugins
 
-None yet. The first two, DeepSeek and Qwen Chat, arrive with the rebuilt app.
+| Plugin | Version | Notes |
+| --- | --- | --- |
+| [DeepSeek](deepseek) | 1.1.0 | Exact selectors, finish detection, DeepThink and Search switches. No model name on the page, so none is shown. |
+
+Qwen Chat follows.
 
 ## Layout
 
