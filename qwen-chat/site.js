@@ -3,24 +3,21 @@
 // a few seconds, type the text again keyboard-style and press once more.
 // 1.4.0: exact selectors from a page report; the reply is only the answer
 // part (no thinking card, no Copy/Translate labels).
+// 1.6.0: no broad fallbacks; thinking only from this reply; gives up on an
+// error toast or after the idle limit; model = first line of the model name.
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
-const sendButton = (site, el) => {
+// Only the real Send button; without it Enter is pressed (never a guessed button).
+const sendButton = (site) => {
   const b = PP.first(site.send);
-  if (b && !b.disabled && b.getAttribute("aria-disabled") !== "true") return b;
-  // The last button after the box is Send on almost every chat page.
-  for (let up = 0, p = el && el.parentElement; p && up < 6; up++, p = p.parentElement) {
-    const all = [...p.querySelectorAll("button, [role=button]")].filter((x) => x.getClientRects().length && !x.contains(el) && el.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING);
-    if (all.length) return all[all.length - 1];
-  }
-  return null;
+  return b && !b.disabled && b.getAttribute("aria-disabled") !== "true" ? b : null;
 };
 
 // Qwen shows refusals ("You do not have permission…", rate limits) as a
 // toast or alert. Pass that text on instead of waiting.
 const siteError = () => {
-  for (const el of document.querySelectorAll(".qwen-chat-v2-toast-container, [role=alert], [class*='toast' i], [class*='notice' i] [class*='content' i]")) {
+  for (const el of document.querySelectorAll(".qwen-chat-v2-toast-container, [role=alert]")) {
     const t = PP.textOf(el);
     if (t && el.getClientRects().length && /permission|denied|limit|too many|try again|error|failed|login|log in/i.test(t)) return t.split("\n")[0].slice(0, 200);
   }
@@ -48,7 +45,8 @@ const fillNative = (el, text) => {
 };
 const fillKeyboard = (el, text) => {
   el.focus();
-  el.select();
+  if (el.select) el.select();
+  else document.execCommand("selectAll", false, null);
   document.execCommand("insertText", false, text);
 };
 
@@ -83,7 +81,7 @@ const newText = (root, seen) => {
 const STEPS = ".qwen-chat-thinking-and-sources-content-thinking-container";
 // While thinking, the message shows the current step's title (and a Skip button we never touch).
 const LIVE = ".qwen-chat-mobile-chat-status-label";
-const md = (el) => (PP.toMarkdown ? PP.toMarkdown(el) : PP.textOf(el));
+const md = (el) => PP.toMarkdown(el);
 const stepsText = (box) =>
   [...box.querySelectorAll(".qwen-chat-thinking-status-card")]
     .map((card) => {
@@ -132,11 +130,17 @@ const watchThinking = () => {
       }
     }
   })();
-  return { stop: () => (stop = true), text: () => last };
+  return { stop: () => (stop = true), opened: () => opened };
 };
 
-const readThinking = async (site, replyEl) => {
+// ownDrawer: the steps drawer now open was opened for this reply (by the live
+// watcher). Any other open drawer may belong to an older message: closed first.
+const readThinking = async (site, replyEl, ownDrawer) => {
   let box = openSteps();
+  if (box && !ownDrawer) {
+    await closeDrawer();
+    box = null;
+  }
   if (!box) {
     const msg = replyEl && (replyEl.closest(".qwen-chat-message") || replyEl.closest(".chat-response-message"));
     const card = msg && CARDS.map((c) => msg.querySelector(c)).find(Boolean);
@@ -200,26 +204,47 @@ const qwenReport = async (site) => {
   return { url: location.href, report: lines.join("\n") };
 };
 
+// The model the page shows: first line of the model name (no badges).
+const model = (site) => PP.textOf(PP.first(site.model)).split("\n")[0].trim();
+
+// Wait for the reply, but stop on an error toast or after idleMinutes with
+// no activity (the app's own limits don't reach site scripts).
+const waitOrError = (site, snap) => {
+  const idleMs = (Number(site.settings && site.settings.idleMinutes) || 10) * 60000;
+  let timer;
+  const watch = new Promise((_, fail) => {
+    timer = setInterval(() => {
+      const e = siteError();
+      if (e) fail(new Error(`Qwen said: "${e}"`));
+    }, 1000);
+  });
+  return Promise.race([PP.waitReply(site, snap, idleMs, 0), watch]).finally(() => clearInterval(timer));
+};
+
 return {
   probe: (site) => qwenReport(site),
+  info: (site) => ({ ...PP.info(site), model: model(site) }),
   async send(text, site) {
     const el = box(site);
     if (!el) throw new Error("Qwen's message box wasn't found (tap the site name to look)");
     const snap = PP.snapshot(site);
     const url = location.href;
     const went = () => !el.isConnected || location.href !== url || !boxText(el) || !!PP.first(site.stop);
+    // A steps drawer left open (by you or an older reply) would be read as this reply's thinking.
+    if (openSteps()) await closeDrawer();
     el.focus();
     if (el.isContentEditable) fillKeyboard(el, text);
     else fillNative(el, text);
     await PP.sleep(500);
-    let b = sendButton(site, el);
+    let b = sendButton(site);
     if (b) tap(b);
+    else el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
     for (let i = 0; i < 16 && !went(); i++) { await PP.sleep(250); stopIfError(); }
     if (!went()) {
       PP.status("Send didn't take; trying again…");
       if (!el.isContentEditable) fillKeyboard(el, text);
       await PP.sleep(500);
-      b = sendButton(site, el);
+      b = sendButton(site);
       if (b) tap(b);
       else el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
       for (let i = 0; i < 40 && !went(); i++) { await PP.sleep(250); stopIfError(); }
@@ -229,7 +254,7 @@ return {
     const live = watchThinking();
     let raw;
     try {
-      raw = await PP.waitReply(site, snap);
+      raw = await waitOrError(site, snap);
     } catch (e) {
       live.stop();
       throw e;
@@ -239,6 +264,8 @@ return {
     let still = Date.now();
     while (Date.now() - still < 8000) {
       await PP.sleep(500);
+      stopIfError();
+      if (PP.first(site.stop)) still = Date.now();
       const now = PP.textOf(PP.lastReplyEl(site));
       if (now && now !== raw) {
         raw = now;
@@ -248,6 +275,6 @@ return {
     }
     live.stop();
     const replyEl = PP.lastReplyEl(site);
-    return { raw: PP.answerText(site, replyEl) || raw, thinking: await readThinking(site, replyEl) };
+    return { raw: PP.answerText(site, replyEl) || raw, thinking: await readThinking(site, replyEl, live.opened()), model: model(site) };
   },
 };

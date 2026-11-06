@@ -9,8 +9,7 @@ The app installs these with one tap ("Get site plugins"). You can also install a
 | Plugin | Version | Notes |
 | --- | --- | --- |
 | [DeepSeek](deepseek) | 1.1.0 | Exact selectors, finish detection, DeepThink and Search switches. No model name on the page, so none is shown. |
-
-Qwen Chat follows.
+| [Qwen Chat](qwen-chat) | 1.6.0 | Exact selectors only, thinking from the current reply, stops on Qwen's error messages, shows the model name the page shows. |
 
 ## Layout
 
