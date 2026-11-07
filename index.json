@@ -1,0 +1,20 @@
+{
+  "plugins": [
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "path": "deepseek",
+      "version": "1.1.0",
+      "default": true,
+      "note": "chat.deepseek.com with your own login; DeepThink and Search switches."
+    },
+    {
+      "id": "qwen-chat",
+      "name": "Qwen Chat",
+      "path": "qwen-chat",
+      "version": "1.6.0",
+      "default": true,
+      "note": "chat.qwen.ai with your own login (guests get \"no permission\"); Thinking and Search switches."
+    }
+  ]
+}

@@ -23,6 +23,8 @@ One folder per site, named by plugin id:
 
 Version numbers only go up. The app's updater keeps the higher number.
 
+`index.json` lists every plugin for the app's "Get site plugins" sheet: `id`, `name`, `path` (its folder), `version` (same as its plugin.json), `default` (ticked for new users) and a one-line `note`. Change it together with the plugin.
+
 ## Rules for every plugin
 
 - **Hands only.** A plugin only does what you could do yourself with your fingers on the site: type, tap, read. No hidden API calls.
