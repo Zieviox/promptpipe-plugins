@@ -4,7 +4,7 @@
       "id": "deepseek",
       "name": "DeepSeek",
       "path": "deepseek",
-      "version": "1.1.0",
+      "version": "1.1.1",
       "default": true,
       "note": "chat.deepseek.com with your own login; DeepThink and Search switches."
     },
