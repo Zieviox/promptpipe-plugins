@@ -1,2 +1,41 @@
 # promptpipe-plugins
-Site plugins for promptpipe
+
+Site plugins for [promptpipe](https://github.com/Zieviox/promptpipe). A site plugin teaches promptpipe how to use one AI chat website: where the message box is, how to send, and where the reply and its thinking appear.
+
+The app installs these with one tap ("Get site plugins"). You can also install a single plugin from its folder link.
+
+## Plugins
+
+| Plugin | Version | Notes |
+| --- | --- | --- |
+| [DeepSeek](deepseek) | 1.1.0 | Exact selectors, finish detection, DeepThink and Search switches. No model name on the page, so none is shown. |
+| [Qwen Chat](qwen-chat) | 1.6.0 | Exact selectors only, thinking from the current reply, stops on Qwen's error messages, shows the model name the page shows. |
+
+## Layout
+
+One folder per site, named by plugin id:
+
+```
+<id>/
+  plugin.json   selectors for each part of the page, settings, version
+  site.js       optional: code for things selectors can't do
+```
+
+Version numbers only go up. The app's updater keeps the higher number.
+
+`index.json` lists every plugin for the app's "Get site plugins" sheet: `id`, `name`, `path` (its folder), `version` (same as its plugin.json), `default` (ticked for new users) and a one-line `note`. Change it together with the plugin.
+
+## Rules for every plugin
+
+- **Hands only.** A plugin only does what you could do yourself with your fingers on the site: type, tap, read. No hidden API calls.
+- **No getting around the site's protections.** No bypassing bot checks, captchas, rate limits or safety filters.
+- **Read what the page shows.** The model name, the reply and the thinking come from what is on the page, from the current reply only.
+- **Strict selectors.** Exact selectors from a page report, no broad guesses. When a plugin can't find something, it says so instead of guessing.
+
+## Use at your own risk
+
+Using a chat website through an app may break that site's terms. Don't use an account you can't afford to lose. Use a separate account, or sign in by hand inside the app.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
