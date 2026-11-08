@@ -6,6 +6,7 @@
 // 1.6.0: no broad fallbacks; thinking only from this reply; gives up on an
 // error toast or after the idle limit; model = first line of the model name.
 // 1.6.1: the page report also lists reply versions to pick from and open drawers.
+// 1.6.2: "didn't send" says what dialog or pop-up is on top of the chat.
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
@@ -21,6 +22,15 @@ const siteError = () => {
   for (const el of document.querySelectorAll(".qwen-chat-v2-toast-container, [role=alert]")) {
     const t = PP.textOf(el);
     if (t && el.getClientRects().length && /permission|denied|limit|too many|try again|error|failed|login|log in/i.test(t)) return t.split("\n")[0].slice(0, 200);
+  }
+  return "";
+};
+// Something on top of the chat (a dialog, drawer or pop-up, e.g. a choice Qwen waits on) and
+// what it says, for the errors below: "didn't send" is usually this.
+const blocker = () => {
+  for (const el of document.querySelectorAll("[role=dialog], .ant-drawer-open, .ant-modal-wrap, [class*='popup' i], [class*='modal' i]")) {
+    const t = PP.textOf(el).replace(/\s+/g, " ").trim();
+    if (el.getClientRects().length && t) return ` The page shows: "${t.slice(0, 160)}".`;
   }
   return "";
 };
@@ -260,7 +270,7 @@ return {
       else el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
       for (let i = 0; i < 40 && !went(); i++) { await PP.sleep(250); stopIfError(); }
       stopIfError();
-      if (!went()) throw new Error("Qwen didn't send it. If it's answering anyway, tap Check; if not, ⋯ → Copy page report and send it over");
+      if (!went()) throw new Error("Qwen didn't send it." + blocker() + " If it's answering anyway, tap Check; if not, ⋯ → Copy page report and send it over");
     }
     const live = watchThinking();
     let raw;
