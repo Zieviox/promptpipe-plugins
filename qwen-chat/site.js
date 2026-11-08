@@ -5,6 +5,7 @@
 // part (no thinking card, no Copy/Translate labels).
 // 1.6.0: no broad fallbacks; thinking only from this reply; gives up on an
 // error toast or after the idle limit; model = first line of the model name.
+// 1.6.1: the page report also lists reply versions to pick from and open drawers.
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
@@ -186,6 +187,16 @@ const qwenReport = async (site) => {
   lines.push("", `== panels and thinking outside the reply (${open.length}) ==`);
   for (const el of open.filter((el) => !open.includes(el.parentElement)).slice(0, 4)) outline(el, lines);
   if (card) await closeDrawer();
+  // Qwen sometimes shows two versions of a reply to pick from and waits. List
+  // how many replies the newest turn holds and anything that looks like the choice.
+  const turn = msg && (msg.closest(".qwen-chat-message") || msg);
+  const versions = turn ? turn.querySelectorAll(".response-message-content") : [];
+  const ask = /prefer|which (one|response|answer|reply)|better|choose|pick|compare|version|option|选择|更喜欢|哪个/i;
+  const picks = [...document.querySelectorAll("button, [role=button], [role=radio], [role=tab], [role=option], label")].filter((el) => el.getClientRects().length && ask.test(PP.textOf(el)) && PP.textOf(el).length < 120);
+  lines.push("", `== reply versions in the newest turn: ${versions.length}; things that look like a choice: ${picks.length} ==`);
+  for (const el of picks.slice(0, 6)) outline(el.parentElement && el.parentElement.parentElement ? el.parentElement.parentElement : el, lines);
+  const openDrawers = document.querySelectorAll(".ant-drawer-open").length;
+  lines.push("", `== drawers open before the model list: ${openDrawers} ==`);
   // The model list: open it, show what appeared, close it.
   const trigger = document.querySelector(".mms-trigger");
   if (trigger) {
