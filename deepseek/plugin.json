@@ -1,10 +1,11 @@
 {
   "id": "deepseek",
   "name": "DeepSeek",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "The free DeepSeek web chat (chat.deepseek.com), used with your own login inside the app. Selectors from page reports of 2026-11-06.",
   "kind": "site",
   "site": {
+    "settleMs": 700,
     "url": "https://chat.deepseek.com/",
     "input": [
       "textarea.ds-scroll-area"
