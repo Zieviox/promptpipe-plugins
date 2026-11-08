@@ -7,6 +7,7 @@
 // error toast or after the idle limit; model = first line of the model name.
 // 1.6.1: the page report also lists reply versions to pick from and open drawers.
 // 1.6.2: "didn't send" says what dialog or pop-up is on top of the chat.
+// 1.6.3: closes the Models list Qwen opens by itself before and during a send.
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
@@ -109,6 +110,19 @@ const closeDrawer = async () => {
   const x = document.querySelector(".qwen-chat-thinking-and-sources-header-close") || document.querySelector(".ant-drawer-open .ant-drawer-close");
   if (x) tap(x);
   await PP.sleep(300);
+};
+// Qwen sometimes opens its "Models" list by itself (on a phone it is a bottom drawer over the
+// chat) and waits for a pick; nothing sends until it is closed. Close it with its own Close button
+// and keep the model that was selected. True if one was open.
+const dismissModels = async () => {
+  const pop = [...document.querySelectorAll(".mms-popup")].find((x) => x.getClientRects().length);
+  if (!pop) return false;
+  const x = pop.querySelector(".ant-drawer-close") || (pop.closest(".ant-drawer-open") || document).querySelector(".ant-drawer-close");
+  if (x) tap(x);
+  else document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", keyCode: 27, bubbles: true }));
+  PP.status("Qwen opened its model list; closing it…");
+  await PP.sleep(400);
+  return true;
 };
 const newestMsg = () => {
   const all = document.querySelectorAll(".qwen-chat-message-assistant, .chat-response-message");
@@ -246,8 +260,9 @@ return {
   probe: (site) => qwenReport(site),
   info: (site) => ({ ...PP.info(site), model: model(site) }),
   async send(text, site) {
+    await dismissModels();
     const el = box(site);
-    if (!el) throw new Error("Qwen's message box wasn't found (tap the site name to look)");
+    if (!el) throw new Error("Qwen's message box wasn't found (tap the site name to look)" + blocker());
     const snap = PP.snapshot(site);
     const url = location.href;
     const went = () => !el.isConnected || location.href !== url || !boxText(el) || !!PP.first(site.stop);
@@ -261,6 +276,11 @@ return {
     if (b) tap(b);
     else el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
     for (let i = 0; i < 16 && !went(); i++) { await PP.sleep(250); stopIfError(); }
+    if (!went() && (await dismissModels())) {
+      b = sendButton(site);
+      if (b) tap(b);
+      for (let i = 0; i < 16 && !went(); i++) { await PP.sleep(250); stopIfError(); }
+    }
     if (!went()) {
       PP.status("Send didn't take; trying again…");
       if (!el.isContentEditable) fillKeyboard(el, text);
