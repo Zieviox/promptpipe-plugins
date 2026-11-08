@@ -1,11 +1,12 @@
 {
   "id": "qwen-chat",
   "name": "Qwen Chat",
-  "version": "1.6.3",
+  "version": "1.6.4",
   "description": "The free Qwen web chat (chat.qwen.ai), used with your own login inside the app.",
   "kind": "site",
   "siteScript": "site.js",
   "site": {
+    "settleMs": 500,
     "url": "https://chat.qwen.ai/",
     "input": [
       "textarea.message-input-textarea",

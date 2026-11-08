@@ -8,6 +8,7 @@
 // 1.6.1: the page report also lists reply versions to pick from and open drawers.
 // 1.6.2: "didn't send" says what dialog or pop-up is on top of the chat.
 // 1.6.3: closes the Models list Qwen opens by itself before and during a send.
+// 1.6.4: a finished reply is recognised by its action row, not by waiting 10 s.
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
@@ -300,11 +301,18 @@ return {
       live.stop();
       throw e;
     }
-    // Qwen pauses mid-stream (often right after thinking), which looks finished.
-    // Only call it done once the reply has stopped growing for 8 seconds.
+    // Qwen pauses mid-stream (often right after thinking), which looks finished. The sure sign
+    // is the action row (share, regenerate, copy) under the finished reply: once it is there, no
+    // stop button shows and the text has held for a moment, it is done. Without that sign (the
+    // page changed), fall back to waiting until the reply has not grown for 8 seconds.
+    const finished = () => {
+      const el = PP.lastReplyEl(site);
+      const msg = el && el.closest(".chat-response-message");
+      return !!(msg && msg.querySelector(".response-message-footer-actions"));
+    };
     let still = Date.now();
     while (Date.now() - still < 8000) {
-      await PP.sleep(500);
+      await PP.sleep(250);
       stopIfError();
       if (PP.first(site.stop)) still = Date.now();
       const now = PP.textOf(PP.lastReplyEl(site));
@@ -313,6 +321,7 @@ return {
         still = Date.now();
         PP.status(`still writing… ${raw.length} chars`);
       }
+      if (Date.now() - still >= 1000 && finished()) break;
     }
     live.stop();
     const replyEl = PP.lastReplyEl(site);
