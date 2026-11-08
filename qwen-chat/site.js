@@ -9,6 +9,7 @@
 // 1.6.2: "didn't send" says what dialog or pop-up is on top of the chat.
 // 1.6.3: closes the Models list Qwen opens by itself before and during a send.
 // 1.6.4: a finished reply is recognised by its action row, not by waiting 10 s.
+// 1.6.5: Stop ends the wait for the rest of the reply too.
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
@@ -314,6 +315,7 @@ return {
     while (Date.now() - still < 8000) {
       await PP.sleep(250);
       stopIfError();
+      if (PP.cancelled && PP.cancelled()) break; // Stop keeps the reply so far
       if (PP.first(site.stop)) still = Date.now();
       const now = PP.textOf(PP.lastReplyEl(site));
       if (now && now !== raw) {
