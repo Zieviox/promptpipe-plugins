@@ -14,7 +14,7 @@
       "name": "Qwen Chat",
       "kind": "site",
       "path": "qwen-chat",
-      "version": "1.6.2",
+      "version": "1.6.3",
       "default": true,
       "note": "chat.qwen.ai with your own login (guests get \"no permission\"); Thinking and Search switches."
     }
