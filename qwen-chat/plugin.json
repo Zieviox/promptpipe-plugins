@@ -1,7 +1,7 @@
 {
   "id": "qwen-chat",
   "name": "Qwen Chat",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "description": "The free Qwen web chat (chat.qwen.ai), used with your own login inside the app.",
   "kind": "site",
   "siteScript": "site.js",

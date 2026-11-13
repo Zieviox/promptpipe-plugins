@@ -10,6 +10,8 @@
 // 1.6.3: closes the Models list Qwen opens by itself before and during a send.
 // 1.6.4: a finished reply is recognised by its action row, not by waiting 10 s.
 // 1.6.5: Stop ends the wait for the rest of the reply too.
+// 1.6.6: a pause in the answer (long thinking, slow start) no longer ends the wait: it ends when the
+// action row shows, or after 45 s with nothing changing (was 8 s).
 const box = (site) => PP.first(site.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
@@ -305,18 +307,18 @@ return {
     // Qwen pauses mid-stream (often right after thinking), which looks finished. The sure sign
     // is the action row (share, regenerate, copy) under the finished reply: once it is there, no
     // stop button shows and the text has held for a moment, it is done. Without that sign (the
-    // page changed), fall back to waiting until the reply has not grown for 8 seconds.
+    // page changed), fall back to waiting until the reply has not grown for 45 seconds.
     const finished = () => {
       const el = PP.lastReplyEl(site);
       const msg = el && el.closest(".chat-response-message");
       return !!(msg && msg.querySelector(".response-message-footer-actions"));
     };
     let still = Date.now();
-    while (Date.now() - still < 8000) {
+    while (Date.now() - still < 45000) {
       await PP.sleep(250);
       stopIfError();
       if (PP.cancelled && PP.cancelled()) break; // Stop keeps the reply so far
-      if (PP.first(site.stop)) still = Date.now();
+      if (PP.first(site.stop) || newestMsg()?.querySelector(LIVE)) still = Date.now();
       const now = PP.textOf(PP.lastReplyEl(site));
       if (now && now !== raw) {
         raw = now;
