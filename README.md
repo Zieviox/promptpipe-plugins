@@ -25,6 +25,13 @@ Version numbers only go up. The app's updater keeps the higher number.
 
 `index.json` lists every plugin for the app's "Get site plugins" sheet: `id`, `name`, `path` (its folder), `version` (same as its plugin.json), `default` (ticked for new users) and a one-line `note`. Change it together with the plugin.
 
+## Updating plugins and app parts
+
+Every plugin, including the app's own parts (`chat-ui` and the `core-*` ones), is updated from this repo: change the folder, raise `version` in its `plugin.json` **and** in `index.json`, push. The app offers the update next time it checks, and an app part needs a restart.
+
+- `minApp` (optional, in `index.json`): the oldest app build the new version works with, like `"minApp": "0.7.0-alpha43"`. Set it whenever a plugin needs something a newer app added. Older apps then skip that update and say so.
+- No `minApp`: the app just tries the update. If it can't be written, the old version stays. If it breaks while loading, the app goes back to the version before it.
+
 ## Rules for every plugin
 
 - **Hands only.** A plugin only does what you could do yourself with your fingers on the site: type, tap, read. No hidden API calls.
