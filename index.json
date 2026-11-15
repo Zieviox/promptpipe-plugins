@@ -25,10 +25,10 @@
       "name": "Chat screen",
       "kind": "ui",
       "path": "chat-ui",
-      "version": "1.14.3",
+      "version": "1.14.4",
       "default": false,
       "note": "App part: the whole chat UI. Copy it to change anything you see.",
-      "sha256": "14d174d54890f884d68de6eb49d83aa35a51ab79b20854e3cb04a2f3597b4fae"
+      "sha256": "f37a086f9de7a13aef54da42be143f5607c5fb1be0eda2e223cfc41886faf118"
     },
     {
       "id": "core-chatfile",
