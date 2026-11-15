@@ -37,13 +37,6 @@ python3 tools/hash.py
 
 It rewrites the hashes in `index.json` (and warns if a version differs from the plugin's own `plugin.json`).
 
-## Rules for every plugin
-
-- **Hands only.** A plugin only does what you could do yourself with your fingers on the site: type, tap, read. No hidden API calls.
-- **No getting around the site's protections.** No bypassing bot checks, captchas, rate limits or safety filters.
-- **Read what the page shows.** The model name, the reply and the thinking come from what is on the page, from the current reply only.
-- **Strict selectors.** Exact selectors from a page report, no broad guesses. When a plugin can't find something, it says so instead of guessing.
-
 ## Use at your own risk
 
 Using a chat website through an app may break that site's terms. Don't use an account you can't afford to lose. Use a separate account, or sign in by hand inside the app.
