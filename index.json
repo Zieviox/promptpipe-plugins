@@ -85,10 +85,10 @@
       "name": "Sending",
       "kind": "core",
       "path": "core-send",
-      "version": "1.4.2",
+      "version": "1.4.3",
       "default": false,
       "note": "App part: the send pipeline, page pool, queue and PP.ask.",
-      "sha256": "d39e0a1cc1309bf37413672e0aaccad484043d0073c467a4481de975ea0fc3f3"
+      "sha256": "5d51113874ff37c20e881b9083bf5f65e486a09ecefb770bba15fb8111070048"
     }
   ]
 }
