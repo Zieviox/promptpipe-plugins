@@ -4,7 +4,7 @@
     cd /root/promptpipe-plugins && python3 tools/hash.py
 
 The app checks the hash when it installs a plugin and refuses files that don't match.
-A plugin's hash covers plugin.json and every file it lists (main, siteScript, css, scripts, files):
+A plugin's hash covers plugin.json and every file it lists (main, contentScript, css, scripts, files):
 sha256 of "<path>\\n<sha256 of the file>\\n" for each file, sorted by path. It matches the core's check.
 """
 import hashlib, json, os, sys
@@ -16,7 +16,7 @@ def sha(b):
 
 def listed(m):
     names = []
-    for k in ("main", "siteScript", "css"):
+    for k in ("main", "contentScript", "css"):
         v = m.get(k)
         if isinstance(v, str) and v:
             names.append(v)

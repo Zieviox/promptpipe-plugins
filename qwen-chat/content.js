@@ -12,12 +12,13 @@
 // 1.6.5: Stop ends the wait for the rest of the reply too.
 // 1.6.6: a pause in the answer (long thinking, slow start) no longer ends the wait: it ends when the
 // action row shows, or after 45 s with nothing changing (was 8 s).
-const box = (site) => PP.first(site.input);
+// 2.0.0: the new plugin format (tags, provider, options, contentScript; the model list's items).
+const box = (provider) => PP.first(provider.input);
 const boxText = (el) => (el ? (el.isContentEditable ? el.innerText : el.value || "").trim() : "");
 
 // Only the real Send button; without it Enter is pressed (never a guessed button).
-const sendButton = (site) => {
-  const b = PP.first(site.send);
+const sendButton = (provider) => {
+  const b = PP.first(provider.send);
   return b && !b.disabled && b.getAttribute("aria-disabled") !== "true" ? b : null;
 };
 
@@ -73,8 +74,8 @@ const fillKeyboard = (el, text) => {
 // element listens for it.
 const CARDS = [".qwen-chat-thinking-status-card-title-text", ".qwen-chat-thinking-status-card-title", ".qwen-chat-thinking-tool-status-card-wraper .qwen-chat-tool-status-card"];
 const LABEL = /^thinking( completed)?$|^thought for/i;
-const thinkIn = (site, msg) => {
-  for (const s of site.thinking || []) {
+const thinkIn = (provider, msg) => {
+  for (const s of provider.thinking || []) {
     let els = [];
     try { els = [...msg.querySelectorAll(s)]; } catch (e) {}
     const t = els.map(PP.textOf).filter((x) => x && !LABEL.test(x));
@@ -164,7 +165,7 @@ const watchThinking = () => {
 
 // ownDrawer: the steps drawer now open was opened for this reply (by the live
 // watcher). Any other open drawer may belong to an older message: closed first.
-const readThinking = async (site, replyEl, ownDrawer) => {
+const readThinking = async (provider, replyEl, ownDrawer) => {
   let box = openSteps();
   if (box && !ownDrawer) {
     await closeDrawer();
@@ -173,10 +174,10 @@ const readThinking = async (site, replyEl, ownDrawer) => {
   if (!box) {
     const msg = replyEl && (replyEl.closest(".qwen-chat-message") || replyEl.closest(".chat-response-message"));
     const card = msg && CARDS.map((c) => msg.querySelector(c)).find(Boolean);
-    if (!card) return msg ? thinkIn(site, msg) : "";
+    if (!card) return msg ? thinkIn(provider, msg) : "";
     tap(card);
     for (let i = 0; i < 12 && !(box = openSteps()); i++) await PP.sleep(250);
-    if (!box) return thinkIn(site, msg);
+    if (!box) return thinkIn(provider, msg);
     await PP.sleep(400); // let the steps render
   }
   const text = stepsText(box);
@@ -194,7 +195,7 @@ const outline = (root, lines, depth = 0) => {
   lines.push("  ".repeat(depth) + root.tagName.toLowerCase() + cls + attrs + (own ? `  "${own}"` : ""));
   for (const c of root.children) if (!/^(svg|script|style|path)$/i.test(c.tagName)) outline(c, lines, depth + 1);
 };
-const qwenReport = async (site) => {
+const qwenReport = async (provider) => {
   const lines = [];
   const msgs = document.querySelectorAll(".chat-response-message");
   const msg = msgs[msgs.length - 1];
@@ -244,12 +245,12 @@ const qwenReport = async (site) => {
 };
 
 // The model the page shows: first line of the model name (no badges).
-const model = (site) => PP.textOf(PP.first(site.model)).split("\n")[0].trim();
+const model = (provider) => PP.textOf(PP.first(provider.model)).split("\n")[0].trim();
 
 // Wait for the reply, but stop on an error toast or after idleMinutes with
-// no activity (the app's own limits don't reach site scripts).
-const waitOrError = (site, snap) => {
-  const idleMs = (Number(site.settings && site.settings.idleMinutes) || 10) * 60000;
+// no activity (the app's own limits don't reach content scripts).
+const waitOrError = (provider, snap) => {
+  const idleMs = (Number(provider.settings && provider.settings.idleMinutes) || 10) * 60000;
   let timer;
   const watch = new Promise((_, fail) => {
     timer = setInterval(() => {
@@ -257,31 +258,31 @@ const waitOrError = (site, snap) => {
       if (e) fail(new Error(`Qwen said: "${e}"`));
     }, 1000);
   });
-  return Promise.race([PP.waitReply(site, snap, idleMs, 0), watch]).finally(() => clearInterval(timer));
+  return Promise.race([PP.waitReply(provider, snap, idleMs, 0), watch]).finally(() => clearInterval(timer));
 };
 
 return {
-  probe: (site) => qwenReport(site),
-  info: (site) => ({ ...PP.info(site), model: model(site) }),
-  async send(text, site) {
+  probe: (provider) => qwenReport(provider),
+  info: (provider) => ({ ...PP.info(provider), model: model(provider) }),
+  async send(text, provider) {
     await dismissModels();
-    const el = box(site);
+    const el = box(provider);
     if (!el) throw new Error("Qwen's message box wasn't found (tap the site name to look)" + blocker());
-    const snap = PP.snapshot(site);
+    const snap = PP.snapshot(provider);
     const url = location.href;
-    const went = () => !el.isConnected || location.href !== url || !boxText(el) || !!PP.first(site.stop);
+    const went = () => !el.isConnected || location.href !== url || !boxText(el) || !!PP.first(provider.stop);
     // A steps drawer left open (by you or an older reply) would be read as this reply's thinking.
     if (openSteps()) await closeDrawer();
     el.focus();
     if (el.isContentEditable) fillKeyboard(el, text);
     else fillNative(el, text);
     await PP.sleep(500);
-    let b = sendButton(site);
+    let b = sendButton(provider);
     if (b) tap(b);
     else el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
     for (let i = 0; i < 16 && !went(); i++) { await PP.sleep(250); stopIfError(); }
     if (!went() && (await dismissModels())) {
-      b = sendButton(site);
+      b = sendButton(provider);
       if (b) tap(b);
       for (let i = 0; i < 16 && !went(); i++) { await PP.sleep(250); stopIfError(); }
     }
@@ -289,7 +290,7 @@ return {
       PP.status("Send didn't take; trying again…");
       if (!el.isContentEditable) fillKeyboard(el, text);
       await PP.sleep(500);
-      b = sendButton(site);
+      b = sendButton(provider);
       if (b) tap(b);
       else el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }));
       for (let i = 0; i < 40 && !went(); i++) { await PP.sleep(250); stopIfError(); }
@@ -299,7 +300,7 @@ return {
     const live = watchThinking();
     let raw;
     try {
-      raw = await waitOrError(site, snap);
+      raw = await waitOrError(provider, snap);
     } catch (e) {
       live.stop();
       throw e;
@@ -309,7 +310,7 @@ return {
     // stop button shows and the text has held for a moment, it is done. Without that sign (the
     // page changed), fall back to waiting until the reply has not grown for 45 seconds.
     const finished = () => {
-      const el = PP.lastReplyEl(site);
+      const el = PP.lastReplyEl(provider);
       const msg = el && el.closest(".chat-response-message");
       return !!(msg && msg.querySelector(".response-message-footer-actions"));
     };
@@ -318,8 +319,8 @@ return {
       await PP.sleep(250);
       stopIfError();
       if (PP.cancelled && PP.cancelled()) break; // Stop keeps the reply so far
-      if (PP.first(site.stop) || newestMsg()?.querySelector(LIVE)) still = Date.now();
-      const now = PP.textOf(PP.lastReplyEl(site));
+      if (PP.first(provider.stop) || newestMsg()?.querySelector(LIVE)) still = Date.now();
+      const now = PP.textOf(PP.lastReplyEl(provider));
       if (now && now !== raw) {
         raw = now;
         still = Date.now();
@@ -328,7 +329,7 @@ return {
       if (Date.now() - still >= 1000 && finished()) break;
     }
     live.stop();
-    const replyEl = PP.lastReplyEl(site);
-    return { raw: PP.answerText(site, replyEl) || raw, thinking: await readThinking(site, replyEl, live.opened()), model: model(site) };
+    const replyEl = PP.lastReplyEl(provider);
+    return { raw: PP.answerText(provider, replyEl) || raw, thinking: await readThinking(provider, replyEl, live.opened()), model: model(provider) };
   },
 };

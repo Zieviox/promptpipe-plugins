@@ -1,6 +1,7 @@
-// DeepSeek 1.2.0: sending and waiting stay the app's own; this script only tells the app when
+// DeepSeek 2.0.0: the new plugin format (tags, provider, options, contentScript).
+// 1.2.0: sending and waiting stay the app's own; this script only tells the app when
 // DeepSeek refused the message, so the wait ends with DeepSeek's words instead of running for ever.
-// Needs an app whose page script asks site scripts for error() (built after 2026-11-16); older
+// Needs an app whose page script asks content scripts for error() (built after 2026-11-16); older
 // apps ignore it and wait as before.
 //
 // From a page report of 2026-11-16: a refused message ("Content too long. Shorten and try

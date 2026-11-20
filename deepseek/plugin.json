@@ -1,11 +1,13 @@
 {
   "id": "deepseek",
   "name": "DeepSeek",
-  "version": "1.2.0",
+  "version": "2.0.0",
   "description": "The free DeepSeek web chat (chat.deepseek.com), used with your own login inside the app. Selectors from page reports of 2026-11-06 and 2026-11-16.",
-  "siteScript": "site.js",
-  "kind": "site",
-  "site": {
+  "tags": [
+    "provider"
+  ],
+  "contentScript": "content.js",
+  "provider": {
     "url": "https://chat.deepseek.com/",
     "input": [
       "textarea.ds-scroll-area"
@@ -33,9 +35,17 @@
       "a[href*='/a/chat/s/']"
     ],
     "model": [],
-    "switches": [
-      { "name": "DeepThink", "selector": ".ds-toggle-button:nth-child(1 of .ds-toggle-button)", "text": "" },
-      { "name": "Search", "selector": ".ds-toggle-button:nth-child(2 of .ds-toggle-button)", "text": "" }
+    "options": [
+      {
+        "name": "DeepThink",
+        "selector": ".ds-toggle-button:nth-child(1 of .ds-toggle-button)",
+        "text": ""
+      },
+      {
+        "name": "Search",
+        "selector": ".ds-toggle-button:nth-child(2 of .ds-toggle-button)",
+        "text": ""
+      }
     ]
   },
   "settings": {

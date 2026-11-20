@@ -1,11 +1,13 @@
 {
   "id": "qwen-chat",
   "name": "Qwen Chat",
-  "version": "1.6.6",
+  "version": "2.0.0",
   "description": "The free Qwen web chat (chat.qwen.ai), used with your own login inside the app.",
-  "kind": "site",
-  "siteScript": "site.js",
-  "site": {
+  "tags": [
+    "provider"
+  ],
+  "contentScript": "content.js",
+  "provider": {
     "settleMs": 500,
     "url": "https://chat.qwen.ai/",
     "input": [
@@ -43,15 +45,23 @@
       "open": [
         ".mms-trigger"
       ],
-      "options": [
+      "items": [
         "[class*='mms'] [role=option]",
         "[class*='mms'] [role=menuitem]",
         "[class*='mms-item']"
       ]
     },
-    "switches": [
-      { "name": "Thinking", "selector": "button", "text": "Thinking" },
-      { "name": "Search", "selector": "button", "text": "Search" }
+    "options": [
+      {
+        "name": "Thinking",
+        "selector": "button",
+        "text": "Thinking"
+      },
+      {
+        "name": "Search",
+        "selector": "button",
+        "text": "Search"
+      }
     ]
   },
   "settings": {
