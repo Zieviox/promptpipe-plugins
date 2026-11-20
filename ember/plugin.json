@@ -1,0 +1,10 @@
+{
+  "id": "ember",
+  "name": "Ember",
+  "version": "2.0.0",
+  "description": "Warm dark theme with an amber accent.",
+  "tags": [
+    "theme"
+  ],
+  "css": "theme.css"
+}

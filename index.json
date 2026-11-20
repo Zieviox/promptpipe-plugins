@@ -9,6 +9,7 @@
       "path": "deepseek",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": false,
       "default": true,
       "note": "chat.deepseek.com with your own login; DeepThink and Search options in any page language.",
       "sha256": "66c5d7aa5e9d70395beb86ff82d16b2e940fee8dd6a415aad1b5b5163e8a7bbb"
@@ -22,6 +23,7 @@
       "path": "qwen-chat",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": false,
       "default": true,
       "note": "chat.qwen.ai with your own login (guests get \"no permission\"); Thinking and Search options.",
       "sha256": "fe363b73a250892a5e25882afe2293320a6f46cee0e046fb2cf90a8c7353ed51"
@@ -34,11 +36,12 @@
         "ui"
       ],
       "path": "chat-ui",
-      "version": "3.0.0",
+      "version": "3.0.1",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "The whole chat screen. Copy it to change anything you see.",
-      "sha256": "2be2d481dcbb86dd132ff057207e285c67dae8b50e034c5ce0bd07fe4227a806"
+      "sha256": "ea37d99d7a81041d803d76e37f6470750842dffaf61321be94ec69fb611b323c"
     },
     {
       "id": "core-chatfile",
@@ -49,6 +52,7 @@
       "path": "core-chatfile",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "The chat file format (ChatFile: Markdown with front matter). Replace it to save chats differently.",
       "sha256": "94831fce44a8d2a4f2b4dda717932019d2979b2078c72897d566d8afa4009670"
@@ -62,6 +66,7 @@
       "path": "core-history",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "Chat files, folders, git and tags.",
       "sha256": "4652868fef9f683bc260f630d9ea84eecba84f4bf3f5f63fa119c238501c5c16"
@@ -75,6 +80,7 @@
       "path": "core-jobs",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "Answers other apps' requests to the local API (/api/v1/chat, /v1/chat/completions) with runChat.",
       "sha256": "63f09f79f62c26df01edaaa1c08302b7a1be0ed816921ea9402adfb82f211f75"
@@ -88,6 +94,7 @@
       "path": "core-markdown",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "Markdown to HTML for replies and docs (mdToHtml). Replace it to change how Markdown looks.",
       "sha256": "835f4605ce531f4f94a8590b5e85978aed4d32ee930d03c3f785204f3899fd44"
@@ -101,6 +108,7 @@
       "path": "core-profiles",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "What goes to the provider: a profile's blocks (System prompts, plugins and your message) in order, with groups, toggles, templates and the prompt library.",
       "sha256": "3c3b51e333ad1ee5f569519b26db7d841f7f6486da9ec67ef3bc1c4c0fedac75"
@@ -114,9 +122,88 @@
       "path": "core-send",
       "version": "2.0.0",
       "minApp": "0.7.0-alpha47",
+      "builtin": true,
       "default": false,
       "note": "Sending: the page pool, the queue, the model and options set on the page, and PP.ask.",
       "sha256": "c820b7998514aa7fd3e42e6319958bb6378ca1d9023d38a07bd84495a91edc5a"
+    },
+    {
+      "id": "base64",
+      "name": "Base64",
+      "tags": [],
+      "path": "base64",
+      "version": "2.0.0",
+      "minApp": "0.7.0-alpha47",
+      "builtin": true,
+      "default": false,
+      "note": "Asks the AI to answer in base64 and decodes the reply; small mistakes are repaired.",
+      "sha256": "293c4e24f1fc96328a2c3e412a30bc7ff67a8c131a5576ad3501df34d55aea17"
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "tags": [],
+      "path": "memory",
+      "version": "3.0.0",
+      "minApp": "0.7.0-alpha47",
+      "builtin": true,
+      "default": false,
+      "note": "Pinned facts and the earlier chat in front of your message, summarised in levels once a chat gets long.",
+      "sha256": "5e7facf68ee0970742207a9069baa9f32d1b96d8114701cf7e2b3dcb1f5b8688"
+    },
+    {
+      "id": "sub-chats",
+      "name": "Sub-chats",
+      "tags": [],
+      "path": "sub-chats",
+      "version": "2.0.0",
+      "minApp": "0.7.0-alpha47",
+      "builtin": true,
+      "default": false,
+      "note": "A new site chat inside this chat, on any profile; Memory carries the conversation over.",
+      "sha256": "f58e7184a73b5d472180f947d001cfa236a218ed345bd1bc9e99e1d43827d677"
+    },
+    {
+      "id": "page-report",
+      "name": "Page report",
+      "tags": [
+        "passive"
+      ],
+      "path": "page-report",
+      "version": "2.0.0",
+      "minApp": "0.7.0-alpha47",
+      "builtin": true,
+      "default": false,
+      "note": "⋯ → Copy page report: an outline of the AI page, to fix a provider's selectors.",
+      "sha256": "78ab9ac11a4d715cf4b928d92615f1a7cca5ec6bee7e617349107ea03859651a"
+    },
+    {
+      "id": "ember",
+      "name": "Ember",
+      "tags": [
+        "theme"
+      ],
+      "path": "ember",
+      "version": "2.0.0",
+      "minApp": "0.7.0-alpha47",
+      "builtin": true,
+      "default": false,
+      "note": "Warm dark theme with an amber accent.",
+      "sha256": "1acd64dda194632a827d04db377292420e1364bab077983fc7d49c82f5c7e97e"
+    },
+    {
+      "id": "paper",
+      "name": "Paper",
+      "tags": [
+        "theme"
+      ],
+      "path": "paper",
+      "version": "2.0.0",
+      "minApp": "0.7.0-alpha47",
+      "builtin": true,
+      "default": false,
+      "note": "Light theme: warm paper, ink text.",
+      "sha256": "b49eaa1b4aed03aba86917f357ea02a4ebccdf5a6fb75e950fe3a2f8b642042d"
     }
   ]
 }

@@ -1332,7 +1332,7 @@ const corePluginsControls = () => {
       return h(
         "div",
         {},
-        h("p", { class: "muted" }, b.version ? `Downloaded plugins: ${b.version} (${(b.plugins || []).length}). Newer ones than the app's are used.` : "No downloaded plugins yet: the ones built into the app are used.", (S.config.updates || {}).checked ? ` Last checked ${new Date(S.config.updates.checked).toLocaleString()}.` : ""),
+        h("p", { class: "muted" }, b.version ? `Release bundle: ${b.version} (${(b.plugins || []).length} plugins). Newer ones than the app's are used.` : "Plugins update from the Library (Plugins › Library). The release bundle is a fallback.", (S.config.updates || {}).checked ? ` Last checked ${new Date(S.config.updates.checked).toLocaleString()}.` : ""),
         u.error ? h("p", { class: "error" }, "✕ " + u.error + ". Download the zip, then install it from the file.") : null,
         h(
           "div",
@@ -1341,7 +1341,8 @@ const corePluginsControls = () => {
           h("button", { class: "small", title: releasePage(), onclick: () => api("/api/app/action", { action: "openUrl", url: releasePage() }) }, "Download the zip"),
           h("button", { class: "small", onclick: () => api("/api/app/action", { action: "pickPlugin" }) }, "Install the zip"),
         ),
-        h("label", { class: "field inline" }, h("span", {}, "Check once a day when the app starts"), h("input", { type: "checkbox", checked: (S.config.updates || {}).auto !== false, onchange: (e) => ((S.config.updates = { ...(S.config.updates || {}), auto: e.target.checked }), saveConfig()) })),
+        h("label", { class: "field inline" }, h("span", {}, "Check for plugin updates once a day when the app starts"), h("input", { type: "checkbox", checked: (S.config.updates || {}).auto !== false, onchange: (e) => ((S.config.updates = { ...(S.config.updates || {}), auto: e.target.checked }), saveConfig()) })),
+        h("label", { class: "field inline" }, h("span", {}, "Also download the release's plugin bundle (a fallback when the Library can't reach GitHub)"), h("input", { type: "checkbox", checked: (S.config.updates || {}).bundle === true, onchange: (e) => ((S.config.updates = { ...(S.config.updates || {}), bundle: e.target.checked }), saveConfig()) })),
       );
     })(),
     h(
