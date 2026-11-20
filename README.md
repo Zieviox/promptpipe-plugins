@@ -1,29 +1,34 @@
 # promptpipe-plugins
 
-Site plugins for [promptpipe](https://github.com/Zieviox/promptpipe). A site plugin teaches promptpipe how to use one AI chat website: where the message box is, how to send, and where the reply and its thinking appear.
+Plugins for [promptpipe](https://github.com/Zieviox/promptpipe): the providers (a provider teaches promptpipe how to use one AI chat website: where the message box is, how to send, and where the reply and its thinking appear), and the app's core plugins (the chat screen, sending, profiles, chat files, history), which update from here without a new APK.
 
-The app installs these with one tap ("Get site plugins"). You can also install a single plugin from its folder link.
+The app lists them under Plugins › Library ("Get providers", "Get plugins"). You can also install a single plugin from its folder link. Every plugin is a plugin; its `tags` say what else it is (see the app's guide, PLUGINS.md, "Words").
 
 ## Plugins
 
 | Plugin | Version | Notes |
 | --- | --- | --- |
-| [DeepSeek](deepseek) | 1.2.0 | Exact selectors, finish detection, DeepThink and Search switches in any page language, source numbers like "-18" stripped. Stops at once when DeepSeek refuses a message ("Content too long") or shows its human check (needs an app built after 2026-11-16). No model name on the page, so none is shown. |
-| [Qwen Chat](qwen-chat) | 1.6.6 | Exact selectors only, thinking from the current reply, stops on Qwen's error messages, shows the model name the page shows. |
+| [DeepSeek](deepseek) | 2.0.0 | Provider. Exact selectors, finish detection, DeepThink and Search options in any page language, source numbers like "-18" stripped. Stops at once when DeepSeek refuses a message ("Content too long") or shows its human check. No model name on the page, so none is shown. |
+| [Qwen Chat](qwen-chat) | 2.0.0 | Provider. Exact selectors only, thinking from the current reply, stops on Qwen's error messages, shows the model name the page shows. |
+| [Chat screen](chat-ui) | 3.0.0 | Core plugin: the whole screen. |
+| [Profiles](core-profiles) | 2.0.0 | Core plugin: profiles, blocks, templates, the prompt library. |
+| Sending, Chat file, History, Local API jobs, Markdown | 2.0.0 | Core plugins (`core-*`). |
+
+Since 2026-11-20 the plugin files use the new words (`tags`, `provider`, `options`, `contentScript`, `toggle`), so these versions need app 0.7.0-alpha47 or newer (`minApp` in `index.json`).
 
 ## Layout
 
-One folder per site, named by plugin id:
+One folder per plugin, named by its id. A provider:
 
 ```
 <id>/
-  plugin.json   selectors for each part of the page, settings, version
-  site.js       optional: code for things selectors can't do
+  plugin.json   tags ["provider"], the provider description (selectors, options), settings, version
+  content.js    optional: its content script, for things selectors can't do
 ```
 
 Version numbers only go up. The app's updater keeps the higher number.
 
-`index.json` lists every plugin for the app's "Get site plugins" sheet: `id`, `name`, `path` (its folder), `version` (same as its plugin.json), `default` (ticked for new users) and a one-line `note`. Change it together with the plugin.
+`index.json` lists every plugin for the app's Library: `id`, `name`, `tags`, `path` (its folder), `version` (same as its plugin.json), `minApp`, `default` (ticked for new users), a one-line `note` and its `sha256`. Change it together with the plugin.
 
 ## Hashes
 

@@ -103,7 +103,7 @@
       "minApp": "0.7.0-alpha47",
       "default": false,
       "note": "What goes to the provider: a profile's blocks (System prompts, plugins and your message) in order, with groups, toggles, templates and the prompt library.",
-      "sha256": "e7bbd7776d10ba6474acd4d442d9e754a67a50c180f3f129cc0f74826acd50bb"
+      "sha256": "3c3b51e333ad1ee5f569519b26db7d841f7f6486da9ec67ef3bc1c4c0fedac75"
     },
     {
       "id": "core-send",
