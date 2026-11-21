@@ -1,0 +1,21 @@
+{
+  "id": "runtime-profiles",
+  "name": "Profiles",
+  "version": "1.0.0",
+  "description": "Profiles: building the message from a profile's blocks, the preview, profiles made from templates (the shipped ones and yours), and the model list.",
+  "tags": ["runtime"],
+  "pp": 1,
+  "order": 30,
+  "files": [
+    "profiles.js",
+    "templates.json",
+    "templates/editor.md",
+    "templates/development.md",
+    "templates/scene-rules.md",
+    "templates/dialogue-craft.md",
+    "templates/prose-craft.md",
+    "templates/prose-style.md",
+    "templates/bridge.md",
+    "templates/co-writer.md"
+  ]
+}

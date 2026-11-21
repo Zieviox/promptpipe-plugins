@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "templates": [
+    {
+      "id": "plain",
+      "name": "Plain",
+      "blocks": [
+        {
+          "type": "prompt",
+          "name": "Master system prompt",
+          "text": "",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "message"
+        }
+      ]
+    },
+    {
+      "id": "feedback",
+      "name": "Writing feedback",
+      "blocks": [
+        {
+          "type": "prompt",
+          "name": "Master system prompt",
+          "text": "",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Editor",
+          "text_file": "editor",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "plugin",
+          "plugin": "base64",
+          "scope": "above",
+          "on": false
+        },
+        {
+          "type": "message"
+        }
+      ]
+    },
+    {
+      "id": "dialogue",
+      "name": "Dialogue & Role play",
+      "blocks": [
+        {
+          "type": "prompt",
+          "name": "Master system prompt",
+          "text": "",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Development",
+          "text_file": "development",
+          "send": "first",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Scene rules",
+          "text_file": "scene-rules",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Dialogue craft",
+          "text_file": "dialogue-craft",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Characters and setting",
+          "text": "",
+          "send": "first",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "plugin",
+          "plugin": "memory",
+          "scope": "above",
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Reminder",
+          "text": "(Stay in character, and don't write for my character.)",
+          "send": "every_n",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "plugin",
+          "plugin": "base64",
+          "scope": "above",
+          "on": false
+        },
+        {
+          "type": "message"
+        }
+      ]
+    },
+    {
+      "id": "story",
+      "name": "Story & Prose",
+      "blocks": [
+        {
+          "type": "prompt",
+          "name": "Master system prompt",
+          "text": "",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Co-writer",
+          "text_file": "co-writer",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Development",
+          "text_file": "development",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Prose style",
+          "text_file": "prose-style",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Bridge",
+          "text_file": "bridge",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Dialogue craft",
+          "text_file": "dialogue-craft",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Prose craft",
+          "text_file": "prose-craft",
+          "send": "every",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "prompt",
+          "name": "Story notes",
+          "text": "",
+          "send": "first",
+          "number": 5,
+          "on": true
+        },
+        {
+          "type": "plugin",
+          "plugin": "memory",
+          "scope": "above",
+          "on": true
+        },
+        {
+          "type": "plugin",
+          "plugin": "base64",
+          "scope": "above",
+          "on": false
+        },
+        {
+          "type": "message"
+        }
+      ]
+    }
+  ]
+}

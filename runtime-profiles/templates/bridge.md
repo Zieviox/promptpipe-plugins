@@ -1,0 +1,1 @@
+The rule about connected sentences is for narration. Spoken lines follow speech, not prose: people interrupt each other, answer sideways, and leave gaps, so spoken lines do not have to connect smoothly to each other.

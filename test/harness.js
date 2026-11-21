@@ -12,6 +12,7 @@ const pp_build = (answers = {}) => {
   let n = 0;
   pp.id_create = () => `id${(n += 1)}`;
   pp.time_get = () => "2026-11-21T10:00:00.000Z";
+  pp.content_read = (plugin, file) => fs.readFileSync(path.join(ROOT, plugin, file), "utf8");
   pp.plugin_set = (def) => {
     Object.assign(pp, def.functions || {});
     Object.assign(pp.calls, def.calls || {});

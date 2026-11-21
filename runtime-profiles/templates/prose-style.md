@@ -1,0 +1,1 @@
+Write rhyme, not facts. Carry the pacing by emotion. And every sentence MUST be naturally connected to the other, and by that I mean: connect via the context and flow itself. No fragmented prose allowed.
