@@ -1130,7 +1130,7 @@ ${p.text}</textarea
         item({
           key: g.id,
           label: g.title,
-          sub: `${g.stages.length} steps`,
+          sub: `${g.stages.length} tips`,
           right: (PP.setting_get(state, "help.seen") || []).includes(g.id) ? "Seen" : "New",
           onClick: () => PP.tour_start(g.id),
         }),

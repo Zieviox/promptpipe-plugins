@@ -1,13 +1,13 @@
 "use strict";
 // The old app's content, imported once (X5). Its folders (/sdcard/PromptPipe and its own external
-// folder) get a .nomedia marker and are zipped whole into .promptpipe/backups/; then its
+// legacy: folder) get a .nomedia marker and are zipped whole into .promptpipe/backups/; then its
 // config.json (settings, profiles in every earlier shape, provider settings), the prompt library,
 // and every chat file with its Memory summaries come in. Chats already here are skipped, so an
 // import that stops part way loses nothing when it runs again. Old names are read once here and
 // nowhere else in the app.
 
 const ID = "old-app-import";
-const PACKAGE = "dev.zieviox.promptpipe";
+const PACKAGE = "dev.zieviox.promptpipe"; // legacy
 const DONE = "import.old";
 
 const device = (call, data) => PP.call_send(call, { root: "device", ...data });
@@ -72,7 +72,7 @@ const folder_back_up = async (base) => {
     const [file] = await device("file_read", { path, encoding: "base64" });
     files[path.slice(base.length + 1)] = bytes_from(file.data);
   }
-  const name = `.promptpipe/backups/old-app-${base.includes("/Android/") ? "own" : "shared"}-${PP.time_get().slice(0, 10)}.zip`;
+  const name = `.promptpipe/backups/old-app-${base.includes("/Android/") ? "own" : "shared"}-${PP.time_get().slice(0, 10)}.zip`; // legacy
   const data = base64_from(globalThis.fflate.zipSync(files, { level: 1 }));
   await PP.call_send("file_write", { root: "app", path: name, data, encoding: "base64" });
   return name;
@@ -111,27 +111,27 @@ const plugin_settings_move = (state, plugin, saved = {}) => {
   return out;
 };
 
-// Every earlier shape of a profile's list as rows: blocks, `pipe.rows`, or the plugins that were on.
+// legacy: Every earlier shape of a profile's list as rows: blocks, `pipe.rows`, or the plugins that were on.
 const rows_get = (profile) => {
   if (Array.isArray(profile.blocks) && profile.blocks.length) return profile.blocks;
-  if (profile.pipe) return profile.pipe.rows || [];
+  if (profile.pipe) return profile.pipe.rows || []; // legacy
   if (Array.isArray(profile.plugins))
     return [
       { type: "message" },
-      ...profile.plugins.filter((p) => p.on).map((p) => ({ type: "step", plugin: p.id })),
+      ...profile.plugins.filter((p) => p.on).map((p) => ({ type: "step", plugin: p.id })), // legacy
     ];
   return [{ type: "message" }];
 };
 
-// Old rows as blocks: pieces and prompts are System prompts, steps and plugins are plugin blocks,
-// and the System prompt plugin's stack becomes linked blocks where its row sat.
+// legacy: Old rows as blocks: pieces and prompts are System prompts, steps and plugins are plugin blocks,
+// legacy: and the System prompt plugin's stack becomes linked blocks where its row sat.
 const blocks_build = (profile, id) => {
-  const system = (profile.pluginSettings || {})["system-prompt"] || {};
+  const system = (profile.pluginSettings || {})["system-prompt"] || {}; // legacy
   const out = [];
   const common = (r) => ({ profile: id, group: r.group || "", on: r.on !== false });
   for (const r of rows_get(profile)) {
     if (r.type === "message") out.push({ id: PP.id_create(), profile: id, type: "message" });
-    else if (r.type === "prompt" || r.type === "piece")
+    else if (r.type === "prompt" || r.type === "piece" /* legacy */)
       out.push({
         ...common(r),
         id: r.id || PP.id_create(),
@@ -142,7 +142,7 @@ const blocks_build = (profile, id) => {
         send: r.when || "every",
         number: r.n ?? 5,
       });
-    else if (r.plugin === "system-prompt") {
+    else if (r.plugin === "system-prompt" /* legacy */) {
       const send = system.when === "every" ? "every" : "first";
       for (const link of system.stack || [])
         out.push({ ...common(r), id: PP.id_create(), type: "prompt", link, send, number: 5 });
@@ -193,7 +193,7 @@ const config_import = (state, old) => {
     return {
       profile: { id, name: p.name || "Profile", plugin_settings },
       blocks: blocks_build(p, id),
-      groups: (p.groups || (p.pipe || {}).groups || []).map((g) => ({ ...g, profile: id })),
+      groups: (p.groups || (p.pipe || {}).groups || []).map((g) => ({ ...g, profile: id })), // legacy
     };
   });
   if (ids.has(old.activeProfile)) settings["chats.profile"] = ids.get(old.activeProfile);
@@ -249,7 +249,7 @@ const chat_file_parse = (text) => {
       )
         .map(yaml_value)
         .filter(Boolean);
-    else if (kv[1] === "toggles" || kv[1] === "switches")
+    else if (kv[1] === "toggles" || kv[1] === "switches" /* legacy */)
       meta.toggles = Object.fromEntries(
         [...String(yaml_value(kv[2])).matchAll(/(\S+)=(on|off)/g)].map((m) => [
           m[1],
@@ -267,8 +267,8 @@ const chat_file_parse = (text) => {
       info = JSON.parse(parts[i]);
     } catch {}
     const sections = {};
-    const pieces = (parts[i + 1] || "").split(/^<!-- pp:(you|think|ai|raw) -->[ \t]*$/m);
-    for (let j = 1; j < pieces.length; j += 2) sections[pieces[j]] ??= pieces[j + 1];
+    const pieces = (parts[i + 1] || "").split(/^<!-- pp:(you|think|ai|raw) -->[ \t]*$/m); // legacy
+    for (let j = 1; j < pieces.length; j += 2) sections[pieces[j]] ??= pieces[j + 1]; // legacy
     const drop = (s) => (s || "").replace(/^\s*###[^\n]*\n/, "").trim();
     const fences = [...(sections.raw || "").matchAll(/^(`{4,})text\n([\s\S]*?)\n\1$/gm)].map(
       (f) => f[2],
@@ -380,7 +380,7 @@ const old_import = async () => {
   let next = old ? config_import(PP.state_get(), old) : PP.state_get();
   const library =
     (await json_read(`${chats[0]}/prompt-library.json`)) ||
-    (await json_read(`${chats[0]}/system-prompts.json`));
+    (await json_read(`${chats[0]}/system-prompts.json`)); // legacy
   const known = new Set(next.prompts.map((p) => p.id));
   const prompts = ((library && library.prompts) || [])
     .filter((p) => !known.has(p.id))
@@ -428,7 +428,7 @@ const folders_delete = async (state, data) => {
   if (!folders.length) return PP.toast("No old app folders were found");
   if (data.choice !== "yes")
     return PP.dialog_open({
-      title: `Delete ${folders.join(" and ")}? Their backups stay in .promptpipe/backups.`,
+      title: `Delete ${folders.join(" and ")}? Their backups stay in .promptpipe/backups.`, // legacy
       choices: [["yes", "Delete"]],
       command: "old_app_delete",
     });

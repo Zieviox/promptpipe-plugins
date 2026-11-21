@@ -33,4 +33,4 @@ out = os.path.join(ROOT, "catalogue.json")
 with open(out, "w", encoding="utf-8") as f:
     json.dump({"version": 1, "entries": entries}, f, indent=2, ensure_ascii=False)
     f.write("\n")
-print(f"catalogue.json: {len(entries)} plugins; sign it with tools/catalogue_sign.py")
+print(f"catalogue.json: {len(entries)} plugins; sign it with scripts/catalogue_sign.py")

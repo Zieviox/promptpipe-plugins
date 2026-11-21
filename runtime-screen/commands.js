@@ -232,7 +232,7 @@ const COMMANDS = [
   C("stop", "Stop waiting", "Message box", "", send_stop),
 ];
 
-// What a dialog's OK or a row runs with its data (the dialog adds the text typed as `value` and
+// What a dialog's OK or a sheet's item runs with its data (the dialog adds the text typed as `value` and
 // the button pressed as `choice`); not listed in Find.
 const RUNS = {
   folder_create: (s, d) => PP.folder_create(s, d.value),

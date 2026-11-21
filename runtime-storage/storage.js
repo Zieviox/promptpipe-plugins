@@ -117,7 +117,7 @@ const storage_verify = async () => {
 // After loading: the provider's site page in the background, so it's ready to log in or send
 // (UC9), and the plugins' update check when it's due (UC31).
 const app_start_run = async (state) => {
-  // Plugins' own first steps (the old app's import, X5) before anything else.
+  // What plugins do first (the old app's import, X5), before anything else.
   if (PP.hook_run) await PP.hook_run("app_start", null, {}).catch((e) => console.error(e));
   state = PP.state_get() || state;
   const id = PP.provider_get(state, null);

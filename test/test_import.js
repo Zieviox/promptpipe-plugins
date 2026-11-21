@@ -1,6 +1,6 @@
 "use strict";
 // The old app's import on a stand-in phone: an old folder with config.json (a profile in the
-// `pipe.rows` shape with the System prompt plugin's stack), the prompt library, a chat file in the
+// legacy: `pipe.rows` shape with the System prompt plugin's stack), the prompt library, a chat file in the
 // old format and its Memory summaries. It's backed up, marked, imported once, and not twice.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -76,23 +76,25 @@ const files_build = () => ({
         id: "p1",
         name: "Writer",
         pipe: {
+          // legacy
           groups: [],
           rows: [
-            { type: "step", plugin: "system-prompt", on: true },
-            { type: "piece", name: "Style", text: "Short.", when: "every" },
-            { type: "step", plugin: "memory", on: true },
+            // legacy
+            { type: "step", plugin: "system-prompt", on: true }, // legacy
+            { type: "piece", name: "Style", text: "Short.", when: "every" }, // legacy
+            { type: "step", plugin: "memory", on: true }, // legacy
             { type: "message" },
           ],
         },
         pluginSettings: {
-          "system-prompt": { stack: ["lib1"], when: "first" },
+          "system-prompt": { stack: ["lib1"], when: "first" }, // legacy
           base64: { keepOnFail: false },
         },
       },
     ],
   }),
   [`${OLD}/history/prompt-library.json`]: JSON.stringify({
-    promptpipe: "prompt-library",
+    promptpipe: "prompt-library", // legacy
     prompts: [{ id: "lib1", name: "Master", text: "Be kind." }],
   }),
   [`${OLD}/history/stories/Story ideas.md`]: CHAT,
