@@ -337,7 +337,7 @@ const reply_changed = (event) => {
     sends: s.sends.map((x) => (x.id === send.id ? reply_apply(x, event) : x)),
   }));
   if (send.job)
-    PP.event_send("job_changed", { job: send.job, status: "sending", part: event.reply });
+    PP.event_send("job_changed", { job: send.job, status: "sending", reply: event.reply });
 };
 
 PP.plugin_set({

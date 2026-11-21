@@ -1,0 +1,10 @@
+{
+  "id": "runtime-plugins",
+  "name": "Plugins",
+  "version": "1.0.0",
+  "description": "Plugins: the sources' catalogues, installing from a catalogue, a link, a zip or an AI's answer, updating, going back, and copying a built-in plugin to change it.",
+  "tags": ["runtime"],
+  "pp": 1,
+  "order": 50,
+  "files": ["vendor/fflate.js", "plugins.js"]
+}

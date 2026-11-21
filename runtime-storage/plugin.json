@@ -1,0 +1,10 @@
+{
+  "id": "runtime-storage",
+  "name": "Storage",
+  "version": "1.0.0",
+  "description": "Storage: outside changes answered in one dialog, the local API's token, connections, the storage check, and the first things after the app starts.",
+  "tags": ["runtime"],
+  "pp": 1,
+  "order": 60,
+  "files": ["storage.js"]
+}
