@@ -211,13 +211,41 @@ const chats_folder_move = async (state, { folder, how }) => {
 
 // ---------- a chat's turns ----------
 
-// Read a chat's turns into the State once (record_get on chats brings them, UC16).
+// Read a chat's turns and its plugins' data into the State once (record_get on chats brings
+// them, UC16; plugin data D6).
 const chat_load = async (id) => {
   if ((PP.state_get().loaded || []).includes(id)) return;
-  const path = `.promptpipe/chats/${id}/turns.json`;
-  const [file] = await PP.call_send("file_read", { root: "chats", path });
-  const turns = file ? JSON.parse(file.data) : [];
-  PP.state_set((s) => ({ ...s, turns: [...s.turns, ...turns], loaded: [...(s.loaded || []), id] }));
+  const dir = `.promptpipe/chats/${id}`;
+  const files = await PP.call_send("file_read", { root: "chats", pattern: `${dir}/*.json` });
+  const name = (f) =>
+    f.path
+      .split("/")
+      .pop()
+      .replace(/\.json$/, "");
+  const turns_file = files.find((f) => name(f) === "turns");
+  const turns = turns_file ? JSON.parse(turns_file.data) : [];
+  const data = files
+    .filter((f) => !["turns", "meta"].includes(name(f)))
+    .map((f) => ({ id: `${id}/${name(f)}`, chat: id, plugin: name(f), data: JSON.parse(f.data) }));
+  PP.state_set((s) => ({
+    ...s,
+    turns: [...s.turns, ...turns],
+    chat_data: [...(s.chat_data || []).filter((d) => d.chat !== id), ...data],
+    loaded: [...(s.loaded || []), id],
+  }));
+};
+
+// A plugin's data for a chat (D6), and the operation that sets it.
+const chat_data_get = (state, chat, plugin) =>
+  ((state.chat_data || []).find((d) => d.id === `${chat}/${plugin}`) || {}).data;
+
+const chat_data_set = (state, chat, plugin, data) => {
+  const id = `${chat}/${plugin}`;
+  const chat_data = [
+    ...(state.chat_data || []).filter((d) => d.id !== id),
+    { id, chat, plugin, data },
+  ];
+  return { state: { ...state, chat_data }, targets: [{ file: "chat_data", id }, { chat }] };
 };
 
 // ---------- the files a chat is saved as ----------
@@ -264,6 +292,8 @@ PP.plugin_set({
     chats_folder_move,
     chat_files_build,
     chat_load,
+    chat_data_get,
+    chat_data_set,
   },
   calls: {
     chat_find: (d, state) => chat_find(state, d.query),

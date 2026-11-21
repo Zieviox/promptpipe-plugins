@@ -1,0 +1,7 @@
+/* Ember: warm dark, amber accent. Only the screen's colour tokens (runtime-screen/screen.css). */
+:root[data-theme="ember"] {
+  --bg: #120f0d; --raise: #1c1815; --raise2: #251f1b; --line: #2e2723; --focus: #463b34;
+  --text: #ece4dc; --muted: #a3968b; --accent: #f0a35e; --on-accent: #120f0d;
+  --ok: #9ccf7a; --error: #ff8a7a; --warn: #f0c86e;
+  color-scheme: dark;
+}

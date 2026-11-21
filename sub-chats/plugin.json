@@ -1,0 +1,8 @@
+{
+  "id": "sub-chats",
+  "name": "Sub-chats",
+  "version": "4.0.0",
+  "description": "One chat across several site chats: start a fresh site chat (on any provider) when one gets long, go back to an earlier one, or branch from a reply. The chat file stays one, with a divider where each sub-chat starts.",
+  "pp": 1,
+  "files": ["sub-chats.js"]
+}

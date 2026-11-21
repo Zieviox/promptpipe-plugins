@@ -154,7 +154,8 @@ const plugin_install = async (state, from) => {
     entry: from.entry || null,
   });
   const blocks =
-    !taken && !manifest.tags.some((t) => ["provider", "theme", "passive", "runtime"].includes(t));
+    !taken &&
+    !(manifest.tags || []).some((t) => ["provider", "theme", "passive", "runtime"].includes(t));
   if (!blocks) return { plugin };
   const profile = PP.profile_get(state, null);
   const fields = {

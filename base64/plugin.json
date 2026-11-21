@@ -1,0 +1,36 @@
+{
+  "id": "base64",
+  "name": "Base64",
+  "version": "3.0.0",
+  "description": "Asks the AI to answer in base64 (and encodes your message), then decodes the reply; small mistakes in the base64 are repaired unless set to strict. \"Decode base64\" is under every reply, even when it's off.",
+  "pp": 1,
+  "files": ["base64.js"],
+  "settings": [
+    {
+      "key": "encode",
+      "type": "toggle",
+      "label": "Encode my message too",
+      "default": true,
+      "old_keys": ["encodePrompt"]
+    },
+    {
+      "key": "instruction",
+      "type": "text",
+      "label": "Instruction added to the message",
+      "default": "Reply with base64 only: encode your whole answer as UTF-8 base64. No plain text, no code block, no explanation outside the base64."
+    },
+    {
+      "key": "strict",
+      "type": "toggle",
+      "label": "Strict (fail on any damage instead of repairing)",
+      "default": false
+    },
+    {
+      "key": "keep",
+      "type": "toggle",
+      "label": "Show the raw reply if decoding fails",
+      "default": true,
+      "old_keys": ["keepOnFail"]
+    }
+  ]
+}

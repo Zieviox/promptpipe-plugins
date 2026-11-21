@@ -222,10 +222,21 @@ const chat_render = (state) => {
   const id = state.ui.chat;
   const turns = state.turns.filter((t) => t.chat === id);
   const sends = state.sends.filter((s) => s.chat === id && s.chat);
+  const hooks = state.plugins.map((p) => PP.hook_get(p.id, "turn_render")).filter(Boolean);
   const body =
     turns.length || sends.length
       ? [
-          ...turns.map((t, i) => turn_render(state, t, i === turns.length - 1)),
+          ...turns.flatMap((t, i) => {
+            // A plugin's `turn_render` hook adds parts before and after a turn (dividers, notes).
+            const context = { chat: PP.chat_get(state), turns, index: i };
+            const parts = hooks.map((hook) => hook(t, context) || {});
+            const last = i === turns.length - 1;
+            return [
+              ...parts.map((p) => p.before),
+              turn_render(state, t, last),
+              ...parts.map((p) => p.after),
+            ];
+          }),
           ...sends.map((s) => send_render(state, s)),
         ]
       : html`<div class="empty">Say hello: type a message and send.</div>`;

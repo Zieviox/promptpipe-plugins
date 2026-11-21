@@ -1,0 +1,7 @@
+/* Paper: warm paper, ink text, blue ink accent. Only the screen's colour tokens. */
+:root[data-theme="paper"] {
+  --bg: #f6f4ef; --raise: #ebe8e1; --raise2: #e2ded5; --line: #d9d4ca; --focus: #c4beb2;
+  --text: #1f2024; --muted: #5f6168; --accent: #3f51c9; --on-accent: #ffffff;
+  --ok: #2a7f52; --error: #b83636; --warn: #7d5a00; --scrim: rgba(0, 0, 0, .25);
+  color-scheme: light;
+}

@@ -36,6 +36,7 @@ const message_send = (draft) => {
     attachments: draft.attachments || [],
     replaces: draft.replaces || null,
     profile: draft.profile || null,
+    plain: !!draft.plain, // a side request sent as it is, without the profile's blocks
     job: draft.job || null,
     status: "queued",
     at: PP.time_get(),
@@ -119,7 +120,12 @@ const send_run = async (id) => {
   let waiting = false;
   try {
     const route = (await PP.hook_run("chat_route", null, { chat, message: send.message })) || {};
-    const own = { ...(chat ? chat.own : {}), ...(route.profile && { profile: route.profile }) };
+    // A route can pick the profile, or lend only a provider (its site and model, UC44).
+    const own = {
+      ...(chat ? chat.own : {}),
+      ...(route.profile && { profile: route.profile }),
+      ...(route.provider && { provider: route.provider, model: undefined }),
+    };
     const view = chat ? { ...chat, own } : send.profile ? { own: { profile: send.profile } } : null;
     const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, view));
     if (!plugin)
@@ -128,7 +134,9 @@ const send_run = async (id) => {
     const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
     const first = !chat || !turns.length || route.url === "new";
     const context = { chat: view, message: send.message, count: turns.length + 1, first };
-    const built = await PP.message_build(state, context, PP.hook_get);
+    const built = send.plain
+      ? { text: send.message, trace: [], notes: [], blocks: [] }
+      : await PP.message_build(state, context, PP.hook_get);
     let answer;
     if (plugin.manifest.tags.includes("api")) {
       PP.state_set((s) =>

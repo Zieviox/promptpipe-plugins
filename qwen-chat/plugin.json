@@ -1,0 +1,55 @@
+{
+  "id": "qwen-chat",
+  "name": "Qwen Chat",
+  "version": "3.0.0",
+  "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
+  "tags": ["provider", "web"],
+  "pp": 1,
+  "files": ["site.js"],
+  "content_script": "site.js",
+  "provider": {
+    "url": "https://chat.qwen.ai/",
+    "chat_urls": ["https://chat.qwen.ai/c/*"],
+    "accepts": { "types": [], "max": 0 },
+    "settle_ms": 500,
+    "selectors": {
+      "input": ["textarea.message-input-textarea", "textarea#chat-input"],
+      "send": ["button.send-button:not(.disabled)", "#send-message-button"],
+      "stop": ["#stop-message-button"],
+      "reply": [
+        ".response-message-content.phase-answer",
+        ".chat-response-message .custom-qwen-markdown",
+        ".chat-response-message .qwen-markdown"
+      ],
+      "user": [".chat-user-message .user-message-content", ".user-message-content"],
+      "thinking": [
+        ".qwen-chat-thinking-and-sources-content-thinking-container",
+        ".response-message-content.phase-think",
+        ".response-message-content.phase-thinking"
+      ],
+      "chat_links": ["a[href*='/c/']"],
+      "model": [".mms-trigger__name"]
+    },
+    "model_picker": {
+      "open": [".mms-trigger"],
+      "items": [
+        "[class*='mms'] [role=option]",
+        "[class*='mms'] [role=menuitem]",
+        "[class*='mms-item']"
+      ]
+    },
+    "options": [
+      { "name": "Thinking", "selector": "button", "text": "Thinking" },
+      { "name": "Search", "selector": "button", "text": "Search" }
+    ]
+  },
+  "settings": [
+    {
+      "key": "reply_selector",
+      "type": "text",
+      "label": "Reply selector (tried first)",
+      "default": "",
+      "description": "A CSS selector for one reply, if replies aren't found."
+    }
+  ]
+}

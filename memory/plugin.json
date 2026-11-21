@@ -1,0 +1,135 @@
+{
+  "id": "memory",
+  "name": "Memory",
+  "version": "4.0.0",
+  "description": "Puts your pinned facts and the earlier chat in front of every message, so a fresh site chat has the context. Below the maximum everything goes in full; above it, recent messages stay word for word and older ones go in as summaries, coarser the older they are. Summaries are made once, in the background, and show at the end of the chat file, where you can correct them.",
+  "pp": 1,
+  "files": ["memory.js"],
+  "settings": [
+    {
+      "key": "pinned",
+      "type": "text",
+      "label": "Pinned facts (always sent)",
+      "default": "",
+      "description": "One fact per line. Sent first, never cut or summarised."
+    },
+    {
+      "key": "every",
+      "type": "number",
+      "label": "Send memory every N messages",
+      "default": 1,
+      "min": 1,
+      "description": "1 = every message. Use a higher number if the AI website keeps the chat itself. A new site chat (a new sub-chat) always gets it."
+    },
+    {
+      "key": "send",
+      "type": "choice",
+      "label": "What to send",
+      "default": "all",
+      "choices": [
+        {
+          "value": "all",
+          "label": "Everything"
+        },
+        {
+          "value": "unseen",
+          "label": "Only what this site chat hasn't seen"
+        }
+      ],
+      "description": "The second leaves out messages that already went to this site chat (it has them), which saves room with Sub-chats."
+    },
+    {
+      "key": "names",
+      "type": "toggle",
+      "label": "Name the AI on each line when the chat used more than one site",
+      "default": true
+    },
+    {
+      "key": "budget",
+      "type": "number",
+      "label": "Max characters of memory",
+      "default": 50000,
+      "min": 1000,
+      "description": "Nothing is summarised below this. Pinned facts count too."
+    },
+    {
+      "key": "recent",
+      "type": "number",
+      "label": "Recent turns sent in full",
+      "default": 6,
+      "min": 0,
+      "description": "Only used once the memory goes over the max: these stay word for word, older ones get summarised."
+    },
+    {
+      "key": "ahead",
+      "type": "number",
+      "label": "Start summarising this many messages before the max",
+      "default": 6,
+      "min": 0,
+      "description": "Uses the chat's average message size. Parts are summarised in the background after a reply, so they're ready when the max is reached and sends don't wait for them. 0 = only at the max."
+    },
+    {
+      "key": "overflow",
+      "type": "choice",
+      "label": "Over the max",
+      "default": "summary",
+      "choices": [
+        {
+          "value": "summary",
+          "label": "Summarise older messages in parts (another chat on the site)"
+        },
+        {
+          "value": "clip",
+          "label": "Clip older messages, drop the oldest (no extra chat)"
+        }
+      ]
+    },
+    {
+      "key": "chunk",
+      "type": "number",
+      "label": "Messages per summary part",
+      "default": 10,
+      "min": 2,
+      "description": "Level 1 summarises this many messages, level 2 this many level-1 parts, and so on. Parts are fixed: each is made once."
+    },
+    {
+      "key": "sides",
+      "type": "choice",
+      "label": "Summaries",
+      "default": "apart",
+      "choices": [
+        {
+          "value": "apart",
+          "label": "Your side and the AI's side apart (a summary request for each)"
+        },
+        {
+          "value": "together",
+          "label": "One summary of both sides"
+        }
+      ],
+      "description": "Apart: each part is summarised twice, once from only your messages and once from only the AI's, so the two can't be mixed up (two requests per part). In a profile, Add a block › Memory's texts puts Pinned facts, Your side, AI side and Recent messages in rows of their own."
+    },
+    {
+      "key": "summary_plugins",
+      "type": "toggle",
+      "label": "Run the profile's plugins on the summary request (e.g. Base64)",
+      "default": false,
+      "old_keys": ["summaryHooks"]
+    },
+    {
+      "key": "request",
+      "type": "text",
+      "label": "Summary request (sent with each part)",
+      "default": "Summarise this part of a conversation so it can continue in a new chat that only sees summaries. Keep every name, fact, decision and promise, what each character wants and knows, open threads, the situation at the end of this part and the user's preferences. Leave out small talk. Write plain text, as short as possible without losing any of that. Reply with the summary only.",
+      "description": "Goes after the summary's system prompts, before the turns.",
+      "old_keys": ["summaryPrompt"]
+    },
+    {
+      "key": "clip",
+      "type": "number",
+      "label": "Characters kept of each older turn (Clip mode, or if a summary fails)",
+      "default": 200,
+      "min": 20
+    }
+  ]
+}

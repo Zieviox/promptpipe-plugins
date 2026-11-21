@@ -14,6 +14,8 @@ const pp_build = (answers = {}) => {
   pp.time_get = () => "2026-11-21T10:00:00.000Z";
   pp.content_read = (plugin, file) => fs.readFileSync(path.join(ROOT, plugin, file), "utf8");
   pp.events = {};
+  pp.hooks = {};
+  pp.hook_get = (plugin, name) => (pp.hooks[plugin] || {})[name];
   pp.plugin_set = (def) => {
     Object.assign(pp, def.functions || {});
     Object.assign(pp.calls, def.calls || {});
@@ -39,9 +41,16 @@ const plugins_load = (ids, answers) => {
   const pp = pp_build(answers);
   for (const id of ids) {
     const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, id, "plugin.json"), "utf8"));
-    for (const file of manifest.files.filter((f) => f.endsWith(".js"))) {
+    // Each plugin gets its own PP whose plugin_set also keeps its hooks, as the loader does.
+    const own = Object.create(pp);
+    own.plugin_set = (def) => {
+      pp.plugin_set(def);
+      pp.hooks[id] = { ...(pp.hooks[id] || {}), ...(def.hooks || {}) };
+    };
+    const page = [].concat(manifest.content_script || []);
+    for (const file of manifest.files.filter((f) => f.endsWith(".js") && !page.includes(f))) {
       const code = fs.readFileSync(path.join(ROOT, id, file), "utf8");
-      new Function("PP", code)(pp);
+      new Function("PP", code)(own);
     }
   }
   return pp;

@@ -25,6 +25,7 @@ const change_resolve = async (state, { change, choice }) => {
   }
   const [file] = await PP.call_send("file_read", { root, path });
   const chat = state.chats.find((c) => c.file === path);
+  let sections = {};
   PP.state_set((s) => {
     const next = {
       ...s,
@@ -43,13 +44,24 @@ const change_resolve = async (state, { change, choice }) => {
     const chats = next.chats.map((c) =>
       c.id === chat.id ? { ...c, name: edited.name, tags: edited.tags } : c,
     );
-    return { ...next, turns, chats, sections: { ...next.sections, [chat.id]: edited.sections } };
+    sections = edited.sections;
+    return { ...next, turns, chats };
   });
-  if (chat)
-    await PP.record_apply(
-      (s) => ({ state: s, targets: [{ chat: chat.id }] }),
-      `outside edit: ${chat.name}`,
-    );
+  if (!chat) return;
+  // A plugin's edited section (Memory's summaries) goes back into its data (D6, D7).
+  const parsed = Object.keys(sections).filter((p) => PP.hook_get(p, "chat_section_parse"));
+  for (const plugin of parsed) {
+    const parse = PP.hook_get(plugin, "chat_section_parse");
+    PP.state_set((s) => {
+      const data = parse(sections[plugin], PP.chat_data_get(s, chat.id, plugin));
+      return PP.chat_data_set(s, chat.id, plugin, data).state;
+    });
+  }
+  const data = parsed.map((p) => ({ file: "chat_data", id: `${chat.id}/${p}` }));
+  await PP.record_apply(
+    (s) => ({ state: s, targets: [{ chat: chat.id }, ...data] }),
+    `outside edit: ${chat.name}`,
+  );
 };
 
 // A new local API token: its hash in the settings (the core checks requests against it), its

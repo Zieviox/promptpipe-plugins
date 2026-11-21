@@ -1,0 +1,49 @@
+{
+  "id": "deepseek",
+  "name": "DeepSeek",
+  "version": "3.0.0",
+  "description": "The DeepSeek web chat (chat.deepseek.com) with your own login; DeepThink and Search options.",
+  "tags": ["provider", "web"],
+  "pp": 1,
+  "files": ["site.js"],
+  "content_script": "site.js",
+  "provider": {
+    "url": "https://chat.deepseek.com/",
+    "chat_urls": ["https://chat.deepseek.com/a/chat/s/*"],
+    "accepts": { "types": [], "max": 0 },
+    "selectors": {
+      "input": ["textarea.ds-scroll-area"],
+      "send": [".ds-button--primary.ds-button--circle[role=button]:not(.ds-button--disabled)"],
+      "stop": [
+        ".ds-virtual-list-visible-items > div:last-child:not(:has(> .ds-message + .ds-flex))"
+      ],
+      "reply": [".ds-assistant-message-main-content"],
+      "thinking": [".ds-message > div:has(> .ds-think-content)"],
+      "strip": [".ds-markdown-cite", "a:has(> .ds-markdown-cite)"],
+      "user": [".ds-message:not(:has(.ds-assistant-message-main-content, .ds-think-content))"],
+      "chat_links": ["a[href*='/a/chat/s/']"],
+      "model": []
+    },
+    "options": [
+      {
+        "name": "DeepThink",
+        "selector": ".ds-toggle-button:nth-child(1 of .ds-toggle-button)",
+        "text": ""
+      },
+      {
+        "name": "Search",
+        "selector": ".ds-toggle-button:nth-child(2 of .ds-toggle-button)",
+        "text": ""
+      }
+    ]
+  },
+  "settings": [
+    {
+      "key": "reply_selector",
+      "type": "text",
+      "label": "Reply selector (tried first)",
+      "default": "",
+      "description": "A CSS selector for one reply, if replies aren't found."
+    }
+  ]
+}

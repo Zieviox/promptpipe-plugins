@@ -230,14 +230,21 @@ const region_get = () => {
   };
 };
 
-const page_report_copy = async (page) => {
+// The page's outline (a provider's own report wins, UC46), headed with the provider and address,
+// for whoever fixes the provider plugin.
+const page_report_copy = async (id) => {
+  const state = PP.state_get();
+  const page = state.pages.find((p) => p.id === id);
   if (!page) return PP.toast("No page to report", true);
-  const report = await PP.call_try("site_report_build", { page });
-  if (report)
+  const report = await PP.call_try("site_report_build", { page: id });
+  const plugin = state.plugins.find((p) => p.id === page.provider);
+  const name = plugin ? plugin.manifest.name : "the site";
+  const text = report && `Page report for ${name} (${report.url})\n\n${report.report}`;
+  if (text)
     PP.call_try(
       "clipboard_write",
-      { text: typeof report === "string" ? report : JSON.stringify(report, null, 2) },
-      "Page report copied",
+      { text },
+      "Page report copied. Paste it to whoever fixes the provider plugin.",
     );
 };
 

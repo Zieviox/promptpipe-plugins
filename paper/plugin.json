@@ -1,0 +1,9 @@
+{
+  "id": "paper",
+  "name": "Paper",
+  "version": "2.0.0",
+  "description": "Warm paper, ink text, a blue ink accent.",
+  "tags": ["theme"],
+  "pp": 1,
+  "files": ["theme.css"]
+}

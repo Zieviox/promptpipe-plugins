@@ -176,6 +176,8 @@ const model_list = async (state, chat) => {
   const provider = PP.provider_get(state, chat);
   const page = state.pages.find((p) => p.provider === provider);
   const plugin = state.plugins.find((p) => p.id === provider);
+  if (plugin && plugin.manifest.tags.includes("api"))
+    return PP.hook_get(provider, "model_list")(state, chat);
   const id = page
     ? page.id
     : (await PP.call_send("page_open", { provider: PP.provider_build(state, plugin) })).id;

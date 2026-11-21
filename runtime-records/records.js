@@ -47,7 +47,7 @@ const block_on_get = (state, chat, block) => {
 const plugin_setting_get = (state, chat, plugin_id, key) => {
   const plugin = state.plugins.find((p) => p.id === plugin_id);
   const defs = plugin ? plugin.manifest.settings : [];
-  const is_provider = plugin && plugin.manifest.tags.includes("provider");
+  const is_provider = plugin && (plugin.manifest.tags || []).includes("provider");
   const saved = is_provider
     ? ((state.config.provider_choices || {})[plugin_id] || {}).settings
     : (profile_get(state, chat).plugin_settings || {})[plugin_id];
