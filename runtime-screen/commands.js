@@ -60,19 +60,8 @@ const message_send = async (state) => {
   let chat = state.ui.chat;
   if (!chat) {
     chat = PP.id_create();
-    const name = text.split("\n")[0].slice(0, 60) || "New chat";
     const folder = state.ui.folder || "";
-    const fields = {
-      name,
-      file: PP.chat_file_build(state, name, folder),
-      tags: [],
-      own: {},
-      created: PP.time_get(),
-      updated: PP.time_get(),
-    };
-    const made = await PP.apply_try((s) =>
-      PP.record_create(s, { collection: "chats", fields, id: chat }),
-    );
+    const made = await PP.apply_try((s) => PP.chat_create(s, { id: chat, message: text, folder }));
     if (!made) return;
     PP.state_set((s) => ({ ...s, loaded: [...s.loaded, chat], ui: { ...s.ui, chat } }));
   }

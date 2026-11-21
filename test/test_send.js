@@ -174,6 +174,9 @@ test("a job becomes a send in a new chat and answers with job_changed (UC41)", a
   await tick();
   const done = pp.sent.filter((s) => s.event === "job_changed").pop();
   assert.equal(done.data.status, "done");
+  const made = pp.state.chats.find((c) => c.id === done.data.chat);
+  assert.equal(made.name, "from another app");
+  assert.ok(made.created && made.updated, "an API chat is dated like any other");
   assert.equal(done.data.reply, "hi app");
   await pp.job_run({ id: "j2", request: "models" });
   assert.deepEqual(pp.sent.filter((s) => s.event === "job_changed").pop().data.models, ["Plain"]);
@@ -185,4 +188,20 @@ test("a cancelled job stops its send (#209)", async () => {
   await tick();
   await pp.job_run({ id: "j3", request: "cancel" });
   assert.ok(pp.sent.some((s) => s.name === "site_stop" && s.data.page === pending[0].d.page));
+});
+
+test("Model and options opens its page through the pool: tracked and within the limit", async () => {
+  const { pp } = world_build();
+  pp.calls.site_model_list = () => ({ models: ["a"], model: "a", options: [] });
+  const listed = await pp.model_list(pp.state, pp.state.chats[0]);
+  assert.deepEqual(listed.models, ["a"]);
+  assert.equal(pp.state.pages.length, 1, "the page it opened is in the pool");
+  await pp.model_list(pp.state, pp.state.chats[0]);
+  assert.equal(pp.state.pages.length, 1, "and is reused");
+  pp.state = {
+    ...pp.state,
+    pages: [],
+    config: { ...pp.state.config, settings: { "sites.pages": 0 } },
+  };
+  await assert.rejects(pp.model_list(pp.state, pp.state.chats[0]), { code: "resource_exhausted" });
 });

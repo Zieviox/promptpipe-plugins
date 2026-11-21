@@ -252,7 +252,7 @@ const site_bar_render = (state) => {
               ✕
             </button></span
           >`,
-      )} <button class="pill" aria-label="New page" onClick=${() => PP.page_add(state)}>＋</button>
+      )} <button class="pill" aria-label="New page" onClick=${() => PP.view_page_add(state)}>＋</button>
     </div>
     ${
       shown

@@ -72,7 +72,13 @@ const pool_remove = async (send, provider, url) => {
   const free = state.pages.filter((p) => p.provider === provider.id && !page_busy(state, p));
   const same = free.find((p) => p.url === url);
   if (same || free[0]) return (same || free[0]).id;
-  // Count the pages being opened too, so two sends can't both open the last one.
+  const page = await page_add(provider, url);
+  return page ? page.id : null;
+};
+
+// The one way to open a site page: within "Pages at once" (pages being opened count too, so two
+// sends can't both open the last one), kept in the pool. Null when there's no room.
+const page_add = async (provider, url) => {
   let room = false;
   PP.state_set((s) => {
     room = s.pages.length + (s.opening || 0) < PP.setting_get(s, "sites.pages");
@@ -82,7 +88,7 @@ const pool_remove = async (send, provider, url) => {
   try {
     const page = await PP.call_send("page_open", { url: url || provider.url, provider });
     PP.state_set((s) => ({ ...s, pages: [...s.pages, page] }));
-    return page.id;
+    return page;
   } finally {
     PP.state_set((s) => ({ ...s, opening: s.opening - 1 }));
   }
@@ -339,14 +345,8 @@ const job_run = async (job) => {
   if (!chat) {
     const folder = PP.setting_get(state, "api.folder") || "";
     const id = PP.id_create();
-    const name = job.message.split("\n")[0].slice(0, 60) || "API chat";
-    const fields = {
-      name,
-      file: PP.chat_file_build(state, name, folder),
-      tags: [],
-      own: profile ? { profile: profile.id } : {},
-    };
-    await PP.record_apply((s) => PP.record_create(s, { collection: "chats", fields, id }));
+    const own = profile ? { profile: profile.id } : {};
+    await PP.record_apply((s) => PP.chat_create(s, { id, message: job.message, folder, own }));
     chat = id;
   }
   const send = message_send({ chat, message: job.message, job: job.id });
@@ -368,6 +368,7 @@ const reply_changed = (event) => {
 
 PP.plugin_set({
   functions: {
+    page_add,
     message_send,
     queue_run,
     reply_apply,

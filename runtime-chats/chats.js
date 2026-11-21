@@ -146,14 +146,31 @@ const url_same = (a, b) => {
   return clean(a) !== "" && clean(a) === clean(b);
 };
 
+// The one way to make a chat: named (or after its first message's first line, 60 characters),
+// its file in the folder, dated (UC1, UC41).
+const chat_create = (state, { id, name, message, folder = "", own = {}, site_url, at }) => {
+  const title =
+    name ||
+    String(message || "")
+      .split("\n")[0]
+      .slice(0, 60)
+      .trim() ||
+    "New chat";
+  const time = at || PP.time_get();
+  const file = chat_file_build(state, title, folder);
+  const fields = { name: title, file, tags: [], own, created: time, updated: time };
+  return PP.record_create(state, {
+    collection: "chats",
+    id,
+    fields: { ...fields, ...(site_url && { site_url }) },
+  });
+};
+
 // The chat already linked to this site chat, or a new one linked to it.
 const site_chat_open = (state, { provider, url, name, id, at }) => {
   const known = state.chats.find((c) => url_same(c.site_url, url));
   if (known) return { state, record: known, targets: [] };
-  const file = chat_file_build(state, name || "Site chat", "");
-  const fields = { name: name || url, file, site_url: url, own: { provider }, tags: [] };
-  const dated = { ...fields, created: at, updated: at };
-  return PP.record_create(state, { collection: "chats", fields: dated, id });
+  return chat_create(state, { id, name: name || url, own: { provider }, site_url: url, at });
 };
 
 // The page's messages into the chat (all of them, or the newest); with save off, the newest
@@ -286,6 +303,8 @@ PP.plugin_set({
     chat_find,
     folder_move,
     chat_file_build,
+    chat_create,
+    url_same,
     site_chat_open,
     site_chat_import,
     attachment_add,

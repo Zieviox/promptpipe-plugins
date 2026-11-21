@@ -198,23 +198,14 @@ const chats_delete = async (ids) => {
   PP.toast(gone.length === 1 ? "Chat deleted" : `${gone.length} chats deleted`);
 };
 
-// Another page of the shown page's provider, up to "Pages at once".
-const page_add = async (state) => {
+// Another page of the shown page's provider (the site view's ＋), through the pool's page_add.
+const view_page_add = async (state) => {
   const page = page_shown(state);
   const plugin = page && state.plugins.find((p) => p.id === page.provider);
   if (!plugin) return PP.toast("Open a provider's site first", true);
-  if (state.pages.length >= PP.setting_get(state, "sites.pages"))
-    return PP.toast("That's the most pages at once (Settings › Sites)", true);
-  const added = await PP.call_try("page_open", {
-    url: plugin.manifest.provider.url,
-    provider: PP.provider_build(state, plugin),
-  });
-  if (added)
-    PP.state_set((s) => ({
-      ...s,
-      pages: [...s.pages, added],
-      ui: { ...s.ui, site_view: { open: true, page: added.id } },
-    }));
+  const added = await PP.page_add(PP.provider_build(state, plugin), plugin.manifest.provider.url);
+  if (!added) return PP.toast("That's the most pages at once (Settings › Sites)", true);
+  PP.ui_set(() => ({ site_view: { open: true, page: added.id } }));
 };
 
 // The site view's place on the screen: under the site bar.
@@ -290,7 +281,7 @@ PP.plugin_set({
     turn_tag_add,
     chat_rename,
     chats_delete,
-    page_add,
+    view_page_add,
     region_get,
     page_report_copy,
     credential_create,

@@ -178,10 +178,13 @@ const model_list = async (state, chat) => {
   const plugin = state.plugins.find((p) => p.id === provider);
   if (plugin && plugin.manifest.tags.includes("api"))
     return PP.hook_get(provider, "model_list")(state, chat);
-  const id = page
-    ? page.id
-    : (await PP.call_send("page_open", { provider: PP.provider_build(state, plugin) })).id;
-  return PP.call_send("site_model_list", { page: id });
+  const opened = page || (await PP.page_add(PP.provider_build(state, plugin)));
+  if (!opened)
+    throw {
+      code: "resource_exhausted",
+      message: "Every page is in use: close one in the AI page, or allow more in Settings › Sites",
+    };
+  return PP.call_send("site_model_list", { page: opened.id });
 };
 
 PP.plugin_set({
