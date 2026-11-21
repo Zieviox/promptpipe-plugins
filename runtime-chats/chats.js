@@ -7,7 +7,10 @@
 // A tag ending in "#" counts up. A chat keeps "name#"; each new message gets the next number; a
 // message holds one number per counter. Counters run within each chat or across all chats, as set.
 
-const tag_clean = (raw) => String(raw || "").trim().replace(/\s+/g, "-");
+const tag_clean = (raw) =>
+  String(raw || "")
+    .trim()
+    .replace(/\s+/g, "-");
 const counter_parse = (tag) => /^(.+)#(\d*)$/.exec(tag);
 
 // The tag a chat keeps: a numbered counter tag goes back to "name#".
@@ -136,7 +139,10 @@ const folder_move = (state, ids, place) => {
 // ---------- site chats (UC13) ----------
 
 const url_same = (a, b) => {
-  const clean = (u) => String(u || "").replace(/[?#].*$/, "").replace(/\/$/, "");
+  const clean = (u) =>
+    String(u || "")
+      .replace(/[?#].*$/, "")
+      .replace(/\/$/, "");
   return clean(a) !== "" && clean(a) === clean(b);
 };
 
@@ -203,6 +209,17 @@ const chats_folder_move = async (state, { folder, how }) => {
   return { ...result, copied: (await PP.call_send("file_move", copy)).copied };
 };
 
+// ---------- a chat's turns ----------
+
+// Read a chat's turns into the State once (record_get on chats brings them, UC16).
+const chat_load = async (id) => {
+  if ((PP.state_get().loaded || []).includes(id)) return;
+  const path = `.promptpipe/chats/${id}/turns.json`;
+  const [file] = await PP.call_send("file_read", { root: "chats", path });
+  const turns = file ? JSON.parse(file.data) : [];
+  PP.state_set((s) => ({ ...s, turns: [...s.turns, ...turns], loaded: [...(s.loaded || []), id] }));
+};
+
 // ---------- the files a chat is saved as ----------
 
 // meta.json (the chat without its turns), turns.json, and the readable file.
@@ -211,9 +228,12 @@ const chat_files_build = async (state, id) => {
   const loaded = (state.loaded || []).includes(id);
   const dir = `.promptpipe/chats/${id}`;
   const read = () => PP.call_send("file_read", { root: "chats", path: `${dir}/turns.json` });
+  const [file] = loaded ? [] : await read();
   const turns = loaded
     ? state.turns.filter((t) => t.chat === id)
-    : JSON.parse((await read())[0].data);
+    : file
+      ? JSON.parse(file.data)
+      : [];
   const chat = { ...meta, turns };
   const info = {
     provider: PP.provider_get(state, chat),
@@ -243,6 +263,7 @@ PP.plugin_set({
     attachment_add,
     chats_folder_move,
     chat_files_build,
+    chat_load,
   },
   calls: {
     chat_find: (d, state) => chat_find(state, d.query),

@@ -34,11 +34,18 @@ test("a chat's text form reads back what can be edited (D1)", () => {
   assert.match(text, /> Source: \[DeepSeek\]\(https:\/\/chat.example\/c\/1\) · Model: V3/);
   assert.match(text, /## 1 · 2026-11-21 10:05/);
   assert.match(text, /````text\nSystem/);
-  const back = pp.chat_parse(text.replace("They said hello.", "They greeted me.").replace("Level 1: they met.", "Edited."));
+  const back = pp.chat_parse(
+    text.replace("They said hello.", "They greeted me.").replace("Level 1: they met.", "Edited."),
+  );
   assert.equal(back.id, "c1");
   assert.deepEqual(back.tags, ["story", "draft#"]);
   assert.deepEqual(back.turns, [
-    { id: "t1", message: "Hello ```there```", thinking: "They greeted me.", reply: chat.turns[0].reply },
+    {
+      id: "t1",
+      message: "Hello ```there```",
+      thinking: "They greeted me.",
+      reply: chat.turns[0].reply,
+    },
   ]);
   assert.deepEqual(back.sections, { memory: "Edited." });
 });
@@ -59,11 +66,18 @@ test("counting tags (UC20)", () => {
 
 test("Find's query and filters (UC18)", async () => {
   assert.deepEqual(pp.query_parse('trip "red car" #dra in:food is:ai'), {
-    words: ["trip"], phrases: ["red car"], tags: ["dra"], folder: "food", side: "ai",
+    words: ["trip"],
+    phrases: ["red car"],
+    tags: ["dra"],
+    folder: "food",
+    side: "ai",
   });
   const p2 = plugins_load(["runtime-records", "runtime-chats"], {
     file_find: () => [
-      { chat: "c1", turn: { id: "t1", at: "1", message: "red car trip", reply: "ok", tags: ["draft#1"] } },
+      {
+        chat: "c1",
+        turn: { id: "t1", at: "1", message: "red car trip", reply: "ok", tags: ["draft#1"] },
+      },
       { chat: "c2", turn: { id: "t2", at: "2", message: "trip", reply: "red car", tags: [] } },
       { chat: "c1", turn: { id: "t3", at: "3", message: "trip red car", reply: "", tags: [] } },
     ],
@@ -75,9 +89,15 @@ test("Find's query and filters (UC18)", async () => {
     ],
   };
   const found = await p2.chat_find(state, 'trip "red car" #dra');
-  assert.deepEqual(found.map((m) => m.turn.id), ["t2", "t1"]);
+  assert.deepEqual(
+    found.map((m) => m.turn.id),
+    ["t2", "t1"],
+  );
   const mine = await p2.chat_find(state, "red is:you in:food");
-  assert.deepEqual(mine.map((m) => m.turn.id), ["t3", "t1"]);
+  assert.deepEqual(
+    mine.map((m) => m.turn.id),
+    ["t3", "t1"],
+  );
 });
 
 test("moving chats keeps the order and refuses a clash (UC17)", () => {
@@ -87,7 +107,10 @@ test("moving chats keeps the order and refuses a clash (UC17)", () => {
       { id: "c2", file: "food/B.md" },
       { id: "c3", file: "B.md" },
     ],
-    folders: [{ id: "", order: ["c1", "c3"], pinned: ["c2"] }, { id: "food", order: ["c2"], pinned: [] }],
+    folders: [
+      { id: "", order: ["c1", "c3"], pinned: ["c2"] },
+      { id: "food", order: ["c2"], pinned: [] },
+    ],
   };
   const r = pp.folder_move(state, ["c1"], { folder: "food", index: 0 });
   assert.deepEqual(r.moves, [{ id: "c1", from: "A.md", to: "food/A.md" }]);

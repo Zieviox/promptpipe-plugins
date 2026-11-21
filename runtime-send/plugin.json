@@ -1,0 +1,10 @@
+{
+  "id": "runtime-send",
+  "name": "Sending",
+  "version": "1.0.0",
+  "description": "Sending: the queue of each chat, the page pool, one sequence for every send (your messages, side requests, other apps' jobs), stopping, and failed sends.",
+  "tags": ["runtime"],
+  "pp": 1,
+  "order": 40,
+  "files": ["send.js"]
+}

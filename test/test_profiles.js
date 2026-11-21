@@ -7,9 +7,18 @@ const pp = plugins_load(["runtime-records", "runtime-profiles"]);
 
 const state_build = (blocks, extra = {}) => ({
   schemas: { settings: [{ key: "chats.profile", default: "p1" }], collections: {} },
-  config: { settings: {}, profiles: [{ id: "p1", name: "Story", plugin_settings: {} }], blocks, groups: [], provider_choices: {} },
+  config: {
+    settings: {},
+    profiles: [{ id: "p1", name: "Story", plugin_settings: {} }],
+    blocks,
+    groups: [],
+    provider_choices: {},
+  },
   prompts: [{ id: "lp1", name: "Library one", text: "From the library." }],
-  plugins: [{ id: "base64", manifest: { name: "Base64", tags: [] } }, { id: "memory", manifest: { name: "Memory", tags: [] } }],
+  plugins: [
+    { id: "base64", manifest: { name: "Base64", tags: [] } },
+    { id: "memory", manifest: { name: "Memory", tags: [] } },
+  ],
   pages: [],
   ...extra,
 });
@@ -25,11 +34,23 @@ test("System prompts follow their rule; empty ones are skipped (UC23)", async ()
     block("f", { type: "prompt", text: "Off.", send: "every", on: false }),
     block("m", { type: "message" }),
   ]);
-  const later = await pp.message_build(s, { chat: null, message: "Hi", count: 2, first: false }, () => null);
+  const later = await pp.message_build(
+    s,
+    { chat: null, message: "Hi", count: 2, first: false },
+    () => null,
+  );
   assert.equal(later.text, "Always.\n\nFrom the library.\n\nHi");
-  const third = await pp.message_build(s, { chat: null, message: "Hi", count: 3, first: false }, () => null);
+  const third = await pp.message_build(
+    s,
+    { chat: null, message: "Hi", count: 3, first: false },
+    () => null,
+  );
   assert.equal(third.text, "Always.\n\nEvery third.\n\nFrom the library.\n\nHi");
-  const first = await pp.message_build(s, { chat: null, message: "Hi", count: 1, first: true }, () => null);
+  const first = await pp.message_build(
+    s,
+    { chat: null, message: "Hi", count: 1, first: true },
+    () => null,
+  );
   assert.match(first.text, /First only\./);
   assert.deepEqual(later.notes, ["Story: Always., Library one"]);
 });
@@ -43,13 +64,19 @@ test("plugins change what's above them, only the message, or picked blocks", asy
     block("p", { type: "plugin", plugin: "base64", scope: "above" }),
     block("m", { type: "message" }),
   ]);
-  assert.equal((await pp.message_build(above, { message: "hi", count: 1, first: true }, hook_get)).text, "RULES\n\nhi");
+  assert.equal(
+    (await pp.message_build(above, { message: "hi", count: 1, first: true }, hook_get)).text,
+    "RULES\n\nhi",
+  );
   const only = state_build([
     block("a", { type: "prompt", text: "rules", send: "every" }),
     block("m", { type: "message" }),
     block("p", { type: "plugin", plugin: "base64", scope: "message" }),
   ]);
-  assert.equal((await pp.message_build(only, { message: "hi", count: 1, first: true }, hook_get)).text, "rules\n\nHI");
+  assert.equal(
+    (await pp.message_build(only, { message: "hi", count: 1, first: true }, hook_get)).text,
+    "rules\n\nHI",
+  );
   const marks = [];
   const picked = state_build([
     block("a", { type: "prompt", text: "one", send: "every" }),
@@ -58,9 +85,16 @@ test("plugins change what's above them, only the message, or picked blocks", asy
     block("p", { type: "plugin", plugin: "base64", scope: "picked", picked: ["a", "message"] }),
   ]);
   const mark = { base64: { send_before: async (t, c) => (marks.push(c.pick), `[${t}]`) } };
-  const r = await pp.message_build(picked, { message: "hi", count: 1, first: true }, (id, n) => (mark[id] || {})[n]);
+  const r = await pp.message_build(
+    picked,
+    { message: "hi", count: 1, first: true },
+    (id, n) => (mark[id] || {})[n],
+  );
   assert.equal(r.text, "[one]\n\ntwo\n\n[hi]");
-  assert.deepEqual(marks, [{ i: 0, n: 2 }, { i: 1, n: 2 }]);
+  assert.deepEqual(marks, [
+    { i: 0, n: 2 },
+    { i: 1, n: 2 },
+  ]);
 });
 
 test("a plugin's text goes where its block is; depth prompts go before the message", async () => {
@@ -70,17 +104,32 @@ test("a plugin's text goes where its block is; depth prompts go before the messa
     block("m", { type: "message" }),
   ]);
   const plain = { memory: { block_text: async () => "[memory]" } };
-  const r = await pp.message_build(s, { message: "hi", count: 4, first: false }, (id, n) => (plain[id] || {})[n]);
+  const r = await pp.message_build(
+    s,
+    { message: "hi", count: 4, first: false },
+    (id, n) => (plain[id] || {})[n],
+  );
   assert.equal(r.text, "[memory]\n\nStay in character.\n\nhi");
-  const used = { memory: { block_text: async (c) => ({ text: `[memory + ${c.depth[0].text}]`, depth_used: true }) } };
-  const r2 = await pp.message_build(s, { message: "hi", count: 4, first: false }, (id, n) => (used[id] || {})[n]);
+  const used = {
+    memory: {
+      block_text: async (c) => ({ text: `[memory + ${c.depth[0].text}]`, depth_used: true }),
+    },
+  };
+  const r2 = await pp.message_build(
+    s,
+    { message: "hi", count: 4, first: false },
+    (id, n) => (used[id] || {})[n],
+  );
   assert.equal(r2.text, "[memory + Stay in character.]\n\nhi");
 });
 
 test("templates carry their texts word for word, and a profile is made from one (X6)", () => {
   const s = state_build([]);
   const story = pp.template_list(s).find((t) => t.id === "story");
-  assert.match(story.blocks.find((b) => b.name === "Co-writer").text, /^We're writing a story together\./);
+  assert.match(
+    story.blocks.find((b) => b.name === "Co-writer").text,
+    /^We're writing a story together\./,
+  );
   const made = pp.profile_create(s, { template: "dialogue", name: "Mine", id: "p9" });
   const mine = made.state.config.blocks.filter((b) => b.profile === "p9");
   assert.equal(mine.length, 9);

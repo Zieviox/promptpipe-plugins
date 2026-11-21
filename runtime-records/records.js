@@ -163,7 +163,12 @@ const record_set = (state, { collection, id, fields }) => {
   const record = fields_merge(old, fields);
   const error = record_check(record, schema);
   if (error) return error;
-  return result_build(state, schema, list.map((r) => (r === old ? record : r)), record);
+  return result_build(
+    state,
+    schema,
+    list.map((r) => (r === old ? record : r)),
+    record,
+  );
 };
 
 const record_move = (state, { collection, id, index }) => {
@@ -201,7 +206,12 @@ const record_delete = (state, { collection, id }) => {
   const list = list_get(state, schema);
   const record = list.find((r) => r.id === id);
   if (!record) return error_build("not_found", `no ${collection} "${id}"`);
-  return result_build(state, schema, list.filter((r) => r !== record), record);
+  return result_build(
+    state,
+    schema,
+    list.filter((r) => r !== record),
+    record,
+  );
 };
 
 // ---------- saving (effects) ----------
@@ -225,6 +235,7 @@ const store_save = async (state, targets) => {
   const revisions = { ...(state.revisions || {}) };
   const changes = [];
   const seen = new Set();
+  const written = [];
   for (const target of targets) {
     for (const w of await writes_build(state, target)) {
       const key = `${w.root}/${w.path}`;
@@ -233,10 +244,32 @@ const store_save = async (state, targets) => {
       const data = typeof w.data === "string" ? w.data : JSON.stringify(w.data, null, 2) + "\n";
       const r = await PP.call_send("file_write", { ...w, data, expected: revisions[key] });
       if (r.outside_change) changes.push(r.outside_change);
-      else revisions[key] = r.revision;
+      else (revisions[key] = r.revision), written.push(w);
     }
   }
-  return { revisions, changes };
+  return { revisions, changes, written };
+};
+
+// Apply a record operation to the State as it is now, save what it touched, and commit the
+// chats folder's files to the history with `message` (D2, unless "Commit on every save" is off).
+const record_apply = async (operation, message) => {
+  let result;
+  PP.state_set((state) => {
+    result = operation(state);
+    return result.error ? state : result.state;
+  });
+  if (result.error) throw result.error;
+  const saved = await store_save(PP.state_get(), result.targets);
+  PP.state_set((state) => ({
+    ...state,
+    revisions: saved.revisions,
+    changes: [...(state.changes || []), ...saved.changes],
+  }));
+  const paths = saved.written.filter((w) => w.root === "chats").map((w) => w.path);
+  if (message && paths.length && setting_get(PP.state_get(), "git.commit") !== false) {
+    await PP.call_send("repo_commit", { paths, message });
+  }
+  return result;
 };
 
 PP.plugin_set({
@@ -257,5 +290,6 @@ PP.plugin_set({
     record_copy,
     record_delete,
     store_save,
+    record_apply,
   },
 });

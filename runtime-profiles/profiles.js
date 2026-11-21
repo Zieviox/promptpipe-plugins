@@ -142,9 +142,7 @@ const template_list = (state) => {
   const shipped = JSON.parse(PP.content_read(PLUGIN, "templates.json")).templates.map((t) => ({
     ...t,
     shipped: true,
-    blocks: t.blocks.map((b) =>
-      b.text_file ? { ...b, text: text_read(b.text_file) } : b,
-    ),
+    blocks: t.blocks.map((b) => (b.text_file ? { ...b, text: text_read(b.text_file) } : b)),
   }));
   const yours = (state.config.templates || []).map((t) => ({
     ...t,

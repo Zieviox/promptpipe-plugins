@@ -13,7 +13,11 @@ const state_build = () => ({
       { key: "sites.pages", type: "number", default: 5, min: 1 },
     ],
     collections: {
-      profiles: { collection: "profiles", file: "config", fields: [{ key: "name", label: "Name", required: true }] },
+      profiles: {
+        collection: "profiles",
+        file: "config",
+        fields: [{ key: "name", label: "Name", required: true }],
+      },
       blocks: { collection: "blocks", file: "config", parent: "profile", owner: "profiles" },
       groups: { collection: "groups", file: "config", parent: "profile", owner: "profiles" },
       settings: { collection: "settings", file: "config" },
@@ -34,13 +38,29 @@ const state_build = () => ({
       { id: "b2", profile: "p2", type: "prompt", on: true, group: "g1" },
     ],
     groups: [{ id: "g1", profile: "p2", on: false }],
-    provider_choices: { deepseek: { model: "V3", options: { Search: true }, settings: { reply: "x" } } },
+    provider_choices: {
+      deepseek: { model: "V3", options: { Search: true }, settings: { reply: "x" } },
+    },
   },
   plugins: [
-    { id: "memory", manifest: { tags: [], settings: [{ key: "budget", default: 50000 }, { key: "recent", default: 6 }] } },
-    { id: "deepseek", manifest: { tags: ["provider", "web"], settings: [{ key: "reply", default: "" }] } },
+    {
+      id: "memory",
+      manifest: {
+        tags: [],
+        settings: [
+          { key: "budget", default: 50000 },
+          { key: "recent", default: 6 },
+        ],
+      },
+    },
+    {
+      id: "deepseek",
+      manifest: { tags: ["provider", "web"], settings: [{ key: "reply", default: "" }] },
+    },
   ],
-  chats: [{ id: "c1", name: "Trip", own: { profile: "p2", options: { Search: false, DeepThink: true } } }],
+  chats: [
+    { id: "c1", name: "Trip", own: { profile: "p2", options: { Search: false, DeepThink: true } } },
+  ],
   turns: [],
   sends: [],
   prompts: [],
@@ -77,7 +97,11 @@ test("create validates, set merges, null goes back to linked", () => {
   const made = pp.record_create(s, { collection: "profiles", fields: { name: "New" }, id: "p3" });
   assert.equal(made.state.config.profiles.length, 3);
   assert.deepEqual(made.targets, [{ file: "config", id: "p3" }]);
-  const set = pp.record_set(s, { collection: "chats", id: "c1", fields: { own: { profile: null } } });
+  const set = pp.record_set(s, {
+    collection: "chats",
+    id: "c1",
+    fields: { own: { profile: null } },
+  });
   assert.equal(set.record.own.profile, undefined);
   assert.equal(set.state.chats[0].own.profile, undefined);
   assert.deepEqual(set.targets, [{ chat: "c1" }]);
@@ -86,13 +110,21 @@ test("create validates, set merges, null goes back to linked", () => {
 test("nested collections, moves, copies, deletes", () => {
   const s = state_build();
   const ids = (st, p) => st.config.blocks.filter((b) => b.profile === p).map((b) => b.id);
-  const add = pp.record_create(s, { collection: "blocks", fields: { profile: "p1", type: "prompt" }, id: "b9", index: 0 });
+  const add = pp.record_create(s, {
+    collection: "blocks",
+    fields: { profile: "p1", type: "prompt" },
+    id: "b9",
+    index: 0,
+  });
   assert.deepEqual(ids(add.state, "p1"), ["b9", "b1"]);
   const moved = pp.record_move(add.state, { collection: "blocks", id: "b9", index: 1 });
   assert.deepEqual(ids(moved.state, "p1"), ["b1", "b9"]);
   const copied = pp.record_copy(s, { collection: "profiles", id: "p2", new_id: "p4" });
   assert.equal(copied.state.config.profiles[2].id, "p4");
-  assert.deepEqual(copied.state.config.blocks.filter((b) => b.profile === "p4").map((b) => b.type), ["prompt"]);
+  assert.deepEqual(
+    copied.state.config.blocks.filter((b) => b.profile === "p4").map((b) => b.type),
+    ["prompt"],
+  );
   assert.equal(copied.state.config.groups.filter((g) => g.profile === "p4").length, 1);
   const gone = pp.record_delete(s, { collection: "profiles", id: "p2" });
   assert.equal(gone.state.config.profiles.length, 1);
@@ -110,7 +142,10 @@ test("settings keep only what you changed", () => {
 test("saving writes each file once, with the revision it expects", async () => {
   const written = [];
   const pp2 = plugins_load(["runtime-records"], {
-    file_write: (d) => (written.push(d), d.path === "config.json" ? { revision: "r2" } : { outside_change: { path: d.path } }),
+    file_write: (d) => (
+      written.push(d),
+      d.path === "config.json" ? { revision: "r2" } : { outside_change: { path: d.path } }
+    ),
   });
   const s = { ...state_build(), revisions: { "app/config.json": "r1" } };
   const r = await pp2.store_save(s, [{ file: "config" }, { file: "config" }, { file: "prompts" }]);

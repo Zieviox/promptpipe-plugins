@@ -13,10 +13,18 @@ const pp_build = (answers = {}) => {
   pp.id_create = () => `id${(n += 1)}`;
   pp.time_get = () => "2026-11-21T10:00:00.000Z";
   pp.content_read = (plugin, file) => fs.readFileSync(path.join(ROOT, plugin, file), "utf8");
+  pp.events = {};
   pp.plugin_set = (def) => {
     Object.assign(pp, def.functions || {});
     Object.assign(pp.calls, def.calls || {});
+    for (const [name, fn] of Object.entries(def.events || {})) (pp.events[name] ||= []).push(fn);
   };
+  pp.state_get = () => pp.state;
+  pp.pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  pp.state_set = (change) => (pp.state = change(pp.state));
+  pp.event_send = (name, data) => (
+    pp.sent.push({ event: name, data }), (pp.events[name] || []).forEach((f) => f(data))
+  );
   pp.call_send = async (name, data) => {
     pp.sent.push({ name, data });
     const answer = answers[name] || pp.calls[name];
