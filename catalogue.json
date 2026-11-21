@@ -58,8 +58,9 @@
       "path": "memory",
       "built_in": true,
       "hashes": {
-        "plugin.json": "78ab3b87797c606cf5c3d780ead0af15295ea75ae72cadec8c14558be6df8027",
-        "memory.js": "73490fa4d3760316209695977a56c31c1b0a0d3924bf28785e45801049f1d86d"
+        "plugin.json": "ee52c1b7b3c772a5baf6b8381b7ec03026e4d74244cd594000c4117d2899fa9c",
+        "memory.js": "73490fa4d3760316209695977a56c31c1b0a0d3924bf28785e45801049f1d86d",
+        "GUIDE.md": "e5e9f61783775ca2245d4238638f91366d7bdd7ff542f097b4800c4d379cab92"
       }
     },
     {
@@ -75,7 +76,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "a400dafc13af1d1754d842c6ba544f482efce29849c1a45f8d0f2f8695151ab0",
-        "import.js": "f6cf4292a9d0fb1359832fd3ed25814e065e1dbf6cd44f4d87c225f2bbe04c34"
+        "import.js": "4eaf8de428d06fbe39a123dd5834a30477a638066119ca9fa6da5188936c51db"
       }
     },
     {
@@ -159,7 +160,7 @@
       "hashes": {
         "plugin.json": "7e8a563947393ef8f39616613f4a41727141651e3dc8711daddd6ea800fb12bc",
         "vendor/fflate.js": "462ef8041fc970e3615a20a9dd2b2e3047a073b2da729ef4f02b634bba8b7b83",
-        "plugins.js": "477e4d2a5819cc915d5db85ef91c441dbfa489042411bd15b22e1df0b87445e0"
+        "plugins.js": "fad4aa4ef6bea703f7edd4ebaaeffcc9cb73eb35f923c2c37547e6c1ebd96357"
       }
     },
     {
@@ -202,7 +203,7 @@
         "plugin.json": "4eb815309c8a9613057ac9af10cbb2b2b9e054a6c1128f144df76272d8afae14",
         "records.js": "03f4d495e5a8895bc9653ff1d2ac9737338b25223a97cf63e6b52c3fe0e2148a",
         "export.js": "449bfbd44093ec55ba91e0a847aa05d49f3eff48563cd7f48af9e88ef4073a26",
-        "schemas.json": "095f8e9f742bf67bab1b25a1c427def0fdfc870a56929aed7af6c00ddea120dd"
+        "schemas.json": "053e2f8d02f87123c0459aaaaec62e411f5cd8687d662dda6aad47b3d0964b9b"
       }
     },
     {
@@ -225,11 +226,11 @@
         "vendor/sortable.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
         "screen.css": "1ca2b7b7aeb0549c2edd9605ac390316c20f04cb4cc6eebfc89ca1a98e6cc388",
         "view.js": "ad3d0ff02bbfa5ea442f181bfec90608b3d80462a2c10a640caeaed5f3a5de20",
-        "commands.js": "68af347959218f25aca860d6b24dd4ecf3629f34ff6439bb4c6a523057cb119c",
+        "commands.js": "346dbd5cc0603b84f313e0c2739411b932a9be1d09c4c9f3d25b3278dfb77ebd",
         "chat.js": "77baf624c16555bb1e22e98c93cf81ab40155cb255b007dfe253b7ef751b429f",
         "lists.js": "b634a167baaf3b18bc459e39c9e712360eee4c3f9b2ee76a574583632e5ebe29",
         "actions.js": "bb18ffe13ee99b62dfea2b2329ab26fa2ab0df7b64cdf678a69d4e6ac6a4743b",
-        "sheets.js": "7042331dc86fcfe4d13f1570211bc0b5af061bc8c5a05442a4b7678fc415f59e",
+        "sheets.js": "5ede50ea8be7cd24cbea858e2d544afaa1f36ea752560b06ca6ea8ee39c8ab0d",
         "screen.js": "14ca07e1396bdc8ab8dc8a9bbbf77d64c69806b79a022817b33666e2bddc0738"
       }
     },
@@ -280,7 +281,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "0754146b9323fc55cee9eed5bde01d45fdbb41a24521e439862a13c60f2e2920",
-        "storage.js": "d9a0ae89dc0fca02302f12dbefd6ced043261671dc24b974680d815474da4620"
+        "storage.js": "b41841804621c39901d8665e1bf5aedebfc158827a195c118b429c53e3653dfb"
       }
     },
     {
@@ -293,8 +294,9 @@
       "path": "sub-chats",
       "built_in": true,
       "hashes": {
-        "plugin.json": "164edc4eef46d32bba274d6814571f0f59378aaaf93c2a842bbbe381752cde03",
-        "sub-chats.js": "74647411cf69b08dc2baf0ff141115840e6c272ba9d2c611e5a1ff91eb764e1b"
+        "plugin.json": "2e57e0bec9431970bfa24044de63eeb3258259e7a8528e2769eda7f4f6ad375e",
+        "sub-chats.js": "74647411cf69b08dc2baf0ff141115840e6c272ba9d2c611e5a1ff91eb764e1b",
+        "GUIDE.md": "6536f24cf0936a54bb8c38229e70086e5b4d49fb458b4aa2d9c77e4af55dc77a"
       }
     }
   ]

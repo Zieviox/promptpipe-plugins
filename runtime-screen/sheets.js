@@ -915,6 +915,14 @@ ${p.text}</textarea
             })
           : null,
         m.description ? html`<small>${m.description}</small>` : null,
+        m.guide
+          ? item({
+              label: "Guide",
+              right: "›",
+              onClick: () =>
+                PP.sheet_open("text", { title: m.name, text: PP.content_read(p.id, m.guide) }),
+            })
+          : null,
         (m.settings || []).length
           ? item({
               label: "Settings",
@@ -1166,6 +1174,11 @@ ${p.text}</textarea
           onClick: () => PP.tour_start(g.id),
         }),
       ),
+      item({
+        label: "Read the quick start",
+        right: "›",
+        onClick: () => PP.sheet_open("guide", { name: "QUICKSTART.md" }),
+      }),
       item({ label: "Show every guide again", onClick: () => set({ "help.seen": [] }) }),
     ],
   }),
