@@ -267,7 +267,14 @@ const record_apply = async (operation, message) => {
   }));
   const paths = saved.written.filter((w) => w.root === "chats").map((w) => w.path);
   if (message && paths.length && setting_get(PP.state_get(), "git.commit") !== false) {
-    await PP.call_send("repo_commit", { paths, message });
+    const state = PP.state_get();
+    const git = (key) => setting_get(state, `git.${key}`);
+    const author = { name: git("name"), email: git("email"), remote: git("remote") };
+    const where = {
+      folder: setting_get(state, "storage.chats_folder"),
+      auto_push: git("auto_push"),
+    };
+    await PP.call_send("repo_commit", { paths, message, ...author, ...where });
   }
   return result;
 };
