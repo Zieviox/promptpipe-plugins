@@ -110,7 +110,7 @@ const app_start_run = async (state) => {
   if (plugin && !state.pages.length) {
     const page = await PP.call_send("page_open", {
       url: plugin.manifest.provider.url,
-      provider: { id, ...plugin.manifest.provider },
+      provider: PP.provider_build(state, plugin),
     });
     PP.state_set((s) => ({ ...s, pages: [...s.pages, page] }));
   }

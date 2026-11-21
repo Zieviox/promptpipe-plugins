@@ -175,7 +175,10 @@ const profile_create = (state, { template, name, id }) => {
 const model_list = async (state, chat) => {
   const provider = PP.provider_get(state, chat);
   const page = state.pages.find((p) => p.provider === provider);
-  const id = page ? page.id : (await PP.call_send("page_open", { provider })).id;
+  const plugin = state.plugins.find((p) => p.id === provider);
+  const id = page
+    ? page.id
+    : (await PP.call_send("page_open", { provider: PP.provider_build(state, plugin) })).id;
   return PP.call_send("site_model_list", { page: id });
 };
 

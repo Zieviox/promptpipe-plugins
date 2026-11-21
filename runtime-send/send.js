@@ -95,6 +95,19 @@ const pool_add = () => {
   }
 };
 
+// A provider as its page needs it: its description, its reply selector setting first, and the
+// content scripts to hand over (the default routine, then the provider's own, S9).
+const provider_build = (state, plugin) => {
+  const code = (p) =>
+    [].concat(p.manifest.content_script || []).map((f) => PP.content_read(p.id, f));
+  const site = state.plugins.find((p) => p.id === "runtime-site");
+  const def = plugin.manifest.provider || {};
+  const own = PP.plugin_setting_get(state, null, plugin.id, "reply_selector");
+  const reply = [...(own ? [own] : []), ...((def.selectors || {}).reply || [])];
+  const scripts = [site ? code(site).join("\n;\n") : "", ...code(plugin)].filter(Boolean);
+  return { id: plugin.id, ...def, selectors: { ...def.selectors, reply }, scripts };
+};
+
 // ---------- the sequence ----------
 
 const send_run = async (id) => {
@@ -111,7 +124,7 @@ const send_run = async (id) => {
     const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, view));
     if (!plugin)
       throw { code: "failed_precondition", message: "No provider yet: get one from the header" };
-    const provider = { id: plugin.id, ...plugin.manifest.provider };
+    const provider = provider_build(state, plugin);
     const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
     const first = !chat || !turns.length || route.url === "new";
     const context = { chat: view, message: send.message, count: turns.length + 1, first };
@@ -354,6 +367,7 @@ PP.plugin_set({
     send_stop,
     failure_resolve,
     job_run,
+    provider_build,
   },
   calls: {
     message_send: (draft) => message_send(draft),
