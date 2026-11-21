@@ -9,20 +9,26 @@
 const ID = "memory";
 const setting = (chat, key) => PP.plugin_setting_get(PP.state_get(), chat, ID, key);
 
-// Text from a chat can't pose as memory's own structure: a line starting with "#" is escaped.
-const text_escape = (text) => String(text || "").replace(/^(\s*)#/gm, "$1\\#");
+// Text from a chat can't pose as memory's own structure: a heading or one of memory's own
+// bracketed labels at the start of a line is escaped.
+const text_escape = (text) =>
+  String(text || "").replace(
+    /^(\s*)(#|\[(?:End of|Memory|Facts|Summar|System|The user|The AI))/gim,
+    "$1\\$2",
+  );
 const clip = (text, n) => (text.length > n ? `${text.slice(0, n)}…` : text);
 const site_name = (url) => {
   try {
-    return new URL(url).host.replace(/^(www|chat)\./, "").split(".")[0];
+    const name = new URL(url).host.replace(/^(www|chat|chatgpt)\./, "").split(".")[0];
+    return name[0].toUpperCase() + name.slice(1);
   } catch {
     return "AI";
   }
 };
 
 const turn_format = (turn, named, side = "both", n = Infinity) => {
-  const ai = named ? `AI (${site_name(turn.page_url)})` : "AI";
-  const you = side !== "ai" ? `You: ${clip(text_escape(turn.message), n)}` : "";
+  const ai = named ? site_name(turn.page_url) : "AI";
+  const you = side !== "ai" ? `User: ${clip(text_escape(turn.message), n)}` : "";
   const reply = side !== "you" ? `${ai}: ${clip(text_escape(turn.reply), n)}` : "";
   return [you, reply].filter(Boolean).join("\n");
 };
@@ -83,48 +89,80 @@ const block_text = (context) => {
   if (setting(chat, "send") === "unseen" && !context.first)
     turns = turns.filter((t) => t.page_url !== chat.site_url);
   const named = setting(chat, "names") && new Set(turns.map((t) => site_name(t.page_url))).size > 1;
-  const pinned = String(setting(chat, "pinned") || "").trim();
-  const head = pinned ? `## Pinned facts\n\n${text_escape(pinned)}` : "";
+  const pinned = text_escape(String(setting(chat, "pinned") || "").trim());
   const lines = turns.map((t) => turn_format(t, named));
-  const full = [head, lines.length ? `## Earlier in this chat\n\n${lines.join("\n\n")}` : ""]
-    .filter(Boolean)
-    .join("\n\n");
   const budget = setting(chat, "budget");
-  if (full.length <= budget) return full;
+  const full = memory_build(pinned, [], lines, context);
+  if (full.text.length <= budget) return full;
   const recent = setting(chat, "recent");
   const kept = lines.slice(Math.max(0, lines.length - recent));
   const older = lines.slice(0, Math.max(0, lines.length - recent));
   const levels = setting(chat, "overflow") === "summary" ? data_get(state, chat).levels : [];
-  const room = budget - head.length - kept.join("\n\n").length - 80;
+  const room = budget - memory_build(pinned, [], kept, context).text.length - 130;
   const summary = older_build(older, levels, setting(chat, "chunk"), room, setting(chat, "clip"));
-  return [
-    head,
-    summary.length ? `## Earlier (summarised)\n\n${summary.join("\n\n")}` : "",
-    `## Recent\n\n${kept.join("\n\n")}`,
-  ]
-    .filter(Boolean)
-    .join("\n\n");
+  return memory_build(pinned, summary, kept, context);
+};
+
+// The memory as it goes out, in the old app's words (X6); the profile's "at depth N" System
+// prompts go N messages up from the end of the messages.
+const memory_build = (pinned, summary, lines, context) => {
+  if (!pinned && !summary.length && !lines.length) return { text: "" };
+  const with_depth = [...lines];
+  for (const d of [...(context.depth || [])].sort((a, b) => a.number - b.number))
+    with_depth.splice(Math.max(0, with_depth.length - d.number), 0, d.text);
+  const out = [];
+  if (pinned) out.push(`Facts to remember:\n${pinned}`);
+  if (summary.length)
+    out.push(
+      `Summary of the earlier conversation, oldest first (each part says whose side it tells, the user's or the AI's):\n${summary.join("\n\n")}`,
+    );
+  if (lines.length)
+    out.push(
+      `${summary.length ? "More recent messages" : "Earlier messages"}:\n${with_depth.join("\n\n")}`,
+    );
+  const body = out.join("\n\n");
+  const text = `[Memory: context from earlier in this conversation. Use it, don't repeat it back.]\n\n${body}\n\n[End of memory]`;
+  return { text, depth_used: lines.length > 0 && (context.depth || []).length > 0 };
 };
 
 // ---------- making summaries (after a reply, in the background) ----------
 
-const summary_ask = async (chat, text) => {
+const SIDE = { you: "The user's side", ai: "The AI's side" };
+const SIDE_ASK = {
+  you: "Below are only the user's messages. The AI's replies are not included: do not guess or add them. Summarise what the user said, did, decided and wants. Write nothing the user did not say.",
+  ai: "Below are only the AI's messages. The user's messages are not included. Summarise what the AI said and did: its characters, the story and the facts it gave. Do not credit any of it to the user.",
+};
+const WHAT = { you: "The user's messages", ai: "The AI's messages", both: "Conversation" };
+
+// One summary request, in the old app's words: the request, which side, then the turns (or the
+// summaries of consecutive parts). Comment lines and side headings the AI adds are dropped.
+const summary_ask = async (chat, parts, of_summaries, side) => {
+  const what = WHAT[side];
+  const body = of_summaries
+    ? `[Summaries of consecutive parts${side !== "both" ? `, ${SIDE[side].toLowerCase()}` : ""}, oldest first]\n${parts.join("\n\n---\n\n")}\n[End of summaries]`
+    : `[${what}]\n${parts.join("\n\n")}\n[End of ${what.toLowerCase()}]`;
+  const message = [setting(chat, "request").trim(), SIDE_ASK[side], body]
+    .filter(Boolean)
+    .join("\n\n");
   const plain = !setting(chat, "summary_plugins");
-  const answer = await PP.message_send({
-    message: `${setting(chat, "request")}\n\n${text}`,
-    plain,
-    profile: PP.profile_get(PP.state_get(), chat).id,
-  });
-  return String(answer.reply || "").trim();
+  const profile = PP.profile_get(PP.state_get(), chat).id;
+  const answer = await PP.message_send({ message, plain, profile });
+  const text = String(answer.reply || "")
+    .split("\n")
+    .filter((l) => !/^\s*<!--.*-->\s*$/.test(l) && !/^\s*#{1,4}\s*(user|ai)\s*:?\s*$/i.test(l))
+    .join("\n")
+    .trim();
+  if (!text) throw new Error("the summary came back empty");
+  return text;
 };
 
 // One summary of the given texts: your side and the AI's apart (two requests), or together.
-const part_make = async (chat, texts) => {
+const part_make = async (chat, texts, of_summaries) => {
   if (setting(chat, "sides") === "together")
-    return { text: await summary_ask(chat, texts.both.join("\n\n")) };
-  const you = await summary_ask(chat, texts.you.join("\n\n"));
-  const ai = await summary_ask(chat, texts.ai.join("\n\n"));
-  return { you, ai, text: `Your side: ${you}\n\nAI side: ${ai}` };
+    return { text: await summary_ask(chat, texts.both, of_summaries, "both") };
+  const you = await summary_ask(chat, texts.you, of_summaries, "you");
+  const ai = await summary_ask(chat, texts.ai, of_summaries, "ai");
+  return { you, ai, text: `${SIDE.you}:\n${you}\n\n${SIDE.ai}:\n${ai}` };
 };
 
 let making = false;
@@ -167,7 +205,11 @@ const summaries_make = async (chat_id) => {
               you: below.map((t) => turn_format(t, named, "you")),
               ai: below.map((t) => turn_format(t, named, "ai")),
             };
-        levels[level].push({ from, to: from + chunk, ...(await part_make(chat, texts)) });
+        levels[level].push({
+          from,
+          to: from + chunk,
+          ...(await part_make(chat, texts, level > 0)),
+        });
         await PP.apply_try(
           (s) => PP.chat_data_set(s, chat.id, ID, { levels }),
           `memory: ${chat.name}`,

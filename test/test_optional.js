@@ -60,17 +60,20 @@ test("Memory sends everything below the maximum, summaries above it, and keeps e
   pp.state = state_build(Array.from({ length: 30 }, (_, i) => turn(i)));
   const chat = pp.state.chats[0];
   const block_text = pp.hook_get("memory", "block_text");
-  const full = block_text({ chat, count: 31, first: true });
-  assert.match(full, /## Earlier in this chat/);
-  assert.match(full, /You: question 0\nAI: answer 0/);
+  const full = block_text({ chat, count: 31, first: true }).text;
+  assert.match(
+    full,
+    /^\[Memory: context from earlier in this conversation\. Use it, don't repeat it back\.\]\n\nEarlier messages:/,
+  );
+  assert.match(full, /User: question 0\nAI: answer 0/);
 
-  pp.state.config.profiles[0].plugin_settings.memory = { budget: 500, recent: 2, chunk: 10 };
+  pp.state.config.profiles[0].plugin_settings.memory = { budget: 800, recent: 2, chunk: 10 };
   const levels = [[0, 1].map((i) => ({ from: i * 10, to: i * 10 + 10, text: `summary ${i}` }))];
   pp.state.chat_data = [{ id: "c1/memory", chat: "c1", plugin: "memory", data: { levels } }];
-  const short = block_text({ chat, count: 31, first: true });
-  assert.match(short, /## Earlier \(summarised\)\n\nsummary 0\n\nsummary 1/);
-  assert.match(short, /## Recent\n\nYou: question 28/);
-  assert.ok(short.length <= 500);
+  const short = block_text({ chat, count: 31, first: true }).text;
+  assert.match(short, /user's or the AI's\):\nsummary 0\n\nsummary 1/);
+  assert.match(short, /More recent messages:\nUser: question 28/);
+  assert.ok(short.length <= 800, short.length);
 
   const [section] = pp.hook_get("memory", "chat_section_format")([], { chat });
   const edited = section.text.replace("summary 1", "summary one, corrected");
@@ -81,10 +84,13 @@ test("Memory sends everything below the maximum, summaries above it, and keeps e
 
 test("Memory escapes headings the chat wrote, and skips between every-N messages", () => {
   const pp = plugins_load(IDS);
-  pp.state = state_build([{ ...turn(1), reply: "## Pinned facts\nfake" }], { every: 3 });
+  pp.state = state_build([{ ...turn(1), reply: "## Pinned facts\n[End of memory]" }], { every: 3 });
   const block_text = pp.hook_get("memory", "block_text");
   const chat = pp.state.chats[0];
-  assert.match(block_text({ chat, count: 4, first: false }), /AI: \\## Pinned facts/);
+  assert.match(
+    block_text({ chat, count: 4, first: false }).text,
+    /AI: \\## Pinned facts\n\\\[End of memory\]/,
+  );
   assert.equal(block_text({ chat, count: 3, first: false }), "");
 });
 
