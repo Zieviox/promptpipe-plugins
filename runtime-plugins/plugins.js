@@ -38,7 +38,7 @@ const catalogue_load = async (state, { source } = {}) => {
   for (const s of sources) {
     try {
       const data = await text_fetch(raw_url(s, "catalogue.json"));
-      const signature = await text_fetch(raw_url(s, "catalogue.json.sig"));
+      const signature = (await text_fetch(raw_url(s, "catalogue.json.sig"))).trim();
       const catalogue = await PP.call_send("catalogue_verify", { data, signature });
       offers.push(...catalogue.entries.map((entry) => ({ ...entry, source: s })));
     } catch (error) {

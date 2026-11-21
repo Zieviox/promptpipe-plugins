@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "id": "base64",
+      "name": "Base64",
+      "version": "3.0.0",
+      "description": "Asks the AI to answer in base64 (and encodes your message), then decodes the reply; small mistakes in the base64 are repaired unless set to strict. \"Decode base64\" is under every reply, even when it's off.",
+      "tags": [],
+      "min_app": "1.0.0",
+      "path": "base64",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "37c7e3b495f94dce508e6710f7f5d906e3dff4e4397cfe128c2bc9cb826eab5d",
+        "base64.js": "c8ced0903c0a53d8e7102203ddc03bde057990d07c0bc917d914d69006c99dc0"
+      }
+    },
+    {
+      "id": "deepseek",
+      "name": "DeepSeek",
+      "version": "3.0.0",
+      "description": "The DeepSeek web chat (chat.deepseek.com) with your own login; DeepThink and Search options.",
+      "tags": [
+        "provider",
+        "web"
+      ],
+      "min_app": "1.0.0",
+      "path": "deepseek",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "eff39b126be5383a574e5a7dfe8dc6f9c93993e41bff8ffd1b88d44dcb8d1f36",
+        "site.js": "739280f400a96bf2695b4b312d3ec6b768aac5f243b602beda8ceebd550690df"
+      }
+    },
+    {
+      "id": "ember",
+      "name": "Ember",
+      "version": "2.0.0",
+      "description": "Warm dark with an amber accent.",
+      "tags": [
+        "theme"
+      ],
+      "min_app": "1.0.0",
+      "path": "ember",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "dba84843c178e0298763a07c7336e4283687aa89792e08bd9eab17aecc47df85",
+        "theme.css": "84b714c5bc7fbb8442f201310e9f7b00625aba49158ebbe598a1f662f552edc9"
+      }
+    },
+    {
+      "id": "memory",
+      "name": "Memory",
+      "version": "4.0.0",
+      "description": "Puts your pinned facts and the earlier chat in front of every message, so a fresh site chat has the context. Below the maximum everything goes in full; above it, recent messages stay word for word and older ones go in as summaries, coarser the older they are. Summaries are made once, in the background, and show at the end of the chat file, where you can correct them.",
+      "tags": [],
+      "min_app": "1.0.0",
+      "path": "memory",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "78ab3b87797c606cf5c3d780ead0af15295ea75ae72cadec8c14558be6df8027",
+        "memory.js": "73490fa4d3760316209695977a56c31c1b0a0d3924bf28785e45801049f1d86d"
+      }
+    },
+    {
+      "id": "old-app-import",
+      "name": "Old app import",
+      "version": "1.0.0",
+      "description": "Once, on the first start: marks the old app's folders with .nomedia, backs each up whole (git history included) into a zip, then brings in its chats, Memory's summaries, profiles, prompt library and settings. The old folders are never changed otherwise; Settings › Chats and storage deletes them when you ask. Remove this plugin once you're done.",
+      "tags": [
+        "passive"
+      ],
+      "min_app": "1.0.0",
+      "path": "old-app-import",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "a400dafc13af1d1754d842c6ba544f482efce29849c1a45f8d0f2f8695151ab0",
+        "import.js": "f6cf4292a9d0fb1359832fd3ed25814e065e1dbf6cd44f4d87c225f2bbe04c34"
+      }
+    },
+    {
+      "id": "openai",
+      "name": "OpenAI-style API",
+      "version": "1.0.0",
+      "description": "Any service with an OpenAI-style chat API (OpenAI, OpenRouter, DeepSeek's API, a local server): its address, a credential for its host, and a model.",
+      "tags": [
+        "provider",
+        "api"
+      ],
+      "min_app": "1.0.0",
+      "path": "openai",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "a9c81b0a5a16ea8aaea000800b9513833ec4f598da00ca9d208ed9cffdf71d0d",
+        "api.js": "a8e0bc6a9a85aa337ceb57fa4e24971ade45bae099e838417383be56505e12b6"
+      }
+    },
+    {
+      "id": "paper",
+      "name": "Paper",
+      "version": "2.0.0",
+      "description": "Warm paper, ink text, a blue ink accent.",
+      "tags": [
+        "theme"
+      ],
+      "min_app": "1.0.0",
+      "path": "paper",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "c025428d1f936a2f501fe717c4b0ac2dc88abc4dce89b5002d24f75612ce0c1c",
+        "theme.css": "272307b32239b32168bbea17dca4fd14f9303937ce3cdd87edaaa9e963e9ae04"
+      }
+    },
+    {
+      "id": "qwen-chat",
+      "name": "Qwen Chat",
+      "version": "3.0.0",
+      "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
+      "tags": [
+        "provider",
+        "web"
+      ],
+      "min_app": "1.0.0",
+      "path": "qwen-chat",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "86f1c325d7848ee7212d17d147d6554b196a2704b25b44fe380d37f45b70b99d",
+        "site.js": "3c7a043e87380fb9f67e3ab02e0654d91e61afecc4d53561a2f1df8e21565c81"
+      }
+    },
+    {
+      "id": "runtime-chats",
+      "name": "Chats",
+      "version": "1.0.0",
+      "description": "Chats: the readable chat file both ways, tags and counting tags, the search over every chat, folders and their order, site chats, attachments, and the chats folder.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-chats",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "c746d331460478fd69dbf0e7373af84ad0f0868be1219e265c326136ae7198e2",
+        "text.js": "eb01e3fcff093d6ad4119d5e22249fe0214788a9c1a4cf661ed2dff9d2d77d8d",
+        "chats.js": "33b553a1d6f0e8e8b35e31443c76e2763e787581f422b2a10ff0ccb17b614c10"
+      }
+    },
+    {
+      "id": "runtime-plugins",
+      "name": "Plugins",
+      "version": "1.0.0",
+      "description": "Plugins: the sources' catalogues, installing from a catalogue, a link, a zip or an AI's answer, updating, going back, and copying a built-in plugin to change it.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-plugins",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "7e8a563947393ef8f39616613f4a41727141651e3dc8711daddd6ea800fb12bc",
+        "vendor/fflate.js": "462ef8041fc970e3615a20a9dd2b2e3047a073b2da729ef4f02b634bba8b7b83",
+        "plugins.js": "477e4d2a5819cc915d5db85ef91c441dbfa489042411bd15b22e1df0b87445e0"
+      }
+    },
+    {
+      "id": "runtime-profiles",
+      "name": "Profiles",
+      "version": "1.0.0",
+      "description": "Profiles: building the message from a profile's blocks, the preview, profiles made from templates (the shipped ones and yours), and the model list.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-profiles",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "0e6275a6bf348e83a0a717c0a0e71c95c552cb9c6a15fdee5990e5a571754c65",
+        "profiles.js": "bb6de3f266cf34153b59601d3db3f7712811a25b529f059d8b1e53e666c01182",
+        "templates.json": "859a8257bf552b8a723ec65e239551363acbc3f7fb02d77a94d23e0f875fa0a8",
+        "templates/editor.md": "fc44296694be8d43a7db844deb8c299b22bdc9ab8649b9cf4e59ad40e66290c7",
+        "templates/development.md": "eeb8433318d9c753d42280b8cc53321ebfbd397110d1493c34981fc2734c73b3",
+        "templates/scene-rules.md": "92d13e14d6419b578491d3f24036890fdb7c8b14fe5ff499ff63ccd0790a3a20",
+        "templates/dialogue-craft.md": "4a4f4fbaf11386fb727e1d1c3da45d697cdee33cabc8fb8b910fd86bfb183f84",
+        "templates/prose-craft.md": "de769003b96dbc93b37703da6a7ff0ed6b4383bb1c4f286dffa26da8588e4597",
+        "templates/prose-style.md": "2546eaa1e83e4102256175923faae88c27f11d9e2d9cc524b5bd3321a9ca0e7d",
+        "templates/bridge.md": "3f9ca62af571a03810c44e7b06bd7d4a09c87cc48d7be5569ce6a779a174d433",
+        "templates/co-writer.md": "261daa2280103355339867fdaa7afc55aee100208b1e4190ac88bd6fe7add067"
+      }
+    },
+    {
+      "id": "runtime-records",
+      "name": "Records and settings",
+      "version": "1.0.0",
+      "description": "The app's records: the generic record operations over every collection, the value that applies (linked or own), and saving each collection where its schema says.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-records",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "4eb815309c8a9613057ac9af10cbb2b2b9e054a6c1128f144df76272d8afae14",
+        "records.js": "03f4d495e5a8895bc9653ff1d2ac9737338b25223a97cf63e6b52c3fe0e2148a",
+        "export.js": "449bfbd44093ec55ba91e0a847aa05d49f3eff48563cd7f48af9e88ef4073a26",
+        "schemas.json": "095f8e9f742bf67bab1b25a1c427def0fdfc870a56929aed7af6c00ddea120dd"
+      }
+    },
+    {
+      "id": "runtime-screen",
+      "name": "Screen",
+      "version": "1.0.0",
+      "description": "The app's screen: the chat, the chats list, the site view's bar, Find, every sheet, help mode and the guides, drawn from the State with Preact.",
+      "tags": [
+        "runtime",
+        "ui"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-screen",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "da3b59561914a64b94860996743618394720d255793d7968a820c6812a0f9bf9",
+        "vendor/preact.js": "934b1716dd0c9bc6155258230f0d5fed01354fc4525abc120a645b3d295db049",
+        "vendor/htm.js": "7a31776e04bd4afde0d4308177d26f377716fcf7e4bd70be590746d6aa594f08",
+        "vendor/markdown-it.js": "b06c85174d2b1bb6339dfa1f0bc938cea57f62663f132a77abbf651562542443",
+        "vendor/sortable.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
+        "screen.css": "1ca2b7b7aeb0549c2edd9605ac390316c20f04cb4cc6eebfc89ca1a98e6cc388",
+        "view.js": "ad3d0ff02bbfa5ea442f181bfec90608b3d80462a2c10a640caeaed5f3a5de20",
+        "commands.js": "68af347959218f25aca860d6b24dd4ecf3629f34ff6439bb4c6a523057cb119c",
+        "chat.js": "77baf624c16555bb1e22e98c93cf81ab40155cb255b007dfe253b7ef751b429f",
+        "lists.js": "b634a167baaf3b18bc459e39c9e712360eee4c3f9b2ee76a574583632e5ebe29",
+        "actions.js": "bb18ffe13ee99b62dfea2b2329ab26fa2ab0df7b64cdf678a69d4e6ac6a4743b",
+        "sheets.js": "7042331dc86fcfe4d13f1570211bc0b5af061bc8c5a05442a4b7678fc415f59e",
+        "screen.js": "14ca07e1396bdc8ab8dc8a9bbbf77d64c69806b79a022817b33666e2bddc0738"
+      }
+    },
+    {
+      "id": "runtime-send",
+      "name": "Sending",
+      "version": "1.0.0",
+      "description": "Sending: the queue of each chat, the page pool, one sequence for every send (your messages, side requests, other apps' jobs), stopping, and failed sends.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-send",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "9b6436de5ba8bf82b576f1d84d6ef894efdec2a349718352595ae84929323b3c",
+        "send.js": "b8b8cf4ca1b037a2894e7b6c88ac6748f4d2d872d6f9c00902651afeff033223"
+      }
+    },
+    {
+      "id": "runtime-site",
+      "name": "Using a site",
+      "version": "1.0.0",
+      "description": "The default way of using an AI website: type, send, wait for the reply, read it as Markdown, the model and options, the site's chats, the page report. Providers replace single stages.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-site",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "dff315a38622c60d535a39e731a79ce71624c5e60e73b8da6ae157fc542eeb3a",
+        "vendor/turndown.js": "ead805af2012a8434b58f1dab07b452370a7dcd3e9665ff64fc1d61dd2e38e9a",
+        "vendor/turndown-plugin-gfm.js": "cf744cc1b7580f06d64ce236a4ff2630a53d389eccf2133a09d71ca443511912",
+        "routine.js": "0834fa9c52529b211f9ee405be4adba3b5db4f1fcfe1b2bcd66181b76c6d3da5"
+      }
+    },
+    {
+      "id": "runtime-storage",
+      "name": "Storage",
+      "version": "1.0.0",
+      "description": "Storage: outside changes answered in one dialog, the local API's token, connections, the storage check, and the first things after the app starts.",
+      "tags": [
+        "runtime"
+      ],
+      "min_app": "1.0.0",
+      "path": "runtime-storage",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "0754146b9323fc55cee9eed5bde01d45fdbb41a24521e439862a13c60f2e2920",
+        "storage.js": "d9a0ae89dc0fca02302f12dbefd6ced043261671dc24b974680d815474da4620"
+      }
+    },
+    {
+      "id": "sub-chats",
+      "name": "Sub-chats",
+      "version": "4.0.0",
+      "description": "One chat across several site chats: start a fresh site chat (on any provider) when one gets long, go back to an earlier one, or branch from a reply. The chat file stays one, with a divider where each sub-chat starts.",
+      "tags": [],
+      "min_app": "1.0.0",
+      "path": "sub-chats",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "164edc4eef46d32bba274d6814571f0f59378aaaf93c2a842bbbe381752cde03",
+        "sub-chats.js": "74647411cf69b08dc2baf0ff141115840e6c272ba9d2c611e5a1ff91eb764e1b"
+      }
+    }
+  ]
+}
