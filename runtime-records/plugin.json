@@ -6,5 +6,5 @@
   "tags": ["runtime"],
   "pp": 1,
   "order": 10,
-  "files": ["records.js", "schemas.json"]
+  "files": ["records.js", "export.js", "schemas.json"]
 }

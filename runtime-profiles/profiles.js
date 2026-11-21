@@ -185,6 +185,7 @@ const model_list = async (state, chat) => {
 PP.plugin_set({
   functions: {
     prompt_send_get,
+    block_name_get,
     message_build,
     preview_build,
     template_list,

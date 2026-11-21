@@ -250,6 +250,17 @@ const store_save = async (state, targets) => {
   return { revisions, changes, written };
 };
 
+// Commit chats-folder files to the history with the author and remote from Settings (D2), unless
+// "Commit on every save" is off.
+const repo_commit = async (paths, message) => {
+  const state = PP.state_get();
+  const git = (key) => setting_get(state, `git.${key}`);
+  if (git("commit") === false) return null;
+  const author = { name: git("name"), email: git("email"), remote: git("remote") };
+  const where = { folder: setting_get(state, "storage.chats_folder"), auto_push: git("auto_push") };
+  return PP.call_send("repo_commit", { paths, message, ...author, ...where });
+};
+
 // Apply a record operation to the State as it is now, save what it touched, and commit the
 // chats folder's files to the history with `message` (D2, unless "Commit on every save" is off).
 const record_apply = async (operation, message) => {
@@ -266,16 +277,7 @@ const record_apply = async (operation, message) => {
     changes: [...(state.changes || []), ...saved.changes],
   }));
   const paths = saved.written.filter((w) => w.root === "chats").map((w) => w.path);
-  if (message && paths.length && setting_get(PP.state_get(), "git.commit") !== false) {
-    const state = PP.state_get();
-    const git = (key) => setting_get(state, `git.${key}`);
-    const author = { name: git("name"), email: git("email"), remote: git("remote") };
-    const where = {
-      folder: setting_get(state, "storage.chats_folder"),
-      auto_push: git("auto_push"),
-    };
-    await PP.call_send("repo_commit", { paths, message, ...author, ...where });
-  }
+  if (message && paths.length) await repo_commit(paths, message);
   return result;
 };
 
@@ -298,5 +300,6 @@ PP.plugin_set({
     record_delete,
     store_save,
     record_apply,
+    repo_commit,
   },
 });

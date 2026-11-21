@@ -1,0 +1,292 @@
+"use strict";
+// What the screen's commands and rows do beyond opening a sheet: linking a chat to the page and
+// importing from it, exporting and importing records, tags, renaming, deleting chats, folders,
+// text files and attachments, more pages, and the page report.
+
+const page_shown = (state) =>
+  state.pages.find((p) => p.id === state.ui.site_view.page) || state.pages[0];
+const chat_set = (chat, fields, message) =>
+  PP.apply_try((s) => PP.record_set(s, { collection: "chats", id: chat.id, fields }), message);
+
+// Link the open chat to the page shown (UC12): it reads and sends there from now on.
+const chat_link = async (state) => {
+  const chat = PP.chat_get(state);
+  const page = page_shown(state);
+  if (!chat || !page) return PP.toast("Open a chat and its site first", true);
+  if (
+    await chat_set(
+      chat,
+      { site_url: page.url, own: { provider: page.provider } },
+      `linked: ${chat.name}`,
+    )
+  )
+    PP.toast("Linked");
+};
+
+// The page's messages into the chat (all, or the newest), or the newest reply decoded as a
+// preview (UC13). With no chat open, a chat linked to the page is opened first.
+const site_import = async (state, which, save) => {
+  const page = page_shown(state);
+  if (!page) return PP.toast("Open the site first", true);
+  let chat = state.ui.chat;
+  if (!chat && save) {
+    const made = await PP.call_try("site_chat_open", {
+      provider: page.provider,
+      url: page.url,
+      name: page.title,
+      id: PP.id_create(),
+      at: PP.time_get(),
+    });
+    if (!made) return;
+    chat = made.id;
+  }
+  if (chat) await PP.chat_open(chat);
+  const answer = await PP.call_try(
+    "site_chat_import",
+    { chat, page: page.id, which, save },
+    save ? "Imported" : null,
+  );
+  if (answer && !save)
+    PP.sheet_open("text", { title: "The newest reply, decoded", text: answer.preview });
+};
+
+// The record_export call, with the result said: copied, shared, or the file it saved.
+const records_export = async (collection, ids, to = "file") => {
+  const where = await PP.call_try("record_export", { collection, ids, to });
+  if (to === "clipboard") PP.toast("Copied");
+  else if (typeof where === "string") PP.toast(`Saved to ${where}`);
+};
+
+const chat_export = (state, to) => state.ui.chat && records_export("chats", [state.ui.chat], to);
+
+const text_decode = (base64) =>
+  new TextDecoder().decode(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)));
+
+// Files picked and read in; a profile file's name clash is asked unless Settings says (UC27).
+const records_import = async (collection, clash) => {
+  const files = await PP.call_try("picker_open", {
+    types: ["application/json", "text/markdown", "text/plain"],
+    many: true,
+  });
+  for (const file of files || [])
+    record_import_run({ collection, text: text_decode(file.data), name: file.name, clash });
+};
+
+const record_import_run = async (data) => {
+  const answer = await PP.call_try("record_import", data);
+  if (!answer) return;
+  if (!answer.clashes)
+    return PP.toast(data.collection === "prompts" ? "Added to the library" : "Imported");
+  const missing = answer.plugins.filter((id) => !PP.state_get().plugins.some((p) => p.id === id));
+  PP.dialog_open({
+    title: `“${answer.clashes.join("”, “")}” is already here${missing.length ? `. Not installed: ${missing.join(", ")}` : ""}`,
+    choices: [
+      ["both", "Keep both"],
+      ["replace", "Replace"],
+    ],
+    command: "record_import",
+    data,
+  });
+};
+
+const text_files_add = async (state, many) => {
+  const files = await PP.call_try("picker_open", { types: ["text/*", "application/json"], many });
+  if (!files || !files.length) return;
+  const texts = files.map((f) =>
+    many ? `${f.name}:\n\n${text_decode(f.data)}` : text_decode(f.data),
+  );
+  const now = PP.draft_get(PP.state_get()).text;
+  PP.draft_set(`${now}${now ? "\n\n" : ""}${texts.join("\n\n")}`);
+};
+
+// Attachments are copied into the chat's data folder at once (UC48); a chat not yet saved keeps
+// them under "new" until its first message.
+const files_attach = async (state) => {
+  const files = await PP.call_try("picker_open", { types: ["*/*"], many: true });
+  if (files && files.length)
+    PP.call_try(
+      "attachment_add",
+      { chat: state.ui.chat || "new", files },
+      `${files.length} attached`,
+    );
+};
+
+// A folder is a Folder record until a chat is moved into it.
+const folder_create = (state, name) => {
+  const clean = String(name || "")
+    .trim()
+    .replace(/[\\:*?"<>|]/g, "-")
+    .replace(/^\/+|\/+$/g, "");
+  if (!clean) return;
+  const id = state.ui.folder ? `${state.ui.folder}/${clean}` : clean;
+  return PP.apply_try(
+    (s) => PP.record_create(s, { collection: "folders", id, fields: { order: [] } }),
+    `folder: ${id}`,
+  );
+};
+
+const chat_tag_add = (state, raw) => {
+  const chat = PP.chat_get(state);
+  if (!chat || !String(raw || "").trim()) return;
+  return chat_set(
+    chat,
+    { tags: [...new Set([...(chat.tags || []), PP.chat_tag_build(raw)])] },
+    `tag: ${chat.name}`,
+  );
+};
+
+const chat_tag_remove = (state, tag) => {
+  const chat = PP.chat_get(state);
+  return (
+    chat &&
+    chat_set(
+      chat,
+      { tags: (chat.tags || []).filter((t) => t !== tag) },
+      `tag removed: ${chat.name}`,
+    )
+  );
+};
+
+// One message's tag: "name#" takes the counter's next number (UC20).
+const turn_tag_add = (state, id, raw) =>
+  PP.apply_try((s) => {
+    const turn = s.turns.find((t) => t.id === id);
+    const scope = PP.setting_get(s, "tags.counter_scope") === "all" ? "all" : turn.chat;
+    const tagged = PP.turn_tag_build(turn.tags || [], raw, s.counters || {}, scope);
+    const set = PP.record_set(s, { collection: "turns", id, fields: { tags: tagged.tags } });
+    if (set.error) return set;
+    return {
+      ...set,
+      state: { ...set.state, counters: tagged.counters },
+      targets: [...set.targets, { file: "counters" }],
+    };
+  }, "message tagged");
+
+const chat_rename = (state, name) => {
+  const chat = PP.chat_get(state);
+  return (
+    chat &&
+    String(name || "").trim() &&
+    chat_set(chat, { name: name.trim() }, `renamed: ${name.trim()}`)
+  );
+};
+
+// Deleted chats leave the State and the folder; they stay in the history (UC17).
+const chats_delete = async (ids) => {
+  const state = PP.state_get();
+  const gone = state.chats.filter((c) => ids.includes(c.id));
+  PP.state_set((s) => ({
+    ...s,
+    chats: s.chats.filter((c) => !ids.includes(c.id)),
+    turns: s.turns.filter((t) => !ids.includes(t.chat)),
+    ui: { ...s.ui, chat: ids.includes(s.ui.chat) ? null : s.ui.chat, sheets: [] },
+  }));
+  const paths = gone.flatMap((c) => [
+    `.promptpipe/chats/${c.id}/meta.json`,
+    `.promptpipe/chats/${c.id}/turns.json`,
+    c.file,
+  ]);
+  for (const path of paths)
+    await PP.call_send("file_delete", {
+      root: "chats",
+      path,
+      expected: (state.revisions || {})[`chats/${path}`],
+    }).catch(() => null);
+  await PP.repo_commit(paths, `deleted: ${gone.map((c) => c.name).join(", ")}`).catch((e) =>
+    PP.toast(e.message, true),
+  );
+  PP.toast(gone.length === 1 ? "Chat deleted" : `${gone.length} chats deleted`);
+};
+
+// Another page of the shown page's provider, up to "Pages at once".
+const page_add = async (state) => {
+  const page = page_shown(state);
+  const plugin = page && state.plugins.find((p) => p.id === page.provider);
+  if (!plugin) return PP.toast("Open a provider's site first", true);
+  if (state.pages.length >= PP.setting_get(state, "sites.pages"))
+    return PP.toast("That's the most pages at once (Settings › Sites)", true);
+  const added = await PP.call_try("page_open", {
+    url: plugin.manifest.provider.url,
+    provider: PP.provider_build(state, plugin),
+  });
+  if (added)
+    PP.state_set((s) => ({
+      ...s,
+      pages: [...s.pages, added],
+      ui: { ...s.ui, site_view: { open: true, page: added.id } },
+    }));
+};
+
+// The site view's place on the screen: under the site bar.
+const region_get = () => {
+  const bar = document.getElementById("site-bar");
+  const top = bar ? bar.getBoundingClientRect().bottom : 0;
+  const scale = window.devicePixelRatio || 1;
+  return {
+    top: Math.round(top * scale),
+    left: 0,
+    width: Math.round(innerWidth * scale),
+    height: Math.round((innerHeight - top) * scale),
+  };
+};
+
+const page_report_copy = async (page) => {
+  if (!page) return PP.toast("No page to report", true);
+  const report = await PP.call_try("site_report_build", { page });
+  if (report)
+    PP.call_try(
+      "clipboard_write",
+      { text: typeof report === "string" ? report : JSON.stringify(report, null, 2) },
+      "Page report copied",
+    );
+};
+
+const credential_create = async (form) => {
+  const list = (text) =>
+    String(text || "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+  if (!form.name || !form.value) return PP.toast("A name and the secret, please", true);
+  const made = await PP.call_try(
+    "credential_create",
+    { ...form, hosts: list(form.hosts), tags: list(form.tags) },
+    "Saved",
+  );
+  if (!made) return;
+  PP.state_set((s) => ({
+    ...s,
+    credentials: [...s.credentials.filter((c) => c.name !== made.name), made],
+    ui: { ...s.ui, credential_form: null },
+  }));
+  PP.sheet_close();
+};
+
+const credential_delete = async (name) => {
+  if ((await PP.call_try("credential_delete", { name }, "Removed")) !== null)
+    PP.state_set((s) => ({ ...s, credentials: s.credentials.filter((c) => c.name !== name) }));
+};
+
+PP.plugin_set({
+  functions: {
+    chat_link,
+    site_import,
+    records_export,
+    records_import,
+    record_import_run,
+    chat_export,
+    text_files_add,
+    files_attach,
+    folder_create,
+    chat_tag_add,
+    chat_tag_remove,
+    turn_tag_add,
+    chat_rename,
+    chats_delete,
+    page_add,
+    region_get,
+    page_report_copy,
+    credential_create,
+    credential_delete,
+  },
+});
