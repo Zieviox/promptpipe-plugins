@@ -160,8 +160,8 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
   }
   let result = { state, targets: [] };
   for (const turn of turns) {
-    const fields = { ...turn, at: PP.time_get(), tags: [] };
-    const create = { collection: "turns", parent: chat, fields, id: PP.id_create() };
+    const fields = { ...turn, chat, at: PP.time_get(), tags: [] };
+    const create = { collection: "turns", fields, id: PP.id_create() };
     const made = PP.record_create(result.state, create);
     if (made.error) return made;
     result = { state: made.state, targets: [{ chat }] };
@@ -189,32 +189,18 @@ const attachment_add = async (state, { chat, files }) => {
 
 // ---------- the chats folder (UC36) ----------
 
-// Copy what `to` doesn't have yet from a folder on the phone into the chats folder.
-const tree_copy = async (from, to = "") => {
-  let copied = 0;
-  for (const entry of await PP.call_send("file_list", { root: "device", folder: from })) {
-    const source = `${from}/${entry.name}`;
-    const target = to ? `${to}/${entry.name}` : entry.name;
-    if (entry.folder) copied += await tree_copy(source, target);
-    else {
-      const [file] = await PP.call_send("file_read", { root: "device", path: source });
-      const write = { root: "chats", path: target, data: file.data, encoding: "base64" };
-      const r = await PP.call_send("file_write", { ...write, expected: "none" });
-      if (!r.outside_change && target.endsWith(".md")) copied += 1;
-    }
-  }
-  return copied;
-};
-
-// move: use the new folder and copy the chats into it; use: use it as it is; merge: copy its
-// chats into the folder in use (nothing is overwritten: `expected: "none"` means "only if new").
+// move: use the new folder, then copy the chats into it; use: use it as it is; merge: copy its
+// chats into the folder in use. Copies never overwrite (the core's `file_move` with `copy`).
 const chats_folder_move = async (state, { folder, how }) => {
   const old = PP.setting_get(state, "storage.chats_folder");
-  const result = how === "merge" ? { state, targets: [] }
-    : PP.record_set(state, { collection: "settings", fields: { "storage.chats_folder": folder } });
+  const fields = { "storage.chats_folder": folder };
+  const set = () => PP.record_set(state, { collection: "settings", fields });
+  const result = how === "merge" ? { state, targets: [] } : set();
+  if (how === "use") return result;
   if (how === "move") await PP.store_save(result.state, result.targets);
-  const copied = how === "use" ? 0 : await tree_copy(how === "merge" ? folder : old);
-  return { ...result, copied };
+  const from = how === "merge" ? folder : old;
+  const copy = { root: "device", from, to_root: "chats", to: "", copy: true, overwrite: false };
+  return { ...result, copied: (await PP.call_send("file_move", copy)).copied };
 };
 
 // ---------- the files a chat is saved as ----------
@@ -222,10 +208,12 @@ const chats_folder_move = async (state, { folder, how }) => {
 // meta.json (the chat without its turns), turns.json, and the readable file.
 const chat_files_build = async (state, id) => {
   const meta = state.chats.find((c) => c.id === id);
-  const open = state.chat && state.chat.id === id;
+  const loaded = (state.loaded || []).includes(id);
   const dir = `.promptpipe/chats/${id}`;
   const read = () => PP.call_send("file_read", { root: "chats", path: `${dir}/turns.json` });
-  const turns = open ? state.chat.turns : JSON.parse((await read())[0].data);
+  const turns = loaded
+    ? state.turns.filter((t) => t.chat === id)
+    : JSON.parse((await read())[0].data);
   const chat = { ...meta, turns };
   const info = {
     provider: PP.provider_get(state, chat),

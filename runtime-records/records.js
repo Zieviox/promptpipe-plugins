@@ -1,7 +1,9 @@
 "use strict";
 // Records and settings: every collection through one set of operations (strategy 1), the value
 // that applies when a chat doesn't set its own (D8, strategy 3), and saving each collection in the
-// place its schema names. The operations are pure over the State; `store_save` writes the files.
+// file its schema names. Every collection is one flat list of records; a child names its parent
+// (a block its `profile`, a turn its `chat`), as in a database. The operations are pure over the
+// State; `store_save` writes the files.
 
 // ---------- which value applies (D8) ----------
 
@@ -34,10 +36,10 @@ const options_get = (state, chat) => ({
 });
 
 // A block is sent when it and its group are on: the chat's own toggle, else the profile's.
-const block_on_get = (profile, chat, block) => {
+const block_on_get = (state, chat, block) => {
   const toggles = own_get(chat).toggles || {};
   const on = (id, fallback) => (id in toggles ? toggles[id] : fallback);
-  const group = (profile.groups || []).find((g) => g.id === block.group);
+  const group = state.config.groups.find((g) => g.id === block.group);
   return on(block.id, block.on !== false) && (!group || on(group.id, group.on !== false));
 };
 
@@ -52,62 +54,40 @@ const plugin_setting_get = (state, chat, plugin_id, key) => {
   return saved && key in saved ? saved[key] : default_get(defs, key);
 };
 
-// ---------- where a collection lives in the State ----------
-// A schema's `place`: "config" (a list in Config), "settings" (Config's map of changed values),
-// "profile" (a list inside a profile: blocks, groups), "chat" (a chat's turns), "state" (memory
-// only), "file" (a list saved in its own file), "chats" (each chat in its own folder),
-// "chat_data" (a plugin's data for a chat).
-
-const chat_find = (state, id) =>
-  state.chat && state.chat.id === id ? state.chat : state.chats.find((c) => c.id === id);
-
-const list_get = (state, schema, parent) => {
-  const field = schema.field || schema.collection;
-  if (schema.place === "config") return state.config[field] || [];
-  if (schema.place === "profile") return (profile_find(state, parent)[field] || []);
-  if (schema.place === "chat") return (chat_find(state, parent) || {}).turns || [];
-  return state[field] || [];
-};
-
-const profile_find = (state, id) => state.config.profiles.find((p) => p.id === id) || {};
-
-const list_put = (state, schema, parent, list) => {
-  const field = schema.field || schema.collection;
-  if (schema.place === "config") return { ...state, config: { ...state.config, [field]: list } };
-  if (schema.place === "profile") {
-    const put = (p) => (p.id === parent ? { ...p, [field]: list } : p);
-    const profiles = state.config.profiles.map(put);
-    return { ...state, config: { ...state.config, profiles } };
-  }
-  if (schema.place === "chat") {
-    if (!state.chat || state.chat.id !== parent) {
-      throw { code: "failed_precondition", message: "turns change only in the open chat" };
-    }
-    return { ...state, chat: { ...state.chat, turns: list } };
-  }
-  if (schema.place === "chats" && state.chat) {
-    // The open chat holds its turns; its other fields follow the list.
-    const meta = list.find((c) => c.id === state.chat.id);
-    const chat = meta ? { ...meta, turns: state.chat.turns } : state.chat;
-    return { ...state, [field]: list, chat };
-  }
-  return { ...state, [field]: list };
-};
-
-// The file a change to this collection must be saved to.
-const target_get = (schema, parent, record) => {
-  if (["config", "settings", "profile"].includes(schema.place)) return { file: "config" };
-  if (schema.place === "chats") return { chat: record.id };
-  if (schema.place === "chat") return { chat: parent };
-  if (schema.place === "chat_data") return { chat_data: record.id };
-  if (schema.place === "file") return { file: schema.collection };
-  return null;
-};
-
 // ---------- the record operations (pure) ----------
-// Each returns { state, record, targets } or { error }.
+// A schema names its `collection`, its `file` ("config", "prompts", "folders", "drafts", "chat",
+// "chat_data", or none for memory only), its `parent` field if it has one, and its `fields`.
+// Each operation returns { state, record, targets } or { error }.
 
-// Fields set to null go back to linked (D8); `own` and maps merge one level deep.
+const schema_get = (state, collection) => {
+  const schema = state.schemas.collections[collection];
+  if (!schema) throw { code: "invalid_argument", message: `no collection "${collection}"` };
+  return schema;
+};
+
+const list_get = (state, schema) =>
+  (schema.file === "config" ? state.config : state)[schema.collection] || [];
+
+const list_put = (state, schema, list) =>
+  schema.file === "config"
+    ? { ...state, config: { ...state.config, [schema.collection]: list } }
+    : { ...state, [schema.collection]: list };
+
+// The file a change must be saved to: a chat's files for chats and turns.
+const target_get = (schema, record) => {
+  if (schema.file === "chat") return { chat: record.chat || record.id };
+  return schema.file ? { file: schema.file, id: record.id } : null;
+};
+
+const result_build = (state, schema, list, record) => ({
+  state: list_put(state, schema, list),
+  record,
+  targets: [target_get(schema, record)].filter(Boolean),
+});
+
+const error_build = (code, message) => ({ error: { code, message } });
+
+// Fields set to null go back to linked (D8); objects (`own`, maps) merge one level deep.
 const fields_merge = (record, fields) => {
   const out = { ...record };
   for (const [key, value] of Object.entries(fields)) {
@@ -124,117 +104,119 @@ const record_validate = (record, schema) => {
   const problems = [];
   for (const def of schema.fields || []) {
     const value = record[def.key];
+    const low = def.min ?? -Infinity;
+    const high = def.max ?? Infinity;
     if (value === undefined || value === "") {
       if (def.required) problems.push(`${def.label} is needed`);
-      continue;
-    }
-    if (def.type === "number" && typeof value !== "number") problems.push(`${def.label}: a number`);
-    if (def.type === "number" && def.min !== undefined && value < def.min) {
-      problems.push(`${def.label}: at least ${def.min}`);
-    }
-    if (def.type === "number" && def.max !== undefined && value > def.max) {
-      problems.push(`${def.label}: at most ${def.max}`);
-    }
-    if (def.type === "choice" && def.choices && !def.choices.some((c) => c.value === value)) {
+    } else if (def.type === "number" && !(typeof value === "number" && low <= value)) {
+      problems.push(`${def.label}: a number from ${def.min ?? "any"} to ${def.max ?? "any"}`);
+    } else if (def.type === "number" && value > high) {
+      problems.push(`${def.label}: a number from ${def.min ?? "any"} to ${def.max ?? "any"}`);
+    } else if (def.type === "choice" && !(def.choices || []).some((c) => c.value === value)) {
       problems.push(`${def.label}: not one of the choices`);
     }
   }
   return problems;
 };
 
-const schema_get = (state, collection) => {
-  const schema = state.schemas.collections[collection];
-  if (!schema) throw { code: "invalid_argument", message: `no collection "${collection}"` };
-  return schema;
-};
-
-const result_build = (state, schema, parent, list, record) => ({
-  state: list_put(state, schema, parent, list),
-  record,
-  targets: [target_get(schema, parent, record)].filter(Boolean),
-});
-
-const record_create = (state, { collection, fields, parent, index, id }) => {
-  const schema = schema_get(state, collection);
-  const defaults = Object.fromEntries((schema.fields || []).map((d) => [d.key, d.default]));
-  const record = { ...defaults, ...fields, id };
+const record_check = (record, schema) => {
   const problems = record_validate(record, schema);
-  if (problems.length) return { error: { code: "invalid_argument", message: problems.join("; ") } };
-  const list = [...list_get(state, schema, parent)];
-  list.splice(index ?? list.length, 0, record);
-  return result_build(state, schema, parent, list, record);
+  return problems.length ? error_build("invalid_argument", problems.join("; ")) : null;
 };
 
-const record_set = (state, { collection, id, fields, parent }) => {
-  const schema = schema_get(state, collection);
-  if (schema.place === "settings") {
-    const settings = fields_merge(state.config.settings || {}, fields);
-    const next = { ...state, config: { ...state.config, settings } };
-    return { state: next, record: settings, targets: [{ file: "config" }] };
-  }
-  const list = list_get(state, schema, parent);
-  const old = list.find((r) => r.id === id);
-  if (!old) return { error: { code: "not_found", message: `no ${collection} "${id}"` } };
-  const record = fields_merge(old, fields);
-  const problems = record_validate(record, schema);
-  if (problems.length) return { error: { code: "invalid_argument", message: problems.join("; ") } };
-  const next = list.map((r) => (r.id === id ? record : r));
-  return result_build(state, schema, parent, next, record);
+// Where `index` among the records with the same parent falls in the whole list.
+const position_get = (list, schema, record, index) => {
+  if (index === undefined) return list.length;
+  const siblings = list.filter((r) => !schema.parent || r[schema.parent] === record[schema.parent]);
+  if (siblings[index]) return list.indexOf(siblings[index]);
+  return siblings.length ? list.indexOf(siblings[siblings.length - 1]) + 1 : list.length;
 };
 
-const record_move = (state, { collection, id, parent, index }) => {
-  const schema = schema_get(state, collection);
-  const list = [...list_get(state, schema, parent)];
-  const from = list.findIndex((r) => r.id === id);
-  if (from < 0) return { error: { code: "not_found", message: `no ${collection} "${id}"` } };
-  const [record] = list.splice(from, 1);
-  list.splice(Math.max(0, Math.min(index, list.length)), 0, record);
-  return result_build(state, schema, parent, list, record);
-};
-
-const record_copy = (state, { collection, id, parent, new_id }) => {
-  const schema = schema_get(state, collection);
-  const list = list_get(state, schema, parent);
-  const at = list.findIndex((r) => r.id === id);
-  if (at < 0) return { error: { code: "not_found", message: `no ${collection} "${id}"` } };
-  const record = { ...structuredClone(list[at]), id: new_id };
-  const next = [...list.slice(0, at + 1), record, ...list.slice(at + 1)];
-  return result_build(state, schema, parent, next, record);
-};
-
-const record_delete = (state, { collection, id, parent }) => {
-  const schema = schema_get(state, collection);
-  if (schema.place === "settings") return record_set(state, { collection, fields: { [id]: null } });
-  const list = list_get(state, schema, parent);
-  const record = list.find((r) => r.id === id);
-  if (!record) return { error: { code: "not_found", message: `no ${collection} "${id}"` } };
-  return result_build(state, schema, parent, list.filter((r) => r.id !== id), record);
-};
-
-const record_list = (state, { collection, parent, filter = {} }) =>
-  list_get(state, schema_get(state, collection), parent).filter((r) =>
+const record_list = (state, { collection, filter = {} }) =>
+  list_get(state, schema_get(state, collection)).filter((r) =>
     Object.entries(filter).every(([k, v]) => r[k] === v),
   );
 
-const record_get = (state, { collection, parent, id }) =>
-  record_list(state, { collection, parent }).find((r) => r.id === id) || null;
+const record_get = (state, { collection, id }) =>
+  record_list(state, { collection }).find((r) => r.id === id) || null;
+
+const record_create = (state, { collection, fields, index, id }) => {
+  const schema = schema_get(state, collection);
+  const defaults = Object.fromEntries((schema.fields || []).map((d) => [d.key, d.default]));
+  const record = { ...defaults, ...fields, id };
+  const error = record_check(record, schema);
+  if (error) return error;
+  const list = [...list_get(state, schema)];
+  list.splice(position_get(list, schema, record, index), 0, record);
+  return result_build(state, schema, list, record);
+};
+
+const record_set = (state, { collection, id, fields }) => {
+  const schema = schema_get(state, collection);
+  if (collection === "settings") {
+    const config = { ...state.config, settings: fields_merge(state.config.settings || {}, fields) };
+    return { state: { ...state, config }, record: config.settings, targets: [{ file: "config" }] };
+  }
+  const list = list_get(state, schema);
+  const old = list.find((r) => r.id === id);
+  if (!old) return error_build("not_found", `no ${collection} "${id}"`);
+  const record = fields_merge(old, fields);
+  const error = record_check(record, schema);
+  if (error) return error;
+  return result_build(state, schema, list.map((r) => (r === old ? record : r)), record);
+};
+
+const record_move = (state, { collection, id, index }) => {
+  const schema = schema_get(state, collection);
+  const list = [...list_get(state, schema)];
+  const record = list.find((r) => r.id === id);
+  if (!record) return error_build("not_found", `no ${collection} "${id}"`);
+  list.splice(list.indexOf(record), 1);
+  list.splice(position_get(list, schema, record, index), 0, record);
+  return result_build(state, schema, list, record);
+};
+
+// A copy with a new id; its children (a profile's blocks and groups) are copied with it.
+const record_copy = (state, { collection, id, new_id }) => {
+  const schema = schema_get(state, collection);
+  const list = list_get(state, schema);
+  const old = list.find((r) => r.id === id);
+  if (!old) return error_build("not_found", `no ${collection} "${id}"`);
+  const record = { ...structuredClone(old), id: new_id };
+  let result = result_build(state, schema, [...list, record], record);
+  const children = Object.values(state.schemas.collections).filter((s) => s.owner === collection);
+  for (const child of children) {
+    const all = list_get(result.state, child);
+    const copies = all
+      .filter((r) => r[child.parent] === id)
+      .map((r) => ({ ...structuredClone(r), id: PP.id_create(), [child.parent]: new_id }));
+    result = { ...result, state: list_put(result.state, child, [...all, ...copies]) };
+  }
+  return result;
+};
+
+const record_delete = (state, { collection, id }) => {
+  const schema = schema_get(state, collection);
+  if (collection === "settings") return record_set(state, { collection, fields: { [id]: null } });
+  const list = list_get(state, schema);
+  const record = list.find((r) => r.id === id);
+  if (!record) return error_build("not_found", `no ${collection} "${id}"`);
+  return result_build(state, schema, list.filter((r) => r !== record), record);
+};
 
 // ---------- saving (effects) ----------
 
 // The files a target stands for, with what goes in them.
-const writes_build = (state, target, chat_files) => {
-  if (target.file === "config") {
-    return [{ root: "app", path: "config.json", data: state.config }];
+const writes_build = async (state, target) => {
+  if (target.chat) return PP.chat_files_build(state, target.chat);
+  if (target.file === "config") return [{ root: "app", path: "config.json", data: state.config }];
+  if (target.file === "drafts") return [{ root: "app", path: "drafts.json", data: state.drafts }];
+  if (target.file === "chat_data") {
+    const item = state.chat_data.find((d) => d.id === target.id);
+    const path = `.promptpipe/chats/${item.chat}/${item.plugin}.json`;
+    return [{ root: "chats", path, data: item.data }];
   }
-  if (target.file) {
-    return [{ root: "chats", path: `.promptpipe/${target.file}.json`, data: state[target.file] }];
-  }
-  if (target.chat_data) {
-    const [chat, plugin] = target.chat_data.split("/");
-    const data = (state.chat_data || []).find((d) => d.id === target.chat_data) || {};
-    return [{ root: "chats", path: `.promptpipe/chats/${chat}/${plugin}.json`, data: data.data }];
-  }
-  return chat_files(state, target.chat);
+  return [{ root: "chats", path: `.promptpipe/${target.file}.json`, data: state[target.file] }];
 };
 
 // Write each target's files with the revision the app last wrote (D7); an outside change comes
@@ -244,12 +226,12 @@ const store_save = async (state, targets) => {
   const changes = [];
   const seen = new Set();
   for (const target of targets) {
-    for (const w of await writes_build(state, target, PP.chat_files_build)) {
+    for (const w of await writes_build(state, target)) {
       const key = `${w.root}/${w.path}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      const text = typeof w.data === "string" ? w.data : JSON.stringify(w.data, null, 2) + "\n";
-      const r = await PP.call_send("file_write", { ...w, data: text, expected: revisions[key] });
+      const data = typeof w.data === "string" ? w.data : JSON.stringify(w.data, null, 2) + "\n";
+      const r = await PP.call_send("file_write", { ...w, data, expected: revisions[key] });
       if (r.outside_change) changes.push(r.outside_change);
       else revisions[key] = r.revision;
     }
@@ -267,13 +249,13 @@ PP.plugin_set({
     block_on_get,
     plugin_setting_get,
     record_validate,
+    record_list,
+    record_get,
     record_create,
     record_set,
     record_move,
     record_copy,
     record_delete,
-    record_list,
-    record_get,
     store_save,
   },
 });

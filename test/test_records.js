@@ -13,26 +13,27 @@ const state_build = () => ({
       { key: "sites.pages", type: "number", default: 5, min: 1 },
     ],
     collections: {
-      profiles: { collection: "profiles", place: "config", fields: [{ key: "name", label: "Name", required: true }] },
-      blocks: { collection: "blocks", place: "profile" },
-      settings: { collection: "settings", place: "settings" },
-      sends: { collection: "sends", place: "state" },
-      chats: { collection: "chats", place: "chats" },
-      prompts: { collection: "prompts", place: "file" },
+      profiles: { collection: "profiles", file: "config", fields: [{ key: "name", label: "Name", required: true }] },
+      blocks: { collection: "blocks", file: "config", parent: "profile", owner: "profiles" },
+      groups: { collection: "groups", file: "config", parent: "profile", owner: "profiles" },
+      settings: { collection: "settings", file: "config" },
+      sends: { collection: "sends" },
+      chats: { collection: "chats", file: "chat" },
+      turns: { collection: "turns", file: "chat", parent: "chat" },
+      prompts: { collection: "prompts", file: "prompts" },
     },
   },
   config: {
     settings: {},
     profiles: [
-      { id: "p1", name: "Plain", blocks: [{ id: "b1", type: "message" }], groups: [], plugin_settings: {} },
-      {
-        id: "p2",
-        name: "Story",
-        blocks: [{ id: "b2", type: "prompt", on: true, group: "g1" }],
-        groups: [{ id: "g1", on: false }],
-        plugin_settings: { memory: { budget: 9 } },
-      },
+      { id: "p1", name: "Plain", plugin_settings: {} },
+      { id: "p2", name: "Story", plugin_settings: { memory: { budget: 9 } } },
     ],
+    blocks: [
+      { id: "b1", profile: "p1", type: "message" },
+      { id: "b2", profile: "p2", type: "prompt", on: true, group: "g1" },
+    ],
+    groups: [{ id: "g1", profile: "p2", on: false }],
     provider_choices: { deepseek: { model: "V3", options: { Search: true }, settings: { reply: "x" } } },
   },
   plugins: [
@@ -40,7 +41,7 @@ const state_build = () => ({
     { id: "deepseek", manifest: { tags: ["provider", "web"], settings: [{ key: "reply", default: "" }] } },
   ],
   chats: [{ id: "c1", name: "Trip", own: { profile: "p2", options: { Search: false, DeepThink: true } } }],
-  chat: { id: "c1", name: "Trip", own: { profile: "p2", options: { Search: false, DeepThink: true } }, turns: [] },
+  turns: [],
   sends: [],
   prompts: [],
 });
@@ -49,25 +50,25 @@ test("linked values come from the defaults, own values from the chat (D8)", () =
   const s = state_build();
   assert.equal(pp.provider_get(s, null), "deepseek");
   assert.equal(pp.profile_get(s, null).id, "p1");
-  assert.equal(pp.profile_get(s, s.chat).id, "p2");
-  assert.equal(pp.model_get(s, s.chat), "V3");
-  assert.deepEqual(pp.options_get(s, s.chat), { Search: false, DeepThink: true });
+  assert.equal(pp.profile_get(s, s.chats[0]).id, "p2");
+  assert.equal(pp.model_get(s, s.chats[0]), "V3");
+  assert.deepEqual(pp.options_get(s, s.chats[0]), { Search: false, DeepThink: true });
   assert.equal(pp.setting_get(s, "sites.pages"), 5);
 });
 
 test("a block is off when its group is off, unless the chat says otherwise", () => {
   const s = state_build();
-  const p2 = s.config.profiles[1];
-  assert.equal(pp.block_on_get(p2, s.chat, p2.blocks[0]), false);
-  const chat = { ...s.chat, own: { toggles: { g1: true } } };
-  assert.equal(pp.block_on_get(p2, chat, p2.blocks[0]), true);
+  const b2 = s.config.blocks[1];
+  assert.equal(pp.block_on_get(s, s.chats[0], b2), false);
+  const chat = { ...s.chats[0], own: { toggles: { g1: true } } };
+  assert.equal(pp.block_on_get(s, chat, b2), true);
 });
 
 test("plugin settings: per profile, a provider's per provider", () => {
   const s = state_build();
-  assert.equal(pp.plugin_setting_get(s, s.chat, "memory", "budget"), 9);
-  assert.equal(pp.plugin_setting_get(s, s.chat, "memory", "recent"), 6);
-  assert.equal(pp.plugin_setting_get(s, s.chat, "deepseek", "reply"), "x");
+  assert.equal(pp.plugin_setting_get(s, s.chats[0], "memory", "budget"), 9);
+  assert.equal(pp.plugin_setting_get(s, s.chats[0], "memory", "recent"), 6);
+  assert.equal(pp.plugin_setting_get(s, s.chats[0], "deepseek", "reply"), "x");
 });
 
 test("create validates, set merges, null goes back to linked", () => {
@@ -75,22 +76,24 @@ test("create validates, set merges, null goes back to linked", () => {
   assert.ok(pp.record_create(s, { collection: "profiles", fields: {}, id: "p3" }).error);
   const made = pp.record_create(s, { collection: "profiles", fields: { name: "New" }, id: "p3" });
   assert.equal(made.state.config.profiles.length, 3);
-  assert.deepEqual(made.targets, [{ file: "config" }]);
+  assert.deepEqual(made.targets, [{ file: "config", id: "p3" }]);
   const set = pp.record_set(s, { collection: "chats", id: "c1", fields: { own: { profile: null } } });
   assert.equal(set.record.own.profile, undefined);
-  assert.equal(set.state.chat.own.profile, undefined);
-  assert.deepEqual(set.state.chat.turns, []);
+  assert.equal(set.state.chats[0].own.profile, undefined);
+  assert.deepEqual(set.targets, [{ chat: "c1" }]);
 });
 
 test("nested collections, moves, copies, deletes", () => {
   const s = state_build();
-  const add = pp.record_create(s, { collection: "blocks", parent: "p1", fields: { type: "prompt" }, id: "b9", index: 0 });
-  assert.deepEqual(add.state.config.profiles[0].blocks.map((b) => b.id), ["b9", "b1"]);
-  const moved = pp.record_move(add.state, { collection: "blocks", parent: "p1", id: "b9", index: 1 });
-  assert.deepEqual(moved.state.config.profiles[0].blocks.map((b) => b.id), ["b1", "b9"]);
-  const copied = pp.record_copy(s, { collection: "profiles", id: "p1", new_id: "p4" });
-  assert.equal(copied.state.config.profiles[1].id, "p4");
-  assert.notEqual(copied.state.config.profiles[1].blocks, s.config.profiles[0].blocks);
+  const ids = (st, p) => st.config.blocks.filter((b) => b.profile === p).map((b) => b.id);
+  const add = pp.record_create(s, { collection: "blocks", fields: { profile: "p1", type: "prompt" }, id: "b9", index: 0 });
+  assert.deepEqual(ids(add.state, "p1"), ["b9", "b1"]);
+  const moved = pp.record_move(add.state, { collection: "blocks", id: "b9", index: 1 });
+  assert.deepEqual(ids(moved.state, "p1"), ["b1", "b9"]);
+  const copied = pp.record_copy(s, { collection: "profiles", id: "p2", new_id: "p4" });
+  assert.equal(copied.state.config.profiles[2].id, "p4");
+  assert.deepEqual(copied.state.config.blocks.filter((b) => b.profile === "p4").map((b) => b.type), ["prompt"]);
+  assert.equal(copied.state.config.groups.filter((g) => g.profile === "p4").length, 1);
   const gone = pp.record_delete(s, { collection: "profiles", id: "p2" });
   assert.equal(gone.state.config.profiles.length, 1);
   assert.equal(pp.record_get(s, { collection: "profiles", id: "nope" }), null);
