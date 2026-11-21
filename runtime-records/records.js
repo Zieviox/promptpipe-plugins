@@ -14,7 +14,8 @@ const setting_get = (state, key) => {
   return key in set ? set[key] : default_get(state.schemas.settings, key);
 };
 
-const provider_get = (state, chat) => own_get(chat).provider ?? setting_get(state, "chats.provider");
+const provider_get = (state, chat) =>
+  own_get(chat).provider ?? setting_get(state, "chats.provider");
 
 const profile_get = (state, chat) => {
   const id = own_get(chat).profile ?? setting_get(state, "chats.profile");
@@ -74,7 +75,8 @@ const list_put = (state, schema, parent, list) => {
   const field = schema.field || schema.collection;
   if (schema.place === "config") return { ...state, config: { ...state.config, [field]: list } };
   if (schema.place === "profile") {
-    const profiles = state.config.profiles.map((p) => (p.id === parent ? { ...p, [field]: list } : p));
+    const put = (p) => (p.id === parent ? { ...p, [field]: list } : p);
+    const profiles = state.config.profiles.map(put);
     return { ...state, config: { ...state.config, profiles } };
   }
   if (schema.place === "chat") {
@@ -242,7 +244,7 @@ const store_save = async (state, targets) => {
   const changes = [];
   const seen = new Set();
   for (const target of targets) {
-    for (const w of writes_build(state, target, PP.chat_files_build)) {
+    for (const w of await writes_build(state, target, PP.chat_files_build)) {
       const key = `${w.root}/${w.path}`;
       if (seen.has(key)) continue;
       seen.add(key);

@@ -8,7 +8,10 @@ const ROOT = path.join(__dirname, "..");
 
 // A PP with the calls answered by `answers` (name → function of data), the rest unimplemented.
 const pp_build = (answers = {}) => {
-  const pp = { calls: {}, sent: [] };
+  const pp = { calls: {}, sent: [], state: null };
+  let n = 0;
+  pp.id_create = () => `id${(n += 1)}`;
+  pp.time_get = () => "2026-11-21T10:00:00.000Z";
   pp.plugin_set = (def) => {
     Object.assign(pp, def.functions || {});
     Object.assign(pp.calls, def.calls || {});
@@ -17,7 +20,7 @@ const pp_build = (answers = {}) => {
     pp.sent.push({ name, data });
     const answer = answers[name] || pp.calls[name];
     if (!answer) throw { code: "unimplemented", message: `${name} is not supported here` };
-    return answer(data, pp);
+    return answer(data, pp.state);
   };
   return pp;
 };
