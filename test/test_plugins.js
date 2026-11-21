@@ -148,6 +148,7 @@ test("the State is read at start; a first start makes a profile from Plain", asy
       d.pattern ? [{ data: JSON.stringify({ id: "c1", name: "Trip", file: "Trip.md" }) }] : [],
     file_write: (d) => (written.push(d.path), { revision: "r1" }),
     credential_list: () => [{ name: "git token" }],
+    chats_folder_get: () => ({ folder: "", default: "/sdcard/Documents/PromptPipe/chats" }),
   });
   const state = await pp.state_load({
     app: { app_folder: "/sdcard/Documents/PromptPipe" },

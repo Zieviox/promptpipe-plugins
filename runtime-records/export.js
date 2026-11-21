@@ -45,12 +45,16 @@ const name_free = (names, name) => {
   return `${name} (${n})`;
 };
 
-// Profiles: each with new ids (its blocks' links pointing at the prompts brought with it).
+// Profiles: each with new ids (its blocks' links pointing at the prompts brought with it). `ids`
+// says which new id each profile and block got, by their ids in the file.
 const profiles_add = (state, data, clash) => {
   const prompt_ids = new Map((data.prompts || []).map((p) => [p.id, PP.id_create()]));
+  const ids = { profiles: {}, blocks: {} };
   let config = state.config;
   for (const profile of data.profiles || []) {
     const id = PP.id_create();
+    ids.profiles[profile.id] = id;
+    ids.blocks[profile.id] = {};
     const same = config.profiles.find((p) => p.name === profile.name);
     const name =
       same && clash === "both"
@@ -68,7 +72,7 @@ const profiles_add = (state, data, clash) => {
       .filter((b) => b.profile === profile.id)
       .map((b) => ({
         ...b,
-        id: PP.id_create(),
+        id: (ids.blocks[profile.id][b.id] = PP.id_create()),
         profile: id,
         group: group_ids.get(b.group) || "",
         link: b.link ? prompt_ids.get(b.link) || b.link : undefined,
@@ -91,6 +95,7 @@ const profiles_add = (state, data, clash) => {
   return {
     state: { ...state, config, prompts },
     targets: [{ file: "config" }, { file: "prompts" }],
+    ids,
   };
 };
 

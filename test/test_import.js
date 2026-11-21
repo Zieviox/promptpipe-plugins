@@ -187,7 +187,7 @@ test("the old app's content is backed up and imported once (X5)", async () => {
   );
   assert.equal(blocks[0].link, "lib1");
   assert.equal(blocks[0].send, "first");
-  assert.equal(blocks[2].id, "memory", "a plugin block keeps the id the chat's toggles name");
+  assert.equal(blocks[2].plugin, "memory");
   assert.deepEqual(writer.plugin_settings.base64, { keep: false });
   assert.equal(s.prompts[0].text, "Be kind.");
 
@@ -197,7 +197,7 @@ test("the old app's content is backed up and imported once (X5)", async () => {
   assert.deepEqual(chat.own, {
     provider: "qwen-chat",
     profile: writer.id,
-    toggles: { memory: false },
+    toggles: { [blocks[2].id]: false }, // the chat's toggle now names the new block
   });
   const [turn] = s.turns;
   assert.equal(turn.message, "A dragon who hoards maps");

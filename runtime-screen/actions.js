@@ -59,8 +59,7 @@ const records_export = async (collection, ids, to = "file") => {
 
 const chat_export = (state, to) => state.ui.chat && records_export("chats", [state.ui.chat], to);
 
-const text_decode = (base64) =>
-  new TextDecoder().decode(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)));
+const text_decode = (base64) => new TextDecoder().decode(PP.base64_decode(base64));
 
 // Files picked and read in; a profile file's name clash is asked unless Settings says (UC27).
 const records_import = async (collection, clash) => {

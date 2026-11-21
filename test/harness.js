@@ -23,6 +23,8 @@ const pp_build = (answers = {}) => {
   };
   pp.state_get = () => pp.state;
   pp.pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  pp.base64_decode = (text) => new Uint8Array(Buffer.from(text, "base64"));
+  pp.base64_encode = (bytes) => Buffer.from(bytes).toString("base64");
   pp.state_set = (change) => (pp.state = change(pp.state));
   pp.event_send = (name, data) => (
     pp.sent.push({ event: name, data }), (pp.events[name] || []).forEach((f) => f(data))

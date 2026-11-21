@@ -155,7 +155,9 @@ const CONFIG_NEW = {
 // makes the profile you have from Plain.
 const state_load = async (state) => {
   const schemas = JSON.parse(PP.content_read("runtime-records", "schemas.json"));
-  const chats_default = `${(state.app && state.app.app_folder) || ""}/chats`;
+  // The default chats folder is the core's (it reads the setting itself).
+  const folders = await PP.call_send("chats_folder_get", {}).catch(() => ({ default: "" }));
+  const chats_default = folders.default;
   schemas.settings = schemas.settings.map((d) =>
     d.key === "storage.chats_folder" ? { ...d, default: chats_default } : d,
   );

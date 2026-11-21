@@ -5,14 +5,10 @@
 const ID = "base64";
 const BAD = /[�\u0000-\u0008\u000E-\u001F]/g;
 
-const text_encode = (text) => {
-  let binary = "";
-  for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
-  return btoa(binary);
-};
+const text_encode = (text) => PP.base64_encode(new TextEncoder().encode(text));
 
-// One base64 string to text: { text, fixes }, or an error when strict and damaged.
-const base64_decode = (raw, strict) => {
+// One base64 string to text (repaired unless strict): { text, fixes }, or an error when strict and damaged.
+const text_decode = (raw, strict) => {
   const fixes = [];
   let s = raw.replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, "");
   if (/[^A-Za-z0-9+/]/.test(s)) {
@@ -70,7 +66,7 @@ const reply_decode = (reply, strict) => {
   for (let cut = 0; cut <= Math.min(3, words.length - 1); cut += 1) {
     let out;
     try {
-      out = base64_decode(words.slice(0, words.length - cut).join(""), strict);
+      out = text_decode(words.slice(0, words.length - cut).join(""), strict);
     } catch (error) {
       if (cut === 0 && strict) throw error;
       continue;
@@ -135,7 +131,7 @@ const reply_show = (state, { turn }) => {
 };
 
 PP.plugin_set({
-  functions: { base64_decode, reply_decode },
+  functions: { reply_decode },
   hooks: { send_before, reply_after },
   commands: [{ id: "base64_decode", label: "Decode base64", place: "Reply", run: reply_show }],
 });

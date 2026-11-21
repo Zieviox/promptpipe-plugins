@@ -146,6 +146,16 @@ const url_same = (a, b) => {
   return clean(a) !== "" && clean(a) === clean(b);
 };
 
+// A site's short name from a link ("https://chat.qwen.ai/c/1" → "Qwen"), for people to read.
+const site_name_get = (url) => {
+  try {
+    const name = new URL(url).host.replace(/^(www|chat|chatgpt)\./, "").split(".")[0];
+    return name ? name[0].toUpperCase() + name.slice(1) : "AI";
+  } catch {
+    return "AI";
+  }
+};
+
 // The one way to make a chat: named (or after its first message's first line, 60 characters),
 // its file in the folder, dated (UC1, UC41).
 const chat_create = (state, { id, name, message, folder = "", own = {}, site_url, at }) => {
@@ -305,6 +315,7 @@ PP.plugin_set({
     chat_file_build,
     chat_create,
     url_same,
+    site_name_get,
     site_chat_open,
     site_chat_import,
     attachment_add,

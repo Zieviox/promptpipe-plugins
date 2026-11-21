@@ -152,7 +152,7 @@ const link_read = async (url) => {
     : url.replace(/\/plugin\.json$/, "");
   if (url.endsWith(".zip")) {
     const r = await PP.call_send("http_fetch", { url, method: "GET", encoding: "base64" });
-    return zip_read(Uint8Array.from(atob(r.body), (c) => c.charCodeAt(0)));
+    return zip_read(PP.base64_decode(r.body));
   }
   const manifest = await text_fetch(`${base}/plugin.json`);
   const files = { "plugin.json": manifest };

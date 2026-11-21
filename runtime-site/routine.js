@@ -568,4 +568,6 @@ return {
   reply_format,
   text_write,
   element_find,
+  visible,
+  text_get,
 };

@@ -17,14 +17,7 @@ const text_escape = (text) =>
     "$1\\$2",
   );
 const clip = (text, n) => (text.length > n ? `${text.slice(0, n)}…` : text);
-const site_name = (url) => {
-  try {
-    const name = new URL(url).host.replace(/^(www|chat|chatgpt)\./, "").split(".")[0];
-    return name[0].toUpperCase() + name.slice(1);
-  } catch {
-    return "AI";
-  }
-};
+const site_name = (url) => PP.site_name_get(url);
 
 const turn_format = (turn, named, side = "both", n = Infinity) => {
   const ai = named ? site_name(turn.page_url) : "AI";

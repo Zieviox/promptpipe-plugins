@@ -46,6 +46,7 @@ const core_build = () => {
       (files[`${root}/${p}`] = data), { revision: `r${(n += 1)}` }
     ),
     file_delete: ({ root, path: p }) => (delete files[`${root}/${p}`], {}),
+    chats_folder_get: () => ({ folder: "/phone/chats", default: "/phone/chats" }),
   };
 };
 

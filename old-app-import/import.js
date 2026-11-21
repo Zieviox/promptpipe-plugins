@@ -56,24 +56,16 @@ const files_walk = async (folder, hidden = true) => {
   return out;
 };
 
-const bytes_from = (base64) => Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-const base64_from = (bytes) => {
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 32768)
-    binary += String.fromCharCode(...bytes.subarray(i, i + 32768));
-  return btoa(binary);
-};
-
 // A folder marked .nomedia and zipped whole; returns the zip's path in the app folder.
 const folder_back_up = async (base) => {
   await device("file_write", { path: `${base}/.nomedia`, data: "" }).catch(() => null);
   const files = {};
   for (const path of await files_walk(base)) {
     const [file] = await device("file_read", { path, encoding: "base64" });
-    files[path.slice(base.length + 1)] = bytes_from(file.data);
+    files[path.slice(base.length + 1)] = PP.base64_decode(file.data);
   }
   const name = `.promptpipe/backups/old-app-${base.includes("/Android/") ? "own" : "shared"}-${PP.time_get().slice(0, 10)}.zip`; // legacy
-  const data = base64_from(globalThis.fflate.zipSync(files, { level: 1 }));
+  const data = PP.base64_encode(globalThis.fflate.zipSync(files, { level: 1 }));
   await PP.call_send("file_write", { root: "app", path: name, data, encoding: "base64" });
   return name;
 };
@@ -180,45 +172,48 @@ const config_import = (state, old) => {
     if (path_get(old, from) != null && path_get(old, from) !== "")
       settings[to] = path_get(old, from);
   if (path_get(old, "ui.scale")) settings["look.scale"] = Math.round(old.ui.scale * 100);
-  const ids = new Map();
-  const profiles = (old.profiles || []).map((p) => {
-    const id = PP.id_create();
-    ids.set(p.id, id);
+  // The profiles go through the app's own profile import (one rule for ids and name clashes:
+  // "Name (2)"), as a file in the export's shape; `ids` maps the old ids to the new ones.
+  const file = { version: 1, profiles: [], blocks: [], groups: [], prompts: [] };
+  for (const p of old.profiles || []) {
     const plugin_settings = Object.fromEntries(
       Object.entries(p.pluginSettings || {}).map(([k, v]) => [
         k,
         plugin_settings_move(state, k, v),
       ]),
     );
-    return {
-      profile: { id, name: p.name || "Profile", plugin_settings },
-      blocks: blocks_build(p, id),
-      groups: (p.groups || (p.pipe || {}).groups || []).map((g) => ({ ...g, profile: id })), // legacy
-    };
+    file.profiles.push({ id: p.id, name: p.name || "Profile", plugin_settings });
+    file.blocks.push(...blocks_build(p, p.id));
+    file.groups.push(
+      ...(p.groups || (p.pipe || {}).groups || []).map((g) => ({ ...g, profile: p.id })),
+    ); // legacy
+  }
+  const added = PP.record_import(state, {
+    collection: "profiles",
+    text: JSON.stringify(file),
+    clash: "both",
   });
-  if (ids.has(old.activeProfile)) settings["chats.profile"] = ids.get(old.activeProfile);
-  const provider_choices = { ...state.config.provider_choices };
+  if (added.ids.profiles[old.activeProfile])
+    settings["chats.profile"] = added.ids.profiles[old.activeProfile];
+  const provider_choices = { ...added.state.config.provider_choices };
   for (const [plugin, saved] of Object.entries(old.providerSettings || old.siteSettings || {}))
     provider_choices[plugin] = {
       ...(provider_choices[plugin] || {}),
       settings: plugin_settings_move(state, plugin, saved),
     };
-  const names = new Set(state.config.profiles.map((p) => p.name));
   const config = {
-    ...state.config,
-    settings: { ...state.config.settings, ...settings },
-    profiles: [
-      ...state.config.profiles,
-      ...profiles.map((x) => ({
-        ...x.profile,
-        name: names.has(x.profile.name) ? `${x.profile.name} (old app)` : x.profile.name,
-      })),
-    ],
-    blocks: [...state.config.blocks, ...profiles.flatMap((x) => x.blocks)],
-    groups: [...state.config.groups, ...profiles.flatMap((x) => x.groups)],
+    ...added.state.config,
+    settings: { ...added.state.config.settings, ...settings },
     provider_choices,
   };
-  return { ...state, config };
+  // A chat names its profile by name, and its toggles by the old block ids (a plugin's by its id).
+  const profiles = Object.fromEntries(
+    (old.profiles || []).map((p) => [
+      p.name,
+      { id: added.ids.profiles[p.id], blocks: added.ids.blocks[p.id] },
+    ]),
+  );
+  return { state: { ...added.state, config }, profiles };
 };
 
 // ---------- chats ----------
@@ -317,10 +312,13 @@ const memory_parse = (text, level, chunk) =>
     })
     .sort((a, b) => a.from - b.from);
 
-const chat_import = async (state, root, path, chunk) => {
+const chat_import = async (state, root, path, chunk, profiles) => {
   const { meta, turns } = chat_file_parse(await text_read(`${root}/${path}`));
   const id = PP.id_create();
-  const profile = state.config.profiles.find((p) => p.name === meta.profile);
+  const profile = profiles[meta.profile];
+  const toggles = Object.fromEntries(
+    Object.entries(meta.toggles).map(([key, on]) => [(profile && profile.blocks[key]) || key, on]),
+  );
   const at = meta.created || PP.time_get();
   const chat = {
     id,
@@ -331,7 +329,7 @@ const chat_import = async (state, root, path, chunk) => {
     own: {
       ...(meta.provider && { provider: meta.provider }),
       ...(profile && { profile: profile.id }),
-      ...(Object.keys(meta.toggles).length && { toggles: meta.toggles }),
+      ...(Object.keys(toggles).length && { toggles }),
     },
     created: at,
     updated: meta.updated || at,
@@ -377,7 +375,10 @@ const old_import = async () => {
   const old = bases.length ? await json_read(`${bases[0]}/config.json`) : null;
   const chunk =
     Number(((old && (old.profiles || [])[0]) || {}).pluginSettings?.memory?.chunk) || 10;
-  let next = old ? config_import(PP.state_get(), old) : PP.state_get();
+  const imported = old
+    ? config_import(PP.state_get(), old)
+    : { state: PP.state_get(), profiles: {} };
+  let next = imported.state;
   const library =
     (await json_read(`${chats[0]}/prompt-library.json`)) ||
     (await json_read(`${chats[0]}/system-prompts.json`)); // legacy
@@ -398,7 +399,7 @@ const old_import = async () => {
     for (const full of await files_walk(root, false)) {
       const path = full.slice(root.length + 1);
       if (!path.endsWith(".md") || next.chats.some((c) => c.file === path)) continue;
-      const made = await chat_import(next, root, path, chunk);
+      const made = await chat_import(next, root, path, chunk, imported.profiles);
       next = {
         ...next,
         chats: [...next.chats, made.chat],

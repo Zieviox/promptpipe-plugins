@@ -7,18 +7,8 @@
 // branches are the plugin's chat data.
 
 const ID = "sub-chats";
-const clean = (u) =>
-  String(u || "")
-    .replace(/[?#].*$/, "")
-    .replace(/\/$/, "");
-const same = (a, b) => !!clean(a) && clean(a) === clean(b);
-const site_name = (u) => {
-  try {
-    return new URL(u).host.replace(/^(www|chat)\./, "").split(".")[0];
-  } catch {
-    return "site";
-  }
-};
+const same = (a, b) => PP.url_same(a, b);
+const site_name = (url) => PP.site_name_get(url);
 
 // Runs of turns with one site chat, each numbered by its site chat in first-seen order.
 const segments_get = (turns) => {

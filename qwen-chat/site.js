@@ -1,8 +1,8 @@
 // Qwen's quirks: refusals come as a toast, a dialog can sit on top of the chat, the model list
 // sometimes opens by itself, and the thinking is folded into a card whose text only appears once
 // it's opened.
-const shown = (el) => !!el && el.getClientRects().length > 0;
-const text_get = (el) => (el.innerText || el.textContent || "").replace(/\s+/g, " ").trim();
+const shown = (el) => PP.stages.visible(el);
+const text_get = (el) => PP.stages.text_get(el).replace(/\s+/g, " ");
 const REFUSAL = /permission|denied|limit|too many|try again|error|failed|log ?in/i;
 
 const error_find = () => {
