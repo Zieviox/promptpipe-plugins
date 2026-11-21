@@ -299,6 +299,11 @@ const failure_resolve = async (id, choice) => {
 // answer with the profiles' names. The answer goes back as `job_changed` events.
 const job_run = async (job) => {
   const state = PP.state_get();
+  if (job.request === "cancel") {
+    // The caller left (#209): stop the send that answers the job.
+    const send = state.sends.find((s) => s.job === job.id);
+    return send && send_stop(send.id);
+  }
   if (job.request === "models") {
     return PP.event_send("job_changed", {
       job: job.id,

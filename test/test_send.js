@@ -178,3 +178,11 @@ test("a job becomes a send in a new chat and answers with job_changed (UC41)", a
   await pp.job_run({ id: "j2", request: "models" });
   assert.deepEqual(pp.sent.filter((s) => s.event === "job_changed").pop().data.models, ["Plain"]);
 });
+
+test("a cancelled job stops its send (#209)", async () => {
+  const { pp, pending } = world_build();
+  await pp.job_run({ id: "j3", request: "chat", chat: "c2", message: "hi" });
+  await tick();
+  await pp.job_run({ id: "j3", request: "cancel" });
+  assert.ok(pp.sent.some((s) => s.name === "site_stop" && s.data.page === pending[0].d.page));
+});
