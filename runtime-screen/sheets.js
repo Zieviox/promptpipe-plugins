@@ -112,6 +112,9 @@ const SHEETS = {
           field_render(state, d, PP.setting_get(state, d.key), (v) => set({ [d.key]: v })),
         ),
       ...(SECTION_EXTRAS[name] ? SECTION_EXTRAS[name](state) : []),
+      ...(PP.plugin_commands || [])
+        .filter((c) => c.place === `Settings › ${name}`)
+        .map((c) => item({ key: c.id, label: c.label, onClick: () => PP.command_run(c.id) })),
     ],
   }),
 
