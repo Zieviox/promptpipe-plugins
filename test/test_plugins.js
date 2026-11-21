@@ -55,6 +55,46 @@ test("versions and the catalogue's offers and updates (UC28, UC31)", async () =>
   assert.equal(r.offers.find((o) => o.id === "qwen").app_too_old, true);
 });
 
+test("a source is added with its own key, and its catalogue is checked against that key", async () => {
+  const KEY = "ab".repeat(32);
+  const seen = [];
+  const pp = plugins_load(IDS, {
+    http_fetch: (d) => ({
+      status: 200,
+      body: d.url.endsWith(".pub") ? `${KEY}\n` : d.url.endsWith(".sig") ? "sig\n" : "{}",
+    }),
+    catalogue_verify: (d) => (
+      seen.push(d), { entries: [{ id: "extra", version: "1.0.0", min_app: "1.0.0" }] }
+    ),
+  });
+  const state = { app: { version: "1.0.0" }, config: { sources: [] }, plugins: [] };
+  const found = await pp.source_verify(state, { url: "https://github.com/someone/plugins/" });
+  assert.deepEqual(found, {
+    source: { url: "https://github.com/someone/plugins", on: true, key: KEY },
+    count: 1,
+  });
+  assert.equal(seen[0].key, KEY);
+  assert.equal(seen[0].signature, "sig");
+  await assert.rejects(pp.source_verify(state, { url: "not a repo" }), {
+    code: "invalid_argument",
+  });
+
+  const official = await pp.catalogue_load({
+    ...state,
+    config: { sources: [{ url: "https://github.com/x/y", on: true }] },
+  });
+  assert.equal(
+    official.failed[0].error.code,
+    "failed_precondition",
+    "a source with no key is refused",
+  );
+  assert.equal(
+    seen[seen.length - 1].key,
+    undefined,
+    "the official catalogue uses the app's own keys",
+  );
+});
+
 test("installing asks first when the name is taken; a new block plugin joins the profile (UC29)", async () => {
   const written = [];
   const pp = plugins_load(IDS, {

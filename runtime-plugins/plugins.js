@@ -39,7 +39,15 @@ const catalogue_load = async (state, { source } = {}) => {
     try {
       const data = await text_fetch(raw_url(s, "catalogue.json"));
       const signature = (await text_fetch(raw_url(s, "catalogue.json.sig"))).trim();
-      const catalogue = await PP.call_send("catalogue_verify", { data, signature });
+      // The official catalogue against the app's own keys; another source's against the key you
+      // accepted when you added it.
+      if (s.id !== OFFICIAL.id && !s.key)
+        throw {
+          code: "failed_precondition",
+          message: "This source has no key: remove it and add it again",
+        };
+      const key = s.id === OFFICIAL.id ? undefined : s.key;
+      const catalogue = await PP.call_send("catalogue_verify", { data, signature, key });
       offers.push(...catalogue.entries.map((entry) => ({ ...entry, source: s })));
     } catch (error) {
       failed.push({ source: s, error });
@@ -60,6 +68,28 @@ const catalogue_load = async (state, { source } = {}) => {
     updates: updates.filter((o) => version_compare(o.min_app, app) <= 0),
     failed,
   };
+};
+
+// A source to add: its public key (catalogue.pub in the repository) and a catalogue that key
+// signed. You accept the key once; from then on that source must be signed with it.
+const source_verify = async (state, { url }) => {
+  const clean = String(url || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (!/^https:\/\/github\.com\/[^/]+\/[^/]+$/.test(clean))
+    throw {
+      code: "invalid_argument",
+      message: "Give a GitHub repository, like https://github.com/name/repo",
+    };
+  if (clean === OFFICIAL.url || state.config.sources.some((s) => s.url === clean))
+    throw { code: "already_exists", message: "That source is already in the list" };
+  const source = { url: clean, on: true };
+  const key = (await text_fetch(raw_url(source, "catalogue.pub"))).trim().toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(key))
+    throw { code: "invalid_argument", message: "Its catalogue.pub isn't a public key" };
+  const loaded = await catalogue_load(state, { source: { ...source, id: "new", key } });
+  if (loaded.failed.length) throw loaded.failed[0].error;
+  return { source: { ...source, key }, count: loaded.offers.length };
 };
 
 // ---------- reading what's installed from ----------
@@ -204,11 +234,13 @@ PP.plugin_set({
     plugin_install,
     plugin_update,
     plugin_copy,
+    source_verify,
   },
   calls: {
     catalogue_load: (d, state) => catalogue_load(state, d),
     plugin_install: (d, state) => plugin_install(state, d),
     plugin_update: (d, state) => plugin_update(state, d),
     plugin_copy: (d, state) => plugin_copy(state, d),
+    source_verify: (d, state) => source_verify(state, d),
   },
 });

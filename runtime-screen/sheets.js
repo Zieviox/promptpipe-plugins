@@ -843,6 +843,37 @@ ${p.text}</textarea
             right: "›",
             onClick: () => PP.sheet_open("install"),
           }),
+          label("Sources"),
+          item({ label: "Promptpipe's own", sub: "Signed with the key built into the app" }),
+          ...state.config.sources.map((src) =>
+            item({
+              key: src.id,
+              label: src.url.replace("https://github.com/", ""),
+              sub: `Key ${src.key.slice(0, 8)}… · tap to remove`,
+              right: toggle(src.on, "On", (on) =>
+                PP.apply_try((x) =>
+                  PP.record_set(x, { collection: "sources", id: src.id, fields: { on } }),
+                ),
+              ),
+              onClick: () =>
+                PP.dialog_open({
+                  title: `Remove ${src.url}? Plugins installed from it stay.`,
+                  choices: [["yes", "Remove"]],
+                  command: "source_remove",
+                  data: { id: src.id },
+                }),
+            }),
+          ),
+          item({
+            label: "Add a source…",
+            sub: "Someone else's plugin repository with a signed catalogue",
+            onClick: () =>
+              PP.dialog_open({
+                title: "GitHub repository of the source",
+                ok: "Check",
+                command: "source_add",
+              }),
+          }),
         ],
       };
     }

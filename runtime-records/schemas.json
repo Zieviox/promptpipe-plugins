@@ -478,6 +478,18 @@
           "type": "text",
           "label": "GitHub repository",
           "required": true
+        },
+        {
+          "key": "key",
+          "type": "text",
+          "label": "Its catalogue's public key",
+          "required": true
+        },
+        {
+          "key": "on",
+          "type": "toggle",
+          "label": "On",
+          "default": true
         }
       ]
     },

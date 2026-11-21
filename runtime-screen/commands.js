@@ -247,6 +247,25 @@ const RUNS = {
   chats_folder_move: (s, d) =>
     PP.call_try("chats_folder_move", { folder: d.value.trim(), how: d.choice || "move" }, "Done"),
   record_import: (s, d) => PP.record_import_run({ ...d, clash: d.choice }),
+  // Adding a source: its key is shown (in groups of four) and added only when you trust it.
+  source_add: async (s, d) => {
+    if (d.choice === "yes") {
+      const fields = { url: d.url, key: d.key, on: true };
+      await PP.apply_try((x) =>
+        PP.record_create(x, { collection: "sources", id: PP.id_create(), fields }),
+      );
+      return PP.state_set((x) => ({ ...x, catalogue: null }));
+    }
+    const found = await PP.call_try("source_verify", { url: d.value });
+    if (!found) return;
+    const groups = found.source.key.match(/.{4}/g).join(" ");
+    PP.dialog_open({
+      title: `${found.source.url} offers ${found.count} plugins, signed with the key ${groups}. Trust this key? Its owner can then update the plugins you install from it.`,
+      choices: [["yes", "Trust and add"]],
+      command: "source_add",
+      data: found.source,
+    });
+  },
   plugin_install: async (s, from) => {
     const answer = await PP.call_try("plugin_install", from);
     if (answer && answer.conflict) {
