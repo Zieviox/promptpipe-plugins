@@ -100,3 +100,27 @@ test("connections and the API token (UC37, UC40.6)", async () => {
   assert.equal(pp.state.config.api_token_hash.length, 64);
   assert.equal(pp.sent.find((s) => s.name === "credential_create").data.access, "read_write");
 });
+
+test("the State is read at start; a first start makes a profile from Plain", async () => {
+  const written = [];
+  const pp = plugins_load(IDS, {
+    file_read: (d) =>
+      d.pattern ? [{ data: JSON.stringify({ id: "c1", name: "Trip", file: "Trip.md" }) }] : [],
+    file_write: (d) => (written.push(d.path), { revision: "r1" }),
+    credential_list: () => [{ name: "git token" }],
+  });
+  const state = await pp.state_load({
+    app: { app_folder: "/sdcard/Documents/PromptPipe" },
+    plugins: [],
+    prompts: [],
+  });
+  assert.equal(state.chats[0].name, "Trip");
+  assert.equal(state.config.profiles[0].name, "Plain");
+  assert.equal(pp.setting_get(state, "chats.profile"), state.config.profiles[0].id);
+  assert.equal(pp.setting_get(state, "storage.chats_folder"), "/sdcard/Documents/PromptPipe/chats");
+  assert.deepEqual(written, ["config.json"]);
+  assert.equal(
+    state.config.blocks.filter((b) => b.profile === state.config.profiles[0].id).length,
+    2,
+  );
+});

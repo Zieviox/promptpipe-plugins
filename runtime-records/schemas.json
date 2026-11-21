@@ -1,0 +1,514 @@
+{
+  "version": 1,
+  "settings": [
+    {
+      "key": "storage.chats_folder",
+      "type": "text",
+      "label": "Chat folder",
+      "default": "",
+      "section": "Chats and storage"
+    },
+    {
+      "key": "chats.provider",
+      "type": "choice",
+      "label": "Provider for new chats",
+      "default": "",
+      "section": "Chats",
+      "choices_from": "providers"
+    },
+    {
+      "key": "chats.profile",
+      "type": "choice",
+      "label": "Active profile",
+      "default": "",
+      "section": "Chats",
+      "choices_from": "profiles"
+    },
+    {
+      "key": "look.mode",
+      "type": "choice",
+      "label": "Light or dark",
+      "default": "system",
+      "section": "Look",
+      "choices": [
+        {
+          "value": "system",
+          "label": "As the system"
+        },
+        {
+          "value": "light",
+          "label": "Light"
+        },
+        {
+          "value": "dark",
+          "label": "Dark"
+        }
+      ]
+    },
+    {
+      "key": "look.accent",
+      "type": "choice",
+      "label": "Accent",
+      "default": "orange",
+      "section": "Look",
+      "choices": [
+        {
+          "value": "orange",
+          "label": "Warm orange"
+        },
+        {
+          "value": "blue",
+          "label": "Blue"
+        },
+        {
+          "value": "green",
+          "label": "Green"
+        },
+        {
+          "value": "rose",
+          "label": "Rose"
+        },
+        {
+          "value": "violet",
+          "label": "Violet"
+        }
+      ]
+    },
+    {
+      "key": "look.theme",
+      "type": "choice",
+      "label": "Theme",
+      "default": "",
+      "section": "Look",
+      "choices_from": "themes"
+    },
+    {
+      "key": "look.scale",
+      "type": "number",
+      "label": "UI scale",
+      "default": 100,
+      "section": "Look",
+      "min": 60,
+      "max": 200
+    },
+    {
+      "key": "look.text",
+      "type": "number",
+      "label": "Text size",
+      "default": 16,
+      "section": "Look",
+      "min": 12,
+      "max": 24
+    },
+    {
+      "key": "look.quick_actions",
+      "type": "choice",
+      "label": "Quick actions under replies",
+      "default": "newest",
+      "section": "Look",
+      "choices": [
+        {
+          "value": "newest",
+          "label": "Newest reply only"
+        },
+        {
+          "value": "every",
+          "label": "Every reply"
+        },
+        {
+          "value": "off",
+          "label": "Collapsed"
+        }
+      ]
+    },
+    {
+      "key": "look.stay_at_bottom",
+      "type": "toggle",
+      "label": "Stay at the bottom while a reply comes in",
+      "default": true,
+      "section": "Look",
+      "description": "Only if you were already there. Scrolled up, your place never moves."
+    },
+    {
+      "key": "look.enter_sends",
+      "type": "toggle",
+      "label": "Enter sends",
+      "default": false,
+      "section": "Look",
+      "description": "Shift+Enter makes a new line"
+    },
+    {
+      "key": "sites.pages",
+      "type": "number",
+      "label": "Pages at once",
+      "default": 5,
+      "section": "Sites",
+      "min": 1,
+      "description": "How many chats can be answered at the same time. More than 5 uses a lot of memory and can look like a bot to the site."
+    },
+    {
+      "key": "sites.idle_min",
+      "type": "number",
+      "label": "Give up after this long with no activity on the page",
+      "default": 0,
+      "section": "Sites",
+      "min": 0,
+      "description": "In minutes. 0 = no limit."
+    },
+    {
+      "key": "sites.total_min",
+      "type": "number",
+      "label": "Give up after this long in total",
+      "default": 0,
+      "section": "Sites",
+      "min": 0,
+      "description": "In minutes. 0 = no limit."
+    },
+    {
+      "key": "git.commit",
+      "type": "toggle",
+      "label": "Commit on every save",
+      "default": true,
+      "section": "Git"
+    },
+    {
+      "key": "git.name",
+      "type": "text",
+      "label": "Author name",
+      "default": "",
+      "section": "Git"
+    },
+    {
+      "key": "git.email",
+      "type": "text",
+      "label": "Author email",
+      "default": "",
+      "section": "Git"
+    },
+    {
+      "key": "git.remote",
+      "type": "text",
+      "label": "Remote",
+      "default": "",
+      "section": "Git"
+    },
+    {
+      "key": "git.auto_push",
+      "type": "toggle",
+      "label": "Push after every commit",
+      "default": false,
+      "section": "Git"
+    },
+    {
+      "key": "tags.counter_scope",
+      "type": "choice",
+      "label": "Counting tags count",
+      "default": "chat",
+      "section": "Chats",
+      "choices": [
+        {
+          "value": "chat",
+          "label": "Within each chat"
+        },
+        {
+          "value": "all",
+          "label": "Across all chats"
+        }
+      ]
+    },
+    {
+      "key": "api.folder",
+      "type": "text",
+      "label": "Folder for chats made through the API",
+      "default": "",
+      "section": "Local API"
+    },
+    {
+      "key": "updates.check",
+      "type": "choice",
+      "label": "Check for plugin updates",
+      "default": "daily",
+      "section": "Plugins",
+      "choices": [
+        {
+          "value": "off",
+          "label": "Off"
+        },
+        {
+          "value": "daily",
+          "label": "Daily"
+        },
+        {
+          "value": "weekly",
+          "label": "Weekly"
+        }
+      ]
+    },
+    {
+      "key": "updates.checked",
+      "type": "text",
+      "label": "Last checked",
+      "default": "",
+      "section": "Plugins",
+      "hidden": true
+    },
+    {
+      "key": "updates.bundle",
+      "type": "toggle",
+      "label": "Also download the release's plugin bundle",
+      "default": false,
+      "section": "Plugins"
+    },
+    {
+      "key": "import.clash",
+      "type": "choice",
+      "label": "Importing a name you already have",
+      "default": "ask",
+      "section": "Import and export",
+      "choices": [
+        {
+          "value": "ask",
+          "label": "Ask each time"
+        },
+        {
+          "value": "both",
+          "label": "Always keep both"
+        },
+        {
+          "value": "replace",
+          "label": "Always replace"
+        }
+      ]
+    },
+    {
+      "key": "help.button",
+      "type": "toggle",
+      "label": "Show the ? button",
+      "default": true,
+      "section": "Help"
+    },
+    {
+      "key": "help.seen",
+      "type": "list",
+      "label": "Guides seen",
+      "default": [],
+      "section": "Help",
+      "hidden": true
+    },
+    {
+      "key": "screen.plugin",
+      "type": "choice",
+      "label": "App screen",
+      "default": "runtime-screen",
+      "section": "Advanced",
+      "choices_from": "screens"
+    }
+  ],
+  "collections": {
+    "chats": {
+      "collection": "chats",
+      "file": "chat",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Name"
+        },
+        {
+          "key": "file",
+          "type": "text",
+          "label": "File",
+          "required": true
+        }
+      ]
+    },
+    "turns": {
+      "collection": "turns",
+      "file": "chat",
+      "parent": "chat",
+      "owner": "chats",
+      "fields": []
+    },
+    "folders": {
+      "collection": "folders",
+      "file": "folders",
+      "fields": []
+    },
+    "profiles": {
+      "collection": "profiles",
+      "file": "config",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "templates": {
+      "collection": "templates",
+      "file": "config",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "blocks": {
+      "collection": "blocks",
+      "file": "config",
+      "parent": "profile",
+      "owner": "profiles",
+      "fields": [
+        {
+          "key": "type",
+          "type": "choice",
+          "label": "Type",
+          "required": true,
+          "choices": [
+            {
+              "value": "prompt",
+              "label": "System prompt"
+            },
+            {
+              "value": "plugin",
+              "label": "Plugin"
+            },
+            {
+              "value": "message",
+              "label": "Your message"
+            }
+          ]
+        },
+        {
+          "key": "send",
+          "type": "choice",
+          "label": "Send it",
+          "choices": [
+            {
+              "value": "every",
+              "label": "Every message"
+            },
+            {
+              "value": "first",
+              "label": "First message of a site chat"
+            },
+            {
+              "value": "every_n",
+              "label": "Every N messages"
+            },
+            {
+              "value": "depth",
+              "label": "At depth N"
+            },
+            {
+              "value": "off",
+              "label": "Off"
+            }
+          ]
+        },
+        {
+          "key": "number",
+          "type": "number",
+          "label": "N",
+          "min": 0
+        }
+      ]
+    },
+    "groups": {
+      "collection": "groups",
+      "file": "config",
+      "parent": "profile",
+      "owner": "profiles",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        }
+      ]
+    },
+    "prompts": {
+      "collection": "prompts",
+      "file": "prompts",
+      "fields": [
+        {
+          "key": "text",
+          "type": "text",
+          "label": "Text",
+          "required": true
+        }
+      ]
+    },
+    "connections": {
+      "collection": "connections",
+      "file": "config",
+      "fields": [
+        {
+          "key": "name",
+          "type": "text",
+          "label": "Name",
+          "required": true
+        },
+        {
+          "key": "base_url",
+          "type": "text",
+          "label": "Address",
+          "required": true
+        },
+        {
+          "key": "credential",
+          "type": "text",
+          "label": "Credential",
+          "required": true
+        }
+      ]
+    },
+    "sources": {
+      "collection": "sources",
+      "file": "config",
+      "fields": [
+        {
+          "key": "url",
+          "type": "text",
+          "label": "GitHub repository",
+          "required": true
+        }
+      ]
+    },
+    "sends": {
+      "collection": "sends",
+      "fields": []
+    },
+    "drafts": {
+      "collection": "drafts",
+      "file": "drafts",
+      "fields": []
+    },
+    "settings": {
+      "collection": "settings",
+      "file": "config",
+      "fields": []
+    },
+    "plugin_settings": {
+      "collection": "profiles",
+      "file": "config",
+      "fields": []
+    },
+    "provider_choices": {
+      "collection": "provider_choices",
+      "file": "config",
+      "fields": []
+    },
+    "chat_data": {
+      "collection": "chat_data",
+      "file": "chat_data",
+      "fields": []
+    }
+  }
+}

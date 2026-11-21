@@ -125,8 +125,74 @@ const app_start_run = async (state) => {
   }
 };
 
+// ---------- loading the State at start ----------
+
+const CONFIG_NEW = {
+  version: 1,
+  settings: {},
+  profiles: [],
+  blocks: [],
+  groups: [],
+  templates: [],
+  provider_choices: {},
+  connections: [],
+  sources: [],
+};
+
+// Everything the app keeps, read into the State once: settings, the prompt library, folders,
+// counters, drafts, every chat's meta (not its turns), the credentials' listing. A first start
+// makes the profile you have from Plain.
+const state_load = async (state) => {
+  const schemas = JSON.parse(PP.content_read("runtime-records", "schemas.json"));
+  const chats_default = `${(state.app && state.app.app_folder) || ""}/chats`;
+  schemas.settings = schemas.settings.map((d) =>
+    d.key === "storage.chats_folder" ? { ...d, default: chats_default } : d,
+  );
+  const revisions = {};
+  const read = async (root, path, fallback) => {
+    const [file] = await PP.call_send("file_read", { root, path }).catch(() => []);
+    if (!file) return fallback;
+    revisions[`${root}/${path}`] = file.revision;
+    return JSON.parse(file.data);
+  };
+  const config = { ...CONFIG_NEW, ...(await read("app", "config.json", {})) };
+  const metas = await PP.call_send("file_read", {
+    root: "chats",
+    pattern: ".promptpipe/chats/*/meta.json",
+  }).catch(() => []);
+  let next = {
+    ...state,
+    schemas,
+    config,
+    revisions,
+    prompts: await read("chats", ".promptpipe/prompts.json", []),
+    folders: await read("chats", ".promptpipe/folders.json", []),
+    counters: await read("chats", ".promptpipe/counters.json", {}),
+    drafts: await read("app", "drafts.json", []),
+    chats: metas.map((f) => JSON.parse(f.data)),
+    chat_data: [],
+    credentials: await PP.call_send("credential_list", {}).catch(() => []),
+  };
+  if (!config.profiles.length) {
+    const made = PP.profile_create(next, { template: "plain", name: "Plain", id: PP.id_create() });
+    next = made.state;
+    const settings = { ...next.config.settings, "chats.profile": made.record.id };
+    next = { ...next, config: { ...next.config, settings } };
+    const saved = await PP.store_save(next, [{ file: "config" }]);
+    next = { ...next, revisions: { ...next.revisions, ...saved.revisions } };
+  }
+  return next;
+};
+
 PP.plugin_set({
-  functions: { change_resolve, api_token_create, connection_verify, storage_verify, app_start_run },
+  functions: {
+    change_resolve,
+    api_token_create,
+    connection_verify,
+    storage_verify,
+    app_start_run,
+    state_load,
+  },
   calls: {
     change_resolve: (d, state) => change_resolve(state, d),
     api_token_create: () => api_token_create(),
