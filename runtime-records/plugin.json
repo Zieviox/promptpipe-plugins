@@ -1,0 +1,10 @@
+{
+  "id": "runtime-records",
+  "name": "Records and settings",
+  "version": "1.0.0",
+  "description": "The app's records: the generic record operations over every collection, the value that applies (linked or own), and saving each collection where its schema says.",
+  "tags": ["runtime"],
+  "pp": 1,
+  "order": 10,
+  "files": ["records.js"]
+}

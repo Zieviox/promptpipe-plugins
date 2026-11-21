@@ -1,0 +1,7 @@
+{
+  "name": "promptpipe-plugins",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/test_*.js"
+  }
+}
