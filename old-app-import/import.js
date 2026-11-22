@@ -332,8 +332,8 @@ const memory_parse = (text, level, chunk) =>
     })
     .sort((a, b) => a.from - b.from);
 
-const chat_import = async (state, root, path, chunk, profiles) => {
-  const { meta, turns } = chat_file_parse(await text_read(`${root}/${path}`));
+const chat_import = async (state, root, path, chunk, profiles, text) => {
+  const { meta, turns } = chat_file_parse(text);
   const id = PP.id_create();
   const profile = profiles[meta.profile];
   const toggles = Object.fromEntries(
@@ -385,6 +385,57 @@ const chat_import = async (state, root, path, chunk, profiles) => {
 
 // ---------- the import ----------
 
+// Paths inside `root`, the shallowest first, so a chat found twice is kept where it's nearest the top.
+const paths_shallow_first = (root, files) =>
+  files
+    .map((full) => full.slice(root.length + 1))
+    .sort((a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b));
+
+// The same chat imported more than once (the old app once copied its chats folder into itself,
+// one copy a level deeper each time): the imported chats whose old file has the same text as
+// another's, all but the shallowest. Read from the old folders, which stay as they are.
+const duplicates_find = async (state) => {
+  const done = PP.setting_get(state, DONE);
+  const roots = (done && done.chats) || [];
+  const groups = new Map();
+  for (const chat of state.chats) {
+    for (const root of roots) {
+      const text = await text_read(`${root}/${chat.file}`);
+      if (!text) continue;
+      groups.set(text, [...(groups.get(text) || []), chat]);
+      break;
+    }
+  }
+  const depth = (c) => c.file.split("/").length;
+  return [...groups.values()]
+    .filter((g) => g.length > 1)
+    .map((g) => [...g].sort((a, b) => depth(a) - depth(b) || a.file.localeCompare(b.file)));
+};
+
+// Asks first; the copies go like any deleted chat (they stay in the history).
+const duplicates_remove = async (state, data = {}) => {
+  const groups = await duplicates_find(state);
+  const copies = groups.flatMap((g) => g.slice(1).map((c) => c.id));
+  const checked = () =>
+    PP.record_apply(
+      (s) =>
+        PP.record_set(s, { collection: "settings", fields: { "import.duplicates_checked": true } }),
+      "import: copies checked",
+    );
+  if (!copies.length) {
+    await checked();
+    return data.quiet ? undefined : PP.toast("No chat was imported twice");
+  }
+  if (data.choice !== "yes")
+    return PP.dialog_open({
+      title: `${copies.length} imported chats are copies of ${groups.length} others (the old app had copied its chats folder into itself). Delete the copies? One of each is kept, they stay in the history, and the old folder isn't touched.`,
+      choices: [["yes", "Delete the copies"]],
+      command: "old_app_duplicates_remove",
+    });
+  await PP.chats_delete(copies);
+  await checked();
+};
+
 const old_import = async () => {
   const state = PP.state_get();
   if (PP.setting_get(state, DONE)) return;
@@ -416,11 +467,14 @@ const old_import = async () => {
   next = { ...next, prompts: [...next.prompts, ...prompts] };
   const targets = [{ file: "config" }, { file: "prompts" }];
   let count = 0;
+  const seen = new Set();
   for (const root of chats) {
-    for (const full of await files_walk(root, false)) {
-      const path = full.slice(root.length + 1);
+    for (const path of paths_shallow_first(root, await files_walk(root, false))) {
       if (!path.endsWith(".md") || next.chats.some((c) => c.file === path)) continue;
-      const made = await chat_import(next, root, path, chunk, imported.profiles);
+      const text = await text_read(`${root}/${path}`);
+      if (!text || seen.has(text)) continue; // the same chat again (a folder copied into itself)
+      seen.add(text);
+      const made = await chat_import(next, root, path, chunk, imported.profiles, text);
       next = {
         ...next,
         chats: [...next.chats, made.chat],
@@ -471,12 +525,18 @@ const folders_delete = async (state, data) => {
 PP.plugin_set({
   hooks: {
     app_start: () =>
-      old_import().catch((e) =>
-        report_open([
-          `**The import stopped:** ${e.message}.`,
-          "Nothing in the old folders changed. It goes on at the next start, keeping the chats it already brought in.",
-        ]),
-      ),
+      old_import()
+        .then(() => {
+          const state = PP.state_get();
+          if (PP.setting_get(state, DONE) && !PP.setting_get(state, "import.duplicates_checked"))
+            return duplicates_remove(state, { quiet: true });
+        })
+        .catch((e) =>
+          report_open([
+            `**The import stopped:** ${e.message}.`,
+            "Nothing in the old folders changed. It goes on at the next start, keeping the chats it already brought in.",
+          ]),
+        ),
   },
   commands: [
     {
@@ -484,6 +544,12 @@ PP.plugin_set({
       label: "Delete the old app's folders",
       place: "Settings › Chats and storage",
       run: folders_delete,
+    },
+    {
+      id: "old_app_duplicates_remove",
+      label: "Remove chats imported twice",
+      place: "Settings › Chats and storage",
+      run: duplicates_remove,
     },
     {
       id: "old_app_import",

@@ -128,7 +128,9 @@ const device_build = (files, written) => ({
     ];
   },
   file_write: (d) => (
-    written.push(d), d.root === "device" && (files[d.path] = d.data), { revision: "w" }
+    written.push(d),
+    d.root === "device" && (files[d.path] = d.data),
+    { revision: "w" }
   ),
   file_move: (d) => (written.push({ move: d }), { copied: 1 }),
   repo_commit: () => ({}),
@@ -276,4 +278,43 @@ test("a chat file written by the old app's own code comes in with every field", 
   assert.equal(one.model, "Qwen3-Max");
   assert.equal(two.page_url, "https://chat.qwen.ai/c/def", "each message keeps its own site chat");
   assert.equal(two.error.message, "cut short");
+});
+
+test("a chats folder copied into itself comes in once, and copies imported before are found", async () => {
+  const files = files_build();
+  // The old app's copy into itself: the same chat one level deeper each time.
+  for (let depth = 2; depth <= 6; depth += 1)
+    files[`${OLD}/history/${"history/".repeat(depth)}Story ideas.md`] = CHAT;
+  const pp = plugins_load(
+    ["runtime-records", "runtime-chats", "runtime-profiles", "runtime-plugins", "old-app-import"],
+    device_build(files, []),
+  );
+  pp.toast = () => {};
+  pp.sheet_open = () => {};
+  const dialogs = [];
+  pp.dialog_open = (d) => dialogs.push(d);
+  const deleted = [];
+  pp.chats_delete = async (ids) => deleted.push(...ids);
+  pp.state = state_build();
+  await pp.hook_get("old-app-import", "app_start")();
+  assert.deepEqual(
+    pp.state.chats.map((c) => c.file),
+    ["stories/Story ideas.md"],
+    "one chat: the shallowest copy",
+  );
+  assert.equal(dialogs.length, 0, "nothing to clean up");
+
+  // An import made before this fix brought in every copy: they're found and, once you say yes,
+  // all but the shallowest go.
+  const copies = [2, 3, 4].map((depth) => ({
+    ...pp.state.chats[0],
+    id: `copy${depth}`,
+    file: `${"history/".repeat(depth)}Story ideas.md`,
+  }));
+  pp.state = { ...pp.state, chats: [...copies.reverse(), ...pp.state.chats] };
+  const run = pp.commands_get().find((c) => c.id === "old_app_duplicates_remove").run;
+  await run(pp.state, {});
+  assert.match(dialogs[0].title, /^3 imported chats are copies of 1 others/);
+  await run(pp.state, { choice: "yes" });
+  assert.deepEqual(deleted.sort(), ["copy2", "copy3", "copy4"]);
 });

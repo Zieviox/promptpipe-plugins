@@ -16,10 +16,13 @@ const pp_build = (answers = {}) => {
   pp.events = {};
   pp.hooks = {};
   pp.hook_get = (plugin, name) => (pp.hooks[plugin] || {})[name];
+  pp.commands = [];
+  pp.commands_get = () => pp.commands;
   pp.plugin_set = (def) => {
     Object.assign(pp, def.functions || {});
     Object.assign(pp.calls, def.calls || {});
     for (const [name, fn] of Object.entries(def.events || {})) (pp.events[name] ||= []).push(fn);
+    pp.commands.push(...(def.commands || []));
   };
   pp.state_get = () => pp.state;
   pp.pause = (ms) => new Promise((r) => setTimeout(r, ms));
