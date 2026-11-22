@@ -207,17 +207,12 @@ const view_page_add = async (state) => {
   PP.ui_set(() => ({ site_view: { open: true, page: added.id } }));
 };
 
-// The site view's place on the screen: under the site bar.
+// The site view's place on the screen, as fractions of the screen's area (the contract's
+// `view_set` region: l, t, r, b from 0 to 1): under the site bar, to the bottom.
 const region_get = () => {
   const bar = document.getElementById("site-bar");
   const top = bar ? bar.getBoundingClientRect().bottom : 0;
-  const scale = window.devicePixelRatio || 1;
-  return {
-    top: Math.round(top * scale),
-    left: 0,
-    width: Math.round(innerWidth * scale),
-    height: Math.round((innerHeight - top) * scale),
-  };
+  return { l: 0, t: Math.min(1, top / Math.max(1, innerHeight)), r: 1, b: 1 };
 };
 
 // The page's outline (a provider's own report wins, UC46), headed with the provider and address,
