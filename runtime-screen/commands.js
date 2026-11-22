@@ -16,14 +16,24 @@ const sheet_close = () => PP.ui_set((ui) => ({ sheets: ui.sheets.slice(0, -1) })
 
 const chat_get = (state) => state.chats.find((c) => c.id === state.ui.chat) || null;
 
+// Opening a chat: it shows at its newest message, and its profile becomes the one new chats
+// start with (wireframe v38).
 const chat_open = async (id) => {
   PP.ui_set((ui) => ({
     chat: id,
     drawer: false,
     unseen: { ...ui.unseen, [id]: undefined },
     composer: { big: false },
+    bottom: true,
   }));
-  if (id) await PP.chat_load(id);
+  if (!id) return;
+  await PP.chat_load(id);
+  const state = PP.state_get();
+  const own = ((state.chats.find((c) => c.id === id) || {}).own || {}).profile;
+  if (own && own !== PP.setting_get(state, "chats.profile"))
+    PP.apply_try((s) =>
+      PP.record_set(s, { collection: "settings", fields: { "chats.profile": own } }),
+    );
 };
 
 // Chats in the list's order, for Alt+↑ and Alt+↓.
@@ -104,9 +114,7 @@ const profile_next = (state) => {
   const profiles = state.config.profiles;
   const at = profiles.indexOf(PP.profile_get(state, chat_get(state)));
   const next = profiles[(at + 1) % profiles.length];
-  PP.apply_try((s) =>
-    PP.record_set(s, { collection: "settings", fields: { "chats.profile": next.id } }),
-  );
+  PP.profile_pick(chat_get(state), next.id);
   PP.toast(`Profile: ${next.name}`);
 };
 

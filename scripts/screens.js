@@ -71,6 +71,8 @@ const LIGHT = process.argv[3] === "light";
     [
       "4-quick",
       async () => {
+        await click("[aria-label='Chats']");
+        await page.getByText("Harbour story draft").first().click();
         await click("[aria-label='Quick edit and add']");
       },
     ],

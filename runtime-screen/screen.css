@@ -200,4 +200,17 @@ textarea.field { resize: vertical; min-height: 6em; }
 .sheet.tall { height: calc(100% - 44px); }
 .ch .svg svg { width: 16px; height: 16px; }
 .ondot { width: 10px; height: 10px; border-radius: 50%; background: var(--text); flex: none; }
-
+/* Quick edit and the profile editor (wireframe): name to rename, Edit profile, the dropdown, block rows. */
+.sheet h2 .titlebtn { flex: 1; min-width: 0; text-align: left; font-weight: 600; font-size: 15px; }
+.sheet h2 .titlebtn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.sheet h2 .namefield { display: flex; gap: 6px; align-items: center; }
+.sheet h2 .namefield input { flex: 1; min-width: 0; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; color: inherit; font: inherit; }
+.sheet h2 .pill.big { padding: 6px 12px; font-size: 13.5px; }
+.dd { display: flex; flex-direction: column; gap: 6px; }
+.ddrow { display: flex; gap: 6px; align-items: center; }
+.ddrow .item.grow { flex: 1; min-width: 0; }
+.ddlist { display: flex; flex-direction: column; gap: 6px; padding-left: 8px; border-left: 2px solid var(--line); }
+.item.blk { padding: 10px 8px 10px 4px; }
+.item .lead { display: inline-flex; align-self: flex-start; margin: 1px 4px 0 0; }
+.toast.tap { pointer-events: auto; cursor: pointer; }
+.ddrow .pill.big { padding: 7px 12px; font-size: 13.5px; }

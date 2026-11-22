@@ -191,8 +191,11 @@ const reply_changed = (data) => {
     const state = PP.state_get();
     const turns = state.turns.filter((t) => t.chat === send.chat);
     const last = turns[turns.length - 1];
-    if (last && (send.chat !== state.ui.chat || !at_bottom))
-      PP.ui_set((ui) => ({ unseen: { ...ui.unseen, [send.chat]: last.id } }));
+    if (!last || (send.chat === state.ui.chat && at_bottom)) return;
+    PP.ui_set((ui) => ({ unseen: { ...ui.unseen, [send.chat]: last.id } }));
+    // A reply in a chat you aren't reading: a tappable toast (it never moves your view).
+    const chat = state.chats.find((c) => c.id === send.chat);
+    if (send.chat !== state.ui.chat && chat) PP.toast(`Reply ready: ${chat.name}`, false, chat.id);
   }, 300);
 };
 
@@ -202,8 +205,9 @@ let at_bottom = true;
 addEventListener(
   "scroll",
   (e) => {
-    if (e.target.id === "chat")
-      at_bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 40;
+    if (e.target.id !== "chat") return;
+    at_bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 40;
+    if (PP.ui_get().scrolled_up === at_bottom) PP.ui_set(() => ({ scrolled_up: !at_bottom }));
   },
   true,
 );
@@ -292,8 +296,10 @@ const screen_render = (state) => {
     ${state.changes.length ? PP.change_render(state) : null}
     ${ui.dialog ? dialog_render(state) : null} ${ui.tour ? tour_render(state) : null}
     <div class="toasts" aria-live="polite">
-      ${ui.toasts.map(
-        (t) => html`<div class=${`toast${t.error ? " error" : ""}`} key=${t.id}>${t.text}</div>`,
+      ${ui.toasts.map((t) =>
+        t.open
+          ? html`<button class="toast tap" key=${t.id} onClick=${() => PP.chat_open(t.open)}>${t.text}</button>`
+          : html`<div class=${`toast${t.error ? " error" : ""}`} key=${t.id}>${t.text}</div>`,
       )}
     </div>`;
 };
@@ -321,7 +327,12 @@ const theme_set = (state) => {
 let view_open = false;
 const after_draw = (state) => {
   const chat = document.getElementById("chat");
-  if (chat && at_bottom && PP.setting_get(state, "look.stay_at_bottom"))
+  // A chat just opened shows its newest message; then it follows only when you're at the bottom.
+  if (chat && state.ui.bottom) {
+    at_bottom = true;
+    chat.scrollTop = chat.scrollHeight;
+    PP.ui_set(() => ({ bottom: false, scrolled_up: false }));
+  } else if (chat && at_bottom && PP.setting_get(state, "look.stay_at_bottom"))
     chat.scrollTop = chat.scrollHeight;
   document.querySelectorAll(".lit").forEach((el) => el.classList.remove("lit"));
   if (state.ui.tour)

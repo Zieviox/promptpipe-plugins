@@ -75,6 +75,102 @@ const choices_get = (state, from) => {
   return [];
 };
 
+// What a block is, for the line under its name.
+const block_kind = (b) =>
+  b.type === "message" ? "Your text goes here" : b.type === "prompt" ? "System prompt" : "Plugin";
+
+// A profile's blocks in order: drag or the arrows reorder the profile; the switch turns a block on
+// or off, in the chat's own toggles (`chat`) or in the profile itself (no chat). `open` opens a
+// block's own sheet when its name is tapped.
+const block_rows = (state, profile, chat, open) => {
+  const blocks = state.config.blocks.filter((b) => b.profile === profile.id);
+  const move = (id, index) =>
+    PP.apply_try((s) => PP.record_move(s, { collection: "blocks", id, index }));
+  const flip = (b, v) =>
+    chat
+      ? PP.apply_try(
+          (s) =>
+            PP.record_set(s, {
+              collection: "chats",
+              id: chat.id,
+              fields: { own: { toggles: { [b.id]: v } } },
+            }),
+          `toggles: ${chat.name}`,
+        )
+      : PP.apply_try((s) =>
+          PP.record_set(s, { collection: "blocks", id: b.id, fields: { on: v } }),
+        );
+  const on = (b) => (chat ? PP.block_on_get(state, chat, b) : b.on !== false);
+  return html`<div class="list" ref=${PP.sortable_ref(({ id, index }) => move(id, index))}>
+    ${blocks.map(
+      (
+        b,
+        i,
+      ) => html`<div class=${`item blk${b.type === "message" || on(b) ? "" : " off"}`} key=${b.id} data-id=${b.id}>
+        <span class="grip">${PP.icon_svg("grip")}</span>
+        <button class="grow" onClick=${() => open && b.type !== "message" && open(b)}>${PP.block_name_get(state, b)}<small>${block_kind(b)}</small></button>
+        <span class="mv">
+          ${PP.icon_render("up", "Move up", () => i > 0 && move(b.id, i - 1), false, "act")}
+          ${PP.icon_render("down", "Move down", () => i < blocks.length - 1 && move(b.id, i + 1), false, "act")}
+        </span>
+        ${b.type === "message" ? null : toggle(on(b), "On or off", (v) => flip(b, v))}
+      </div>`,
+    )}
+  </div>`;
+};
+
+// A profile becomes the open chat's (its own toggles start over) and the one new chats start with.
+const profile_pick = (chat, id) =>
+  PP.apply_try(
+    (s) => {
+      const set_default = (x) =>
+        PP.record_set(x, { collection: "settings", fields: { "chats.profile": id } });
+      if (!chat) return set_default(s);
+      const own = PP.record_set(s, {
+        collection: "chats",
+        id: chat.id,
+        fields: { own: { profile: id, toggles: null } },
+      });
+      if (own.error) return own;
+      const next = set_default(own.state);
+      return { ...next, targets: [...own.targets, ...next.targets] };
+    },
+    chat ? `profile: ${chat.name}` : undefined,
+  );
+
+// The profile dropdown (Quick edit, the profile editor): the profile and a line under it; open,
+// every profile with Edit, + New, Import…, Export this, Export all. `pick` runs on a choice.
+const profile_dropdown = (state, current, sub, pick) => {
+  const open = state.ui.profile_menu;
+  const toggle_open = () => PP.ui_set((ui) => ({ profile_menu: !ui.profile_menu }));
+  return html`<div class="dd">
+    <div class="ddrow">
+      <button class="item grow" onClick=${toggle_open}><span class="grow">${current.name}<small>${sub}</small></span><span class="ch">${PP.icon_svg(open ? "up" : "down")}</span></button>
+      <button class="pill big" onClick=${() => PP.sheet_open("profile", { id: current.id })}>${PP.icon_svg("edit")} Edit</button>
+    </div>
+    ${
+      open
+        ? html`<div class="ddlist">
+          ${state.config.profiles.map(
+            (p) => html`<div class="ddrow" key=${p.id}>
+              <button class="item grow" onClick=${() => (PP.ui_set(() => ({ profile_menu: false })), pick(p))}>
+                <span class=${`radio${p.id === current.id ? " on" : ""}`}></span><span class="grow">${p.name}</span>
+              </button>
+              <button class="pill" onClick=${() => PP.sheet_open("profile", { id: p.id })}>Edit</button>
+            </div>`,
+          )}
+          <div class="chips">
+            <button class="pill" onClick=${() => PP.command_run("profiles")}>+ New</button>
+            <button class="pill" onClick=${() => PP.command_run("profiles_import")}>Import…</button>
+            <button class="pill" onClick=${() => PP.command_run("profiles_export", { ids: [current.id] })}>Export this</button>
+            <button class="pill" onClick=${() => PP.command_run("profiles_export")}>Export all</button>
+          </div>
+        </div>`
+        : null
+    }
+  </div>`;
+};
+
 const GROUPS = [
   ["Plugins", "Profile blocks and the plugin library", "plugins"],
   ["Prompt library", "System prompts you keep and link", "prompts"],
@@ -355,53 +451,39 @@ const SHEETS = {
     ],
   }),
 
+  // Quick edit (wireframe): the chat's profile by name (tap to rename), Edit profile, the profile
+  // dropdown, its blocks, and what can be added to your message.
   quick: (state) => {
     const chat = PP.chat_get(state);
     const profile = PP.profile_get(state, chat);
-    const blocks = state.config.blocks.filter((b) => b.profile === profile.id);
     const own = (chat && chat.own && chat.own.toggles) || {};
-    const flip = (b, v) =>
-      chat &&
-      PP.apply_try(
-        (s) =>
-          PP.record_set(s, {
-            collection: "chats",
-            id: chat.id,
-            fields: { own: { toggles: { [b.id]: v } } },
-          }),
-        `toggles: ${chat.name}`,
+    const naming = state.ui.profile_name !== undefined && state.ui.profile_name !== null;
+    const name_save = () =>
+      PP.command_run("profile_rename", { id: profile.id, value: state.ui.profile_name }).then(() =>
+        PP.ui_set(() => ({ profile_name: null })),
       );
     return {
-      title: profile.name,
       short: true,
+      title: profile.name,
+      title_node: naming
+        ? html`<span class="grow namefield">
+            <input aria-label="Profile name" ref=${PP.focus_ref} value=${state.ui.profile_name}
+              onInput=${(e) => PP.ui_set(() => ({ profile_name: e.target.value }))} onKeyDown=${(e) => e.key === "Enter" && name_save()} />
+            <button class="pill on" onClick=${name_save}>Save</button>
+          </span>`
+        : html`<button class="grow titlebtn" aria-label="Rename profile" onClick=${() => PP.ui_set(() => ({ profile_name: profile.name }))}>
+            ${profile.name}<small>Quick edit · tap the name to rename</small>
+          </button>`,
+      head_extra: html`<button class="pill big" onClick=${() => PP.sheet_open("profile", { id: profile.id })}>${PP.icon_svg("edit")} Edit profile</button>`,
       rows: [
-        html`<small
-          >Toggles are this chat's own; a new chat starts with the profile's. Drag to reorder the
-          profile.</small
-        >`,
-        html`<div
-          ref=${PP.sortable_ref(({ id, index }) =>
-            PP.apply_try((s) => PP.record_move(s, { collection: "blocks", id, index })),
-          )}
-        >
-          ${blocks.map(
-            (b) =>
-              html`<div
-                class=${`item${PP.block_on_get(state, chat, b) || b.type === "message" ? "" : " off"}`}
-                key=${b.id}
-                data-id=${b.id}
-              >
-                <span class="grip">${PP.icon_svg("grip")}</span
-                ><span class="grow">${PP.block_name_get(state, b)}</span> ${
-                  b.type === "message"
-                    ? null
-                    : toggle(PP.block_on_get(state, chat, b), "On or off in this chat", (v) =>
-                        flip(b, v),
-                      )
-                }
-              </div>`,
-          )}
-        </div>`,
+        profile_dropdown(
+          state,
+          profile,
+          chat ? "This chat's profile · tap to switch" : "New chats start with it · tap to switch",
+          (p) => profile_pick(chat, p.id),
+        ),
+        html`<small>Switch on or off, drag to reorder.</small>`,
+        block_rows(state, profile, chat, (b) => PP.sheet_open("block", { id: b.id })),
         Object.keys(own).length
           ? item({
               label: "Use the profile's toggles",
@@ -418,21 +500,23 @@ const SHEETS = {
           : null,
         label("Add to your message"),
         item({
+          icon: "quote",
           label: "Text file",
           sub: "Put its text in the box",
           onClick: () => PP.command_run("text_file"),
         }),
         item({
+          icon: "copy",
           label: "Several text files",
           sub: "One after another, in the box",
           onClick: () => PP.command_run("text_files"),
         }),
         item({
+          icon: "plus",
           label: "Attach files",
           sub: "Kept with the chat, sent to providers that take them",
           onClick: () => PP.command_run("attach"),
         }),
-        item({ label: "Edit profile", right: "›", onClick: () => PP.command_run("profile_edit") }),
       ],
     };
   },
@@ -473,37 +557,16 @@ const SHEETS = {
     const profile = state.config.profiles.find((p) => p.id === id);
     if (!profile)
       return { title: "Profile", rows: [item({ label: "This profile isn't here any more" })] };
-    const blocks = state.config.blocks.filter((b) => b.profile === id);
     return {
       title: profile.name,
       rows: [
+        profile_dropdown(state, profile, "The profile you're editing · tap to change", (p) =>
+          PP.ui_set((ui) => ({
+            sheets: [...ui.sheets.slice(0, -1), { name: "profile", data: { id: p.id } }],
+          })),
+        ),
         label("Sent top to bottom"),
-        html`<div
-          ref=${PP.sortable_ref(({ id: bid, index }) =>
-            PP.apply_try((s) => PP.record_move(s, { collection: "blocks", id: bid, index })),
-          )}
-        >
-          ${blocks.map(
-            (b) =>
-              html`<div class=${`item${b.on === false ? " off" : ""}`} key=${b.id} data-id=${b.id}>
-                <span class="grip">${PP.icon_svg("grip")}</span
-                ><button class="grow" onClick=${() => PP.sheet_open("block", { id: b.id })}>
-                  ${PP.block_name_get(state, b)}<small
-                    >${b.type === "prompt" ? b.send : b.type}</small
-                  >
-                </button>
-                ${
-                  b.type === "message"
-                    ? null
-                    : toggle(b.on !== false, "On or off", (v) =>
-                        PP.apply_try((s) =>
-                          PP.record_set(s, { collection: "blocks", id: b.id, fields: { on: v } }),
-                        ),
-                      )
-                }
-              </div>`,
-          )}
-        </div>`,
+        block_rows(state, profile, null, (b) => PP.sheet_open("block", { id: b.id })),
         item({
           label: "Add a block",
           sub: "System prompts and plugins",
@@ -511,7 +574,11 @@ const SHEETS = {
           onClick: () => PP.sheet_open("block_add", { id }),
         }),
         label("This profile"),
-        item({ label: "Use this profile", onClick: () => set({ "chats.profile": id }) }),
+        item({
+          label: "Use this profile",
+          sub: "For the open chat, and new chats start with it",
+          onClick: () => profile_pick(PP.chat_get(state), id),
+        }),
         item({
           label: "Rename",
           sub: profile.name,
@@ -1426,19 +1493,16 @@ const sheet_render = (state) => {
   const sheet = make
     ? make(state, top.data || {})
     : { title: top.name, rows: [item({ label: "Not available" })] };
-  return frame(state, sheet.title, sheet.rows, !sheet.short);
+  return frame(state, sheet.title, sheet.rows, !sheet.short, sheet.title_node, sheet.head_extra);
 };
 
 // Sheets are tall (nearly the whole screen), as in the wireframe; a short one fits its rows.
-const frame = (state, title, rows, tall = true) =>
+const frame = (state, title, rows, tall = true, title_node = null, head_extra = null) =>
   html`<div class="layer">
     <div class="scrim" onClick=${() => PP.ui_set(() => ({ sheets: [] }))}></div>
     <section class=${`sheet${tall ? " tall" : ""}`} role="dialog" aria-label=${title}>
       <h2>
-        ${state.ui.sheets.length > 1 ? PP.icon_render("back", "Back", PP.sheet_close) : null}<span
-          style="flex:1"
-          >${title}</span
-        >${PP.setting_get(state, "help.button") ? PP.icon_render("help", "Help: explain things", () => PP.command_run("help_mode"), state.ui.help) : null}${PP.icon_render("close", "Close", () => PP.ui_set(() => ({ sheets: [] })))}
+        ${state.ui.sheets.length > 1 ? PP.icon_render("back", "Back", PP.sheet_close) : null}${title_node || html`<span style="flex:1">${title}</span>`}${head_extra}${PP.setting_get(state, "help.button") ? PP.icon_render("help", "Help: explain things", () => PP.command_run("help_mode"), state.ui.help) : null}${PP.icon_render("close", "Close", () => PP.ui_set(() => ({ sheets: [] })))}
       </h2>
       <div class="body">${rows}</div>
     </section>
@@ -1462,4 +1526,4 @@ const change_render = (state) => {
   </div>`;
 };
 
-PP.plugin_set({ functions: { sheet_render, change_render, field_render } });
+PP.plugin_set({ functions: { sheet_render, change_render, field_render, profile_pick } });

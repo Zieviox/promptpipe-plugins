@@ -19,9 +19,10 @@ const ui_set = (change) => PP.state_set((s) => ({ ...s, ui: { ...s.ui, ...change
 
 // A short notice; errors stay longer and say what to do (an `Error` with a page offers Open the
 // site and Copy page report where the screen shows them).
-const toast = (text, error) => {
+// `open`: a chat a tap on the toast opens ("Reply ready").
+const toast = (text, error, open) => {
   const id = PP.id_create();
-  ui_set((ui) => ({ toasts: [...ui.toasts, { id, text, error }] }));
+  ui_set((ui) => ({ toasts: [...ui.toasts, { id, text, error, open }] }));
   setTimeout(
     () => ui_set((ui) => ({ toasts: ui.toasts.filter((t) => t.id !== id) })),
     error ? 8000 : 3500,
@@ -91,9 +92,9 @@ const switch_render = (on, label, onClick) =>
   ></button>`;
 
 // One row of a sheet: label, a line under it, and what sits on the right.
-const item_render = ({ label, sub, right, onClick, cls = "", key }) =>
+const item_render = ({ label, sub, right, onClick, cls = "", key, icon }) =>
   html`<button key=${key} class=${`item ${cls}`} onClick=${onClick} data-lit=${typeof label === "string" ? label : undefined}>
-    <span class="grow">${label}${sub ? html`<small>${sub}</small>` : null}</span>${right === "›" ? html`<span class="ch">${icon_svg("right")}</span>` : right || null}
+    ${icon ? html`<span class="lead">${icon_svg(icon)}</span>` : null}<span class="grow">${label}${sub ? html`<small>${sub}</small>` : null}</span>${right === "›" ? html`<span class="ch">${icon_svg("right")}</span>` : right || null}
   </button>`;
 
 // A text box that takes the focus when it first appears (`autofocus` only works on page load).

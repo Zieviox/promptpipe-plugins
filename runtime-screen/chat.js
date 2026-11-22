@@ -326,14 +326,18 @@ const chat_render = (state) => {
   </div>`;
 };
 
+// "↓ 1 new" for a reply that finished while you were scrolled up (to its start), else "Jump to
+// latest" whenever you're scrolled up (to the bottom).
 const new_reply_render = (state) => {
   const turn = state.ui.unseen[state.ui.chat];
-  if (!turn) return null;
-  const jump = () => {
-    document.getElementById(`turn-${turn}`)?.scrollIntoView({ block: "start" });
-    PP.ui_set((ui) => ({ unseen: { ...ui.unseen, [ui.chat]: undefined } }));
-  };
-  return html`<button class="pill on new-reply" onClick=${jump}>↓ 1 new</button>`;
+  const box = () => document.getElementById("chat");
+  if (turn)
+    return html`<button class="jump" onClick=${() => {
+      document.getElementById(`turn-${turn}`)?.scrollIntoView({ block: "start" });
+      PP.ui_set((ui) => ({ unseen: { ...ui.unseen, [ui.chat]: undefined } }));
+    }}>↓ 1 new</button>`;
+  if (!state.ui.scrolled_up) return null;
+  return html`<button class="jump" onClick=${() => box() && (box().scrollTop = box().scrollHeight)}>Jump to latest</button>`;
 };
 
 const composer_render = (state) => {
