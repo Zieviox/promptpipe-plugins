@@ -489,9 +489,18 @@ const after_draw = (state) => {
 
 let frame = 0;
 let first = true;
+// Changes that come close together are drawn once, on a short timer, not requestAnimationFrame:
+// in the app's browser view a frame only comes when something else asks for one, so a reply's
+// progress waited in the State and showed only at the end (measured on the phone, 2026-11-22).
+
+// How many times the screen drew while each reply came in (by turn id, this session only), for
+// the reply's Live updates.
+const draws = {};
+const draws_get = (turn) => draws[turn];
+
 const redraw = () => {
   if (frame) return;
-  frame = requestAnimationFrame(() => {
+  frame = setTimeout(() => {
     frame = 0;
     const state = PP.state_get();
     const root = document.getElementById("app");
@@ -500,18 +509,20 @@ const redraw = () => {
     theme_set(state);
     preact.render(screen_render(state), root);
     after_draw(state);
+    for (const send of state.sends)
+      if (send.status === "sending") draws[send.turn] = (draws[send.turn] || 0) + 1;
     if (
       !(PP.setting_get(state, "help.seen") || []).includes("welcome") &&
       !state.ui.tour &&
       !state.chats.length
     )
       tour_start("welcome");
-  });
+  }, 16);
 };
 PP.redraw_set(redraw);
 
 PP.plugin_set({
-  functions: { GUIDES, tour_start, screen_render },
+  functions: { GUIDES, tour_start, screen_render, draws_get },
   calls: {
     back_pressed: (data) => ({
       handled: data && data.key === "Alt+S" ? (PP.command_run("site_view"), true) : back_run(),

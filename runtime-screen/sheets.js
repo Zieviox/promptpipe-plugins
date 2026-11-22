@@ -1491,9 +1491,11 @@ const live_render = (turn) => {
     (e) =>
       `${String(e.at_s).padStart(4)} s  reply ${String(e.reply_length).padStart(5)}  thinking ${String(e.thinking_length).padStart(5)}  stop ${e.stop ? "yes" : "no "}  hidden ${e.hidden ? "yes" : "no"}`,
   );
-  const report = [`Updates: the page sent ${d.sent}, the app got ${d.got}`, ...rows].join("\n");
+  const drawn = PP.draws_get(turn.id);
+  const head = `Updates: the page sent ${d.sent}, the app got ${d.got}${drawn === undefined ? "" : `, the screen drew ${drawn} times`}`;
+  const report = [head, ...rows].join("\n");
   return html`<details>
-    <summary class="muted">Live updates: the page sent ${d.sent}, the app got ${d.got}</summary>
+    <summary class="muted">Live updates: ${head.replace("Updates: ", "")}</summary>
     <pre>${report}</pre>
     <button class="pill" onClick=${() => PP.call_try("clipboard_write", { text: report }, "Copied")}>
       Copy

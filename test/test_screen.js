@@ -39,7 +39,7 @@ test(
       await page.click("[aria-label='Chats']");
       await page.waitForSelector(".drawer");
       await page.keyboard.press("Escape");
-      assert.equal(await page.$(".drawer"), null);
+      await page.waitForSelector(".drawer", { state: "detached", timeout: 3000 });
 
       await page.keyboard.press("Control+,");
       await page.waitForSelector("text=Prompt library");
@@ -62,10 +62,11 @@ test(
       await page.waitForSelector("text=Help mode. Tap anything to see what it does.");
       await page.click("[aria-label='Chats']");
       await page.waitForSelector(".helpcard >> text=Your chats");
-      assert.equal(await page.$(".drawer"), null, "help mode didn't open the drawer");
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator(".drawer").count(), 0, "help mode didn't open the drawer");
       await page.click(".helpcard >> text=Do it");
       await page.waitForSelector(".drawer");
-      assert.equal(await page.$(".help-bar"), null);
+      await page.waitForSelector(".help-bar", { state: "detached", timeout: 3000 });
       await page.keyboard.press("Escape");
 
       await page.fill("#message", "Hello there\nsecond line");
