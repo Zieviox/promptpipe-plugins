@@ -41,13 +41,25 @@ const field_render = (state, def, value, on_set) => {
       right: toggle(value, def.label, on_set),
       onClick: () => on_set(!value),
     });
-  if (def.type === "choice") {
-    const choices = def.choices || choices_get(state, def.choices_from);
-    const next =
-      choices[(choices.findIndex((c) => c.value === value) + 1) % Math.max(1, choices.length)] ||
-      {};
-    const shown = (choices.find((c) => c.value === value) || {}).label || "—";
-    return item({ key: def.key, label: def.label, sub: shown, onClick: () => on_set(next.value) });
+  // Choices as the wireframe's segments (up to four) or chips; UI scale as its four steps.
+  const steps =
+    def.key === "look.scale"
+      ? [90, 100, 115, 130].map((v) => ({ value: v, label: `${v}%` }))
+      : null;
+  if (def.type === "choice" || steps) {
+    const choices = steps || def.choices || choices_get(state, def.choices_from);
+    const buttons = choices.map(
+      (c) =>
+        html`<button key=${String(c.value)} class=${c.value === value ? "on" : ""} onClick=${() => on_set(c.value)}>${c.label}</button>`,
+    );
+    const odd =
+      steps && !steps.some((c) => c.value === value)
+        ? html`<small>Now ${value}% (Ctrl+= and Ctrl+- change it in 5% steps)</small>`
+        : null;
+    return html`<div class="item col" key=${def.key} data-lit=${def.label}>
+      <span class="grow">${def.label}${def.description ? html`<small>${def.description}</small>` : null}</span>
+      ${choices.length <= 4 ? html`<div class="seg">${buttons}</div>` : html`<div class="chips choose">${buttons}</div>`}${odd}
+    </div>`;
   }
   return html`<label class="item" key=${def.key} data-lit=${def.label}
     ><span class="grow"
@@ -171,33 +183,38 @@ const profile_dropdown = (state, current, sub, pick) => {
   </div>`;
 };
 
+// The groups of Settings: name, the line under it, its own sheet (else its section), its icon.
 const GROUPS = [
-  ["Plugins", "Profile blocks and the plugin library", "plugins"],
-  ["Prompt library", "System prompts you keep and link", "prompts"],
-  ["Look", "Theme, accent, quick actions"],
-  ["Sites", "Pages at once, waiting for replies"],
-  ["Chats and storage", "Chat folder, move chats, Git"],
-  ["Git", "History and backup"],
-  ["Credentials", "API keys, tokens, passwords", "credentials"],
-  ["Import and export", "Profiles, prompts, name clashes"],
-  ["Local API", "Address, token, folder"],
-  ["Advanced", "Reset, safe mode, core log"],
-  ["Help", "Shortcuts, quick start"],
+  ["Plugins", "Profile blocks and the plugin library", "plugins", "plugins"],
+  ["Prompt library", "System prompts you keep and link", "prompts", "prompt"],
+  ["Look", "Theme, accent, quick actions", null, "look"],
+  ["Sites", "Pages at once, waiting for replies", null, "sites"],
+  ["Chats and storage", "Chat folder, move chats, storage check", null, "storage"],
+  ["Git", "History and backup", null, "retry"],
+  ["Credentials", "API keys, tokens, passwords", "credentials", "char"],
+  ["Import and export", "Profiles, prompts, name clashes", null, "impexp"],
+  ["Local API", "Address, token, folder", null, "api"],
+  ["Advanced", "Reset, safe mode, core log", null, "adv"],
+  ["Help", "Shortcuts, quick start", null, "help"],
 ];
 
 const SHEETS = {
-  settings: () => ({
-    title: "Settings",
-    rows: GROUPS.map(([name, sub, sheet]) =>
-      item({
-        key: name,
-        label: name,
-        sub,
-        right: "›",
-        onClick: () => PP.sheet_open(sheet || "section", { name }),
-      }),
-    ),
-  }),
+  settings: (state) => {
+    const updates = ((state.catalogue && state.catalogue.updates) || []).length;
+    return {
+      title: "Settings",
+      rows: GROUPS.map(([name, sub, sheet, icon]) =>
+        item({
+          key: name,
+          icon,
+          label: name,
+          sub,
+          right: name === "Plugins" && updates ? html`<span class="badge">${updates}</span>` : "›",
+          onClick: () => PP.sheet_open(sheet || "section", { name }),
+        }),
+      ),
+    };
+  },
 
   section: (state, { name }) => ({
     title: name,
@@ -894,118 +911,193 @@ ${p.text}</textarea
     };
   },
 
-  plugins: (state, { tab = "installed", filter = "" }) => {
+  // Plugins (wireframe): Profile (the profile's blocks, as in the editor) | Library (what's
+  // installed, by kind, with updates; more from the catalogue; sources; installing).
+  plugins: (state, { tab = "profile", filter = "all" }) => {
+    const reopen = (data) =>
+      PP.ui_set((ui) => ({
+        sheets: [...ui.sheets.slice(0, -1), { name: "plugins", data: { tab, filter, ...data } }],
+      }));
     const catalogue =
-      tab === "catalogue" &&
-      (state.catalogue || load_get(state, "plugins:catalogue", () => PP.catalogue_load(state)));
-    const type = (tags) => ["Plugin", ...(tags || [])].join(" · ");
-    const tabs = html`<div class="chips">
-      ${[
-        ["installed", "Profile and installed"],
-        ["catalogue", "Catalogue"],
-      ].map(
-        ([t, l]) =>
-          html`<button
-            class=${`pill${t === tab ? " on" : ""}`}
-            key=${t}
-            onClick=${() =>
-              PP.ui_set((ui) => ({
-                sheets: [...ui.sheets.slice(0, -1), { name: "plugins", data: { tab: t } }],
-              }))}
-          >
-            ${l}
-          </button>`,
-      )}
+      state.catalogue || load_get(state, "plugins:catalogue", () => PP.catalogue_load(state));
+    const updates = (catalogue && catalogue.updates) || [];
+    const tabs = html`<div class="tabs">
+      <button class=${tab === "profile" ? "on" : ""} onClick=${() => reopen({ tab: "profile" })}>Profile</button>
+      <button class=${tab === "library" ? "on" : ""} onClick=${() => reopen({ tab: "library" })}>Library${updates.length ? html` <span class="badge">${updates.length}</span>` : null}</button>
     </div>`;
-    if (tab === "catalogue") {
-      const offers = ((catalogue && catalogue.offers) || []).filter(
-        (o) => !filter || (o.tags || []).includes(filter),
-      );
+    const head_extra = PP.icon_render("play", "Plugin guide", () => PP.sheet_open("plugin_guide"));
+    if (tab === "profile") {
+      const editing =
+        state.config.profiles.find((p) => p.id === state.ui.plugins_profile) ||
+        PP.profile_get(state, PP.chat_get(state));
       return {
         title: "Plugins",
+        head_extra,
         rows: [
           tabs,
-          ...(catalogue ? [] : [item({ label: "Checking the sources…" })]),
-          ...(catalogue && (catalogue.updates || []).length
-            ? [
-                item({
-                  label: "Update all",
-                  cls: "prim",
-                  sub: `${(catalogue.updates || []).length} updates available`,
-                  onClick: () =>
-                    PP.call_try("plugin_update", {}, "Updated. Restart the app to use them."),
-                }),
-              ]
-            : []),
-          ...offers.map((o) =>
-            item({
-              key: `${o.source.id}/${o.id}`,
-              label: o.name,
-              sub: `${type(o.tags)} · ${o.version}${o.installed ? " · installed" : ""}${o.app_too_old ? ` · needs app ${o.min_app}` : ""}`,
-              right: o.installed ? null : html`<span class="pill">Get</span>`,
-              onClick: () => PP.command_run("plugin_install", { entry: o }),
-            }),
+          profile_dropdown(state, editing, "The profile you're editing · tap to change", (p) =>
+            PP.ui_set(() => ({ plugins_profile: p.id })),
           ),
-          ...((catalogue && catalogue.failed) || []).map((f) =>
-            item({
-              key: f.source.id,
-              label: `Couldn't load ${f.source.url}`,
-              sub: f.error.message,
-              cls: "danger",
-            }),
-          ),
+          label("Sent top to bottom"),
+          block_rows(state, editing, null, (b) => PP.sheet_open("block", { id: b.id })),
           item({
-            label: "Install from a file, a link or an AI's answer",
+            label: "Add a block",
+            sub: "System prompts and plugins",
             right: "›",
-            onClick: () => PP.sheet_open("install"),
-          }),
-          label("Sources"),
-          item({ label: "Promptpipe's own", sub: "Signed with the key built into the app" }),
-          ...state.config.sources.map((src) =>
-            item({
-              key: src.id,
-              label: src.url.replace("https://github.com/", ""),
-              sub: `Key ${src.key.slice(0, 8)}… · tap to remove`,
-              right: toggle(src.on, "On", (on) =>
-                PP.apply_try((x) =>
-                  PP.record_set(x, { collection: "sources", id: src.id, fields: { on } }),
-                ),
-              ),
-              onClick: () =>
-                PP.dialog_open({
-                  title: `Remove ${src.url}? Plugins installed from it stay.`,
-                  choices: [["yes", "Remove"]],
-                  command: "source_remove",
-                  data: { id: src.id },
-                }),
-            }),
-          ),
-          item({
-            label: "Add a source…",
-            sub: "Someone else's plugin repository with a signed catalogue",
-            onClick: () =>
-              PP.dialog_open({
-                title: "GitHub repository of the source",
-                ok: "Check",
-                command: "source_add",
-              }),
+            onClick: () => PP.sheet_open("block_add", { id: editing.id }),
           }),
         ],
       };
     }
+    const kinds = [
+      ["all", "All"],
+      ["provider", "Providers"],
+      ["plugin", "Plugins"],
+      ["theme", "Themes"],
+      ["passive", "Passive"],
+    ];
+    const kind_of = (tags = []) =>
+      tags.includes("runtime")
+        ? "runtime"
+        : ["provider", "theme", "passive"].find((t) => tags.includes(t)) || "plugin";
+    const shown = (tags) =>
+      filter === "all" ? kind_of(tags) !== "runtime" : kind_of(tags) === filter;
+    const update_of = (id) => updates.find((u) => u.id === id);
+    const installed = state.plugins.filter((p) => shown(p.manifest.tags));
+    const offers = ((catalogue && catalogue.offers) || []).filter(
+      (o) => !o.installed && shown(o.tags),
+    );
+    const type = (tags) => ["Plugin", ...(tags || [])].join(" · ");
     return {
       title: "Plugins",
+      head_extra,
       rows: [
         tabs,
-        ...state.plugins.map((p) =>
+        html`<div class="chips">${kinds.map(([k, l]) => html`<button class=${`pill${k === filter ? " on" : ""}`} key=${k} onClick=${() => reopen({ filter: k })}>${l}</button>`)}</div>`,
+        updates.length
+          ? item({
+              label: "Update all",
+              cls: "prim",
+              sub: `${updates.length} update${updates.length === 1 ? "" : "s"}`,
+              onClick: () =>
+                PP.call_try("plugin_update", {}, "Updated. Restart the app to use them."),
+            })
+          : null,
+        ...installed.map((p) =>
           item({
             key: p.id,
             label: p.manifest.name,
             sub: `${type(p.manifest.tags)} · ${p.manifest.version} · ${p.copy.replace("_", "-")}${p.status !== "loaded" ? ` · ${p.status.replace("_", " ")}` : ""}`,
-            right: "›",
+            right: update_of(p.id) ? html`<span class="badge">Update</span>` : "›",
             onClick: () => PP.sheet_open("plugin", { id: p.id }),
           }),
         ),
+        catalogue ? null : item({ label: "Checking the sources…" }),
+        offers.length ? label("Get more") : null,
+        ...offers.map((o) =>
+          item({
+            key: `${o.source.id}/${o.id}`,
+            label: o.name,
+            sub: `${type(o.tags)} · ${o.version}${o.app_too_old ? ` · needs app ${o.min_app}` : ""}`,
+            right: html`<span class="pill">Get</span>`,
+            onClick: () => PP.command_run("plugin_install", { entry: o }),
+          }),
+        ),
+        ...((catalogue && catalogue.failed) || []).map((f) =>
+          item({
+            key: f.source.id || f.source.url,
+            label: `Couldn't load ${f.source.url}`,
+            sub: f.error.message,
+            cls: "danger",
+          }),
+        ),
+        label("Sources"),
+        item({
+          label: "Official",
+          sub: "Zieviox/promptpipe-plugins · signed with the key built into the app",
+        }),
+        ...state.config.sources.map((src) =>
+          item({
+            key: src.id,
+            label: src.url.replace("https://github.com/", ""),
+            sub: `Key ${src.key.slice(0, 8)}… · tap to remove`,
+            right: toggle(src.on, "On", (on) =>
+              PP.apply_try((x) =>
+                PP.record_set(x, { collection: "sources", id: src.id, fields: { on } }),
+              ),
+            ),
+            onClick: () =>
+              PP.confirm_open(
+                `Remove ${src.url}? Plugins installed from it stay.`,
+                "Remove",
+                "source_remove",
+                { id: src.id },
+              ),
+          }),
+        ),
+        item({
+          label: "Add a source…",
+          sub: "A friend's plugin repository, with a signed catalogue",
+          onClick: () =>
+            PP.dialog_open({
+              title: "GitHub repository of the source",
+              ok: "Check",
+              command: "source_add",
+            }),
+        }),
+        label("Install"),
+        item({
+          icon: "impexp",
+          label: "Install from a file",
+          sub: "A plugin's .zip",
+          onClick: () => PP.command_run("plugin_file_install"),
+        }),
+        item({
+          icon: "plus",
+          label: "Install from a link or an AI's answer",
+          right: "›",
+          onClick: () => PP.sheet_open("install"),
+        }),
+        filter === "all"
+          ? html`<details><summary>The app's own parts (${state.plugins.filter((p) => kind_of(p.manifest.tags) === "runtime").length})</summary>
+          ${state.plugins.filter((p) => kind_of(p.manifest.tags) === "runtime").map((p) => item({ key: p.id, label: p.manifest.name, sub: `${p.manifest.version} · ${p.copy.replace("_", "-")}`, right: update_of(p.id) ? html`<span class="badge">Update</span>` : "›", onClick: () => PP.sheet_open("plugin", { id: p.id }) }))}
+        </details>`
+          : null,
+      ],
+    };
+  },
+
+  // The Plugin guide: how to make a plugin, a copy of it for an AI with a request to fill in, and
+  // installing what comes back.
+  plugin_guide: (state) => {
+    const text = load_get(state, "plugin_guide", () =>
+      fetch("/docs/PLUGINS.md").then((r) => (r.ok ? r.text() : "Guide not found.")),
+    );
+    const guide = typeof text === "string" ? text : "";
+    const request = `${guide}\n\n---\n\nUsing the guide above, write a promptpipe plugin that: <describe what it should do>.\nGive every file, each with its name on the line before its code block.`;
+    return {
+      title: "Plugin guide",
+      rows: [
+        item({
+          icon: "copy",
+          label: "Copy instructions for AI",
+          sub: "The guide and a request to fill in",
+          cls: "prim",
+          onClick: () =>
+            PP.call_try(
+              "clipboard_write",
+              { text: request },
+              "Copied: paste it to an AI and describe your plugin",
+            ),
+        }),
+        item({
+          icon: "plus",
+          label: "Install the result",
+          sub: "Paste the AI's whole answer",
+          right: "›",
+          onClick: () => PP.sheet_open("install"),
+        }),
+        PP.markdown_render(guide),
       ],
     };
   },
@@ -1044,6 +1136,15 @@ ${p.text}</textarea
               label: "Settings",
               right: "›",
               onClick: () => PP.sheet_open("plugin_settings", { id }),
+            })
+          : null,
+        ((state.catalogue && state.catalogue.updates) || []).some((u) => u.id === id)
+          ? item({
+              label: "Update",
+              cls: "prim",
+              sub: "A newer version is in the catalogue",
+              onClick: () =>
+                PP.call_try("plugin_update", { ids: [id] }, "Updated. Restart the app to use it."),
             })
           : null,
         p.other_copies.length

@@ -47,12 +47,25 @@ test(
       await page.waitForSelector("text=UI scale", { timeout: 3000 }).catch(() => null);
       await page.click("[aria-label='Back']");
       await page.click("text=Plugins");
-      await page.waitForSelector("text=Sending");
+      await page.waitForSelector("text=Sent top to bottom");
+      await page.click(".tabs button:has-text('Library')");
+      await page.waitForSelector("text=Install from a file");
       await page.click("[aria-label='Close']");
 
       await page.keyboard.press("Control+k");
       await page.fill("input[aria-label='Find chats and functions']", "prof");
       await page.waitForSelector("text=Next profile");
+      await page.keyboard.press("Escape");
+
+      // Help mode: a tap explains instead of doing; Do it leaves help mode and does it.
+      await page.click("[aria-label^='Help:']");
+      await page.waitForSelector("text=Help mode. Tap anything to see what it does.");
+      await page.click("[aria-label='Chats']");
+      await page.waitForSelector(".helpcard >> text=Your chats");
+      assert.equal(await page.$(".drawer"), null, "help mode didn't open the drawer");
+      await page.click(".helpcard >> text=Do it");
+      await page.waitForSelector(".drawer");
+      assert.equal(await page.$(".help-bar"), null);
       await page.keyboard.press("Escape");
 
       await page.fill("#message", "Hello there\nsecond line");

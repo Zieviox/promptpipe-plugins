@@ -96,6 +96,45 @@ const LIGHT = process.argv[3] === "light";
         await page.keyboard.press("Control+,");
       },
     ],
+    [
+      "8-plugins",
+      async () => {
+        await page.keyboard.press("Control+Shift+P");
+      },
+    ],
+    [
+      "9-site",
+      async () => {
+        await click("[aria-label='Chats']");
+        await page.getByText("Harbour story draft").first().click();
+        // No platform here to open a real page: one is put into the State, as page_open would.
+        await page.evaluate(() =>
+          PP.state_set((s) => ({
+            ...s,
+            pages: [
+              {
+                id: "pg1",
+                provider: "qwen-chat",
+                url: "https://chat.qwen.ai/c/8f21",
+                title: "Harbour story draft",
+                status: "ready",
+              },
+            ],
+          })),
+        );
+        await click("[aria-label='Switch provider']");
+        await page.getByText("Show the page").first().click();
+      },
+    ],
+    [
+      "11-help",
+      async () => {
+        await click("[aria-label='Chats']");
+        await page.getByText("Harbour story draft").first().click();
+        await click("[aria-label='Help: tap, then tap anything']");
+        await click("[aria-label='Quick edit and add']");
+      },
+    ],
   ];
   for (const [name, run] of steps) {
     try {

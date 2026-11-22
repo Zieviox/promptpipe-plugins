@@ -16,6 +16,7 @@ const UI_NEW = {
   find_results: [],
   help: false,
   help_card: null,
+  hover_help: null,
   tour: null,
   composer: { big: false },
   unfolded: [],
@@ -107,30 +108,174 @@ const tour_render = (state) => {
 };
 
 // ---------- help mode (UC39) ----------
-// While it's on, a tap anywhere says what that thing does instead of doing it.
+// While it's on, a tap anywhere says what that thing does instead of doing it: a card with its
+// name, its line (the command's own, or the control's data-help), where it lives and its key, then
+// Got it, or Do it (help mode off and the thing done). With a mouse, hovering shows a small "?"
+// that explains without entering help mode (off with the ? button, help.button).
 
-const help_explain = (target) => {
-  const el = target.closest("[aria-label],[title]");
-  if (!el || el.closest(".help-bar")) return;
-  const name = el.getAttribute("aria-label") || el.getAttribute("title");
-  const command = [...PP.COMMANDS, ...(PP.plugin_commands || [])].find(
-    (c) => c.label.toLowerCase() === name.toLowerCase(),
-  );
-  const text = command
-    ? `${command.place}${command.key ? ` · ${command.key}` : ""}`
-    : "Tap it to use it once help mode is off.";
-  PP.ui_set(() => ({ help_card: { title: name, text } }));
-  return true;
+const HELP_TARGETS = "button,[role=button],[data-help],[data-command],input,textarea,select";
+
+const commands_all = () => [...PP.COMMANDS, ...(PP.plugin_commands || [])];
+
+// What the card says about an element: its command by data-command, else by its label.
+const help_build = (el) => {
+  const name =
+    el.getAttribute("aria-label") ||
+    el.getAttribute("title") ||
+    el.dataset.lit ||
+    el.textContent.trim().slice(0, 40) ||
+    "This";
+  const lower = name.toLowerCase();
+  const command =
+    commands_all().find((c) => c.id === el.dataset.command) ||
+    commands_all().find((c) => c.label.toLowerCase() === lower);
+  const sub = el.querySelector("small");
+  const text =
+    el.dataset.help ||
+    (command && command.help) ||
+    (sub && sub.textContent) ||
+    "Tap it normally to use it. Its screen explains the options.";
+  return {
+    name:
+      command && !el.getAttribute("aria-label") ? command.label : name.replace(/^Help: .*/, "Help"),
+    text,
+    place: command ? command.place : "",
+    key: command ? command.key || "" : "",
+    target: el.getAttribute("aria-label")
+      ? `[aria-label="${CSS.escape(el.getAttribute("aria-label"))}"]`
+      : null,
+    command: command && command.id,
+  };
 };
+
+let help_el = null; // the element the open card is about (Do it clicks it); not State, only a pointer
+
+const help_open = (el) => {
+  help_el = el;
+  PP.ui_set(() => ({ help_card: help_build(el), hover_help: null }));
+};
+
+const help_is_own = (el) => el.closest(".help-layer,.hoverq,[aria-label^='Help:']");
+
+addEventListener(
+  "pointerdown",
+  (e) => {
+    const ui = PP.ui_get();
+    if (ui && ui.help && !help_is_own(e.target)) e.stopPropagation();
+  },
+  true,
+);
 
 addEventListener(
   "click",
   (e) => {
     const ui = PP.ui_get();
-    if (ui && ui.help && help_explain(e.target)) e.preventDefault(), e.stopPropagation();
+    if (!ui || !ui.help || help_is_own(e.target)) return;
+    const el = e.target.closest(HELP_TARGETS);
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    help_open(el);
   },
   true,
 );
+
+// Do it: help mode off, then the same control pressed (found again by its label after the redraw).
+const help_do = () => {
+  const card = PP.ui_get().help_card;
+  const el = help_el;
+  PP.ui_set(() => ({ help: false, help_card: null }));
+  help_el = null;
+  setTimeout(() => {
+    const again = card.target ? document.querySelector(card.target) : null;
+    if (again || (el && el.isConnected)) (again || el).click();
+    else if (card.command) PP.command_run(card.command);
+  }, 0);
+};
+
+const help_render = (state) => {
+  const ui = state.ui;
+  const card = ui.help_card;
+  const off = (change = {}) => PP.ui_set(() => ({ help: false, help_card: null, ...change }));
+  return html`<div class="help-layer">
+    ${
+      ui.help
+        ? html`<div class="help-bar" role="status">
+            <span>Help mode. Tap anything to see what it does.</span>
+            <span class="row">
+              <button class="pill" onClick=${() => (off(), PP.command_run("quick_start"))}>Quick start</button>
+              <button class="pill" onClick=${() => off()}>Done</button>
+            </span>
+          </div>`
+        : null
+    }
+    ${
+      card
+        ? html`<section class="sheet helpcard" role="dialog" aria-label=${`Help: ${card.name}`}>
+            <h3>${card.name}</h3>
+            <p>${card.text}</p>
+            ${card.place ? html`<small>Where: ${card.place}${card.key ? ` · ${card.key}` : ""}</small>` : null}
+            <div class="chips">
+              <button class="item prim" onClick=${() => PP.ui_set(() => ({ help_card: null }))}>Got it</button>
+              <button class="item" onClick=${help_do}>Do it</button>
+            </div>
+          </section>`
+        : null
+    }
+  </div>`;
+};
+
+// The hover "?" (mouse only): its place is in the State, the element it's about is a pointer.
+let hover_el = null;
+let hover_timer = 0;
+const hover_hide = () => {
+  clearTimeout(hover_timer);
+  hover_timer = setTimeout(
+    () => PP.ui_get().hover_help && PP.ui_set(() => ({ hover_help: null })),
+    180,
+  );
+};
+addEventListener("pointerover", (e) => {
+  const state = PP.state_get();
+  const ui = state && state.ui;
+  if (e.pointerType !== "mouse" || !ui || !state.config || ui.help || ui.help_card || ui.tour)
+    return;
+  if (e.target.closest(".hoverq")) return clearTimeout(hover_timer);
+  if (!PP.setting_get(state, "help.button")) return;
+  const el = e.target.closest(HELP_TARGETS);
+  if (!el || help_is_own(el)) return;
+  clearTimeout(hover_timer);
+  if (el === hover_el && ui.hover_help) return;
+  hover_el = el;
+  const box = el.getBoundingClientRect();
+  PP.ui_set(() => ({
+    hover_help: { x: Math.min(box.right - 12, innerWidth - 24), y: Math.max(box.top - 8, 2) },
+  }));
+});
+addEventListener("pointerout", (e) => e.pointerType === "mouse" && hover_hide());
+// Any press hides it at once (what it pointed at may be gone after the redraw).
+addEventListener(
+  "pointerdown",
+  (e) =>
+    !e.target.closest(".hoverq") &&
+    PP.ui_get() &&
+    PP.ui_get().hover_help &&
+    PP.ui_set(() => ({ hover_help: null })),
+  true,
+);
+
+const hover_render = (ui) =>
+  ui.hover_help
+    ? html`<button
+        class="hoverq"
+        aria-label="What is this?"
+        title="What is this?"
+        style=${`left:${ui.hover_help.x}px;top:${ui.hover_help.y}px`}
+        onClick=${(e) => (e.stopPropagation(), hover_el && hover_el.isConnected && help_open(hover_el))}
+      >
+        ?
+      </button>`
+    : null;
 
 // ---------- keys and Back ----------
 
@@ -152,21 +297,21 @@ const back_run = () => {
   if (ui.help) return close({ help: false });
   if (ui.tour) return close({ tour: null });
   if (ui.menu) return close({ menu: false });
-  if (ui.sheets.length) return PP.sheet_close(), true;
+  if (ui.sheets.length) return (PP.sheet_close(), true);
   if (ui.selection.on) return close({ selection: { on: false, ids: [] } });
   if (ui.drawer) return close({ drawer: false });
-  if (ui.site_view.open) return PP.command_run("site_view"), true;
+  if (ui.site_view.open) return (PP.command_run("site_view"), true);
   if (ui.composer.big) return close({ composer: { big: false } });
   return false;
 };
 
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") return back_run() && e.preventDefault();
-  if (e.key === "F3") return e.preventDefault(), PP.command_run("find");
+  if (e.key === "F3") return (e.preventDefault(), PP.command_run("find"));
   const name = key_name(e);
   if (["ArrowUp", "Enter"].includes(name)) return; // the message box's own keys
   const command = [...PP.COMMANDS, ...(PP.plugin_commands || [])].find((c) => c.key === name);
-  if (command) e.preventDefault(), PP.command_run(command.id);
+  if (command) (e.preventDefault(), PP.command_run(command.id));
 });
 
 // ---------- what comes in ----------
@@ -271,30 +416,12 @@ const screen_render = (state) => {
     : html`${PP.header_render(state)}${
         ui.menu ? PP.provider_menu_render(state) : null
       }${PP.chat_render(state)}${PP.new_reply_render(state)}
-      ${
-        ui.help
-          ? html`<div class="help-bar">
-            <span style="flex:1"
-              >${
-                ui.help_card
-                  ? html`<b>${ui.help_card.title}</b> · ${ui.help_card.text}`
-                  : "Tap anything to learn what it does"
-              }</span
-            >
-            <button
-              class="pill"
-              onClick=${() => PP.ui_set(() => ({ help: false, help_card: null }))}
-            >
-              Done
-            </button>
-          </div>`
-          : null
-      }
       ${PP.composer_render(state)}`;
   return html`${banners_render(state)}${main} ${ui.drawer ? PP.drawer_render(state) : null}
     ${ui.sheets.length ? PP.sheet_render(state) : null}
     ${state.changes.length ? PP.change_render(state) : null}
     ${ui.dialog ? dialog_render(state) : null} ${ui.tour ? tour_render(state) : null}
+    ${ui.help || ui.help_card ? help_render(state) : null} ${hover_render(ui)}
     <div class="toasts" aria-live="polite">
       ${ui.toasts.map((t) =>
         t.open
@@ -319,8 +446,8 @@ const theme_set = (state) => {
   root.style.setProperty("--reply-size", `${PP.setting_get(state, "look.text")}px`);
   const background = getComputedStyle(root).getPropertyValue("--bg").trim();
   if (`${background}${dark}` !== bars)
-    (bars = `${background}${dark}`),
-      PP.call_send("bars_set", { background, dark }).catch(() => null);
+    ((bars = `${background}${dark}`),
+      PP.call_send("bars_set", { background, dark }).catch(() => null));
 };
 
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
@@ -368,7 +495,7 @@ const redraw = () => {
     frame = 0;
     const state = PP.state_get();
     const root = document.getElementById("app");
-    if (first) (first = false), (root.textContent = "");
+    if (first) ((first = false), (root.textContent = ""));
     if (!state.config) return preact.render(screen_render(state), root);
     theme_set(state);
     preact.render(screen_render(state), root);

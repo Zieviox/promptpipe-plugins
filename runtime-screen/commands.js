@@ -118,16 +118,87 @@ const profile_next = (state) => {
   PP.toast(`Profile: ${next.name}`);
 };
 
-const site_view_toggle = (state) => {
+// The site view (UC12): the page of the chat's provider, opened first when there's none yet.
+const site_view_toggle = async (state) => {
   const open = !state.ui.site_view.open;
-  const page = state.ui.site_view.page || (state.pages[0] && state.pages[0].id);
-  if (open && !page) return PP.toast("Get a provider first: tap its name at the top", true);
+  const provider = PP.provider_get(state, chat_get(state));
+  const own = state.pages.find((p) => p.provider === provider);
+  let page = (own && own.id) || state.ui.site_view.page || (state.pages[0] && state.pages[0].id);
+  if (open && !own) {
+    const plugin = state.plugins.find((p) => p.id === provider);
+    if (!plugin && !page) return PP.toast("Get a provider first: tap its name at the top", true);
+    if (plugin) {
+      const added = await PP.page_add(
+        PP.provider_build(state, plugin),
+        plugin.manifest.provider.url,
+      ).catch((error) => (PP.toast(error.message, true), undefined));
+      if (added === undefined) return;
+      if (added) page = added.id;
+      else if (!page) return PP.toast("That's the most pages at once (Settings › Sites)", true);
+    }
+  }
   PP.ui_set(() => ({ site_view: { open, page }, sheets: [], drawer: false }));
 };
 
 // ---------- the table ----------
 
-const C = (id, label, place, key, run) => ({ id, label, place, key, run });
+// One plain line per command, for help mode's card and the hover "?" (spec: every control explains
+// itself).
+const HELP = {
+  chat_new: "Starts an empty chat; it's saved with its first message.",
+  drawer: "Your chats and folders: pinned first, search, tags, drag to reorder.",
+  selection:
+    "Pick several chats to pin, move or delete them together. Press and hold a chat does the same.",
+  folder_new: "A new folder for chats. Drop chats onto it to put them in.",
+  chat_previous: "Opens the chat above this one in the list.",
+  chat_next: "Opens the chat below this one in the list.",
+  site_view: "Shows the AI site's own page: log in there, and see what the app types.",
+  site_chats: "Lists the chats in the site's own sidebar, to continue one here.",
+  models: "Picks the site's model and its options (Thinking, Search), set before each message.",
+  site_link: "This chat reads and sends in the page that's open now.",
+  site_import: "Copies the messages of the linked site chat into this chat.",
+  site_newest: "Adds the reply the page shows now to this chat.",
+  site_decode: "Shows the page's newest reply as your plugins would decode it, without saving it.",
+  chat_sheet: "This chat: rename, tags, pin, move, copy, share, its history.",
+  chat_tag: "A tag every message in this chat gets. A tag ending in # counts up.",
+  chat_copy: "Copies the whole chat as Markdown.",
+  chat_share: "Shares the whole chat with another app, or saves it as a file.",
+  chat_move: "Moves this chat into a folder.",
+  thinking_fold: "Opens or closes every reply's thinking at once.",
+  last_edit: "Puts your last message back in the box; sending replaces it.",
+  composer_big: "Makes the message box big for long text, or small again. What you typed stays.",
+  quick_edit: "This chat's profile: turn its blocks on or off, reorder them, add text files.",
+  text_file: "Puts a text file's words into the message box.",
+  text_files: "Puts several text files into the box, one after another.",
+  attach: "Attaches files to your message; they're kept with the chat.",
+  profile_edit: "Opens the profile this chat uses: its blocks, in the order they're sent.",
+  profiles: "Your profiles: make one from a template, import or export them.",
+  profile_next: "Switches this chat to the next profile.",
+  prompts: "System prompts you keep; a profile can link one, and one edit changes them all.",
+  plugins: "The profile's blocks and the plugin library: install, update, remove.",
+  plugins_reload: "Restarts the app with the plugins as they are on disk.",
+  profiles_export: "Saves your profiles to a file you can share or keep.",
+  profiles_import: "Brings in profiles from a file.",
+  prompts_export: "Saves the prompt library to a file.",
+  prompts_import: "Brings in prompts from .md or .txt files, or a library file.",
+  plugin_file_install: "Installs a plugin from a .zip on your phone.",
+  credentials: "API keys and tokens, kept encrypted and only ever sent to their own sites.",
+  storage_check: "Checks what the app can do in your chats folder, with Android's own answers.",
+  history: "Every saved change, as git commits.",
+  settings: "Everything you can set, in groups.",
+  scale_up: "Makes everything bigger.",
+  scale_down: "Makes everything smaller.",
+  scale_reset: "Back to the normal size.",
+  help: "Every shortcut, and the gestures.",
+  help_mode: "Tap anything to see what it does, instead of doing it.",
+  quick_start: "Short guides to the app; each can be shown again.",
+  find: "Finds chats, messages, functions and settings by name.",
+  send: "Sends your message. Sending more while a reply comes queues them in order.",
+  stop: "Stops waiting for the reply that's coming.",
+  plugin_install: "Installs a plugin.",
+};
+
+const C = (id, label, place, key, run) => ({ id, label, place, key, run, help: HELP[id] || "" });
 
 const COMMANDS = [
   C("chat_new", "New chat", "Chats", "Ctrl+N", () => chat_open(null)),
@@ -208,6 +279,11 @@ const COMMANDS = [
   C("prompts_import", "Import prompts", "Settings › Import and export", "", () =>
     PP.records_import("prompts"),
   ),
+  C("plugin_file_install", "Install a plugin from a file", "Settings › Plugins", "", async () => {
+    const [file] =
+      (await PP.call_try("picker_open", { types: ["application/zip"], many: false })) || [];
+    if (file) PP.command_run("plugin_install", { zip: PP.base64_decode(file.data) });
+  }),
   C("credentials", "Credentials", "Settings", "", () => sheet_open("credentials")),
   C("storage_check", "Storage check", "Settings › Chats and storage", "", () =>
     sheet_open("storage_check"),
@@ -289,7 +365,7 @@ const RUNS = {
     if (!found) return;
     const groups = found.source.key.match(/.{4}/g).join(" ");
     PP.dialog_open({
-      title: `${found.source.url} offers ${found.count} plugins, signed with the key ${groups}. Trust this key? Its owner can then update the plugins you install from it.`,
+      title: `${found.source.url} offers ${found.count} plugins, signed with the key ${groups}. Only add sources from people you trust: plugins are code and can read your chats. Its owner can update the plugins you install from it. Trust this key?`,
       choices: [["yes", "Trust and add"]],
       command: "source_add",
       data: found.source,
@@ -322,6 +398,7 @@ const command_run = (id, data) => {
 
 PP.plugin_set({
   functions: {
+    HELP,
     COMMANDS,
     command_run,
     sheet_open,

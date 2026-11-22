@@ -19,20 +19,21 @@ const header_render = (state) => {
   const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, chat));
   const model = PP.model_get(state, chat);
   return html`<div class="top">
-    ${PP.icon_render("menu", "Chats", () => PP.command_run("drawer"))}
-    <button class="title" aria-label="Chat title" onClick=${() => PP.command_run("chat_sheet")}>
+    ${PP.icon_render("menu", "Chats", () => PP.command_run("drawer"), false, "icon", "drawer")}
+    <button class="title" aria-label="Chat title" data-command="chat_sheet" onClick=${() => PP.command_run("chat_sheet")}>
       ${chat ? chat.name : "New chat"}
     </button>
     <button
       class="pill"
       aria-label="Switch provider"
+      data-help="The AI site this chat uses and its model; the dot is green when its page is ready. Tap to switch."
       onClick=${() => PP.ui_set((ui) => ({ menu: !ui.menu }))}
     >
       <span class=${`dot ${page_status(state, chat)}`}></span
       ><span class="tx">${plugin ? plugin.manifest.name : "No provider"}${model ? ` · ${model}` : ""}</span
       >${PP.icon_svg("down")}
     </button>
-    ${PP.icon_render("search", "Find chats and functions", () => PP.command_run("find"))}
+    ${PP.icon_render("search", "Find chats and functions", () => PP.command_run("find"), false, "icon", "find")}
     ${
       PP.setting_get(state, "help.button")
         ? PP.icon_render(
@@ -149,11 +150,11 @@ const reply_foot = (state, turn, last) => {
   if (!open) return foot;
   return html`${foot}
     <div class="actions">
-      ${PP.icon_render("copy", "Copy", () => PP.call_try("clipboard_write", { text: turn.reply }, "Copied"), false, "act")}
-      ${PP.icon_render("quote", "Quote", () => quote_add(state, turn.reply), false, "act")}
-      ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message }), false, "act")}
-      ${PP.icon_render("select", "Select text", () => PP.sheet_open("select_text", { text: turn.reply }), false, "act")}
-      ${PP.icon_render("more", "More", () => PP.sheet_open("turn", { id: turn.id }), false, "act")}
+      ${PP.icon_render("copy", "Copy", () => PP.call_try("clipboard_write", { text: turn.reply }, "Copied"), false, "act", "Copies this reply.")}
+      ${PP.icon_render("quote", "Quote", () => quote_add(state, turn.reply), false, "act", "Puts this reply in your message as a quote.")}
+      ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message }), false, "act", "Sends the same message again for a new reply.")}
+      ${PP.icon_render("select", "Select text", () => PP.sheet_open("select_text", { text: turn.reply }), false, "act", "Shows the reply as plain text so you can select part of it.")}
+      ${PP.icon_render("more", "More", () => PP.sheet_open("turn", { id: turn.id }), false, "act", "Tags, the message sent, its blocks and more for this reply.")}
     </div>
     <div class="chips">
       ${tags.map((t) => html`<span class="tag" key=${t}>#${t}</span>`)}
@@ -349,12 +350,12 @@ const composer_render = (state) => {
   const key = (e) => {
     const enter_sends = PP.setting_get(state, "look.enter_sends");
     if (e.key === "Enter" && (e.ctrlKey || (enter_sends && !e.shiftKey)))
-      return e.preventDefault(), PP.command_run("send");
+      return (e.preventDefault(), PP.command_run("send"));
     if (e.key === "ArrowUp" && !e.target.value)
-      return e.preventDefault(), PP.command_run("last_edit");
+      return (e.preventDefault(), PP.command_run("last_edit"));
   };
   return html`<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>
-    ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"))}
+    ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"), false, "icon", "quick_edit")}
     <textarea
       id="message"
       rows="1"
@@ -369,10 +370,14 @@ const composer_render = (state) => {
       state.ui.composer.big ? "shrink" : "expand",
       state.ui.composer.big ? "Smaller message box" : "Bigger message box",
       () => PP.command_run("composer_big"),
+      false,
+      "icon",
+      "composer_big",
     )}
     <button
       class=${`send${stop ? " stop" : ""}`}
       aria-label=${stop ? "Stop" : "Send"}
+      data-command=${stop ? "stop" : "send"}
       onClick=${() => PP.command_run(stop ? "stop" : "send")}
     >
       ${PP.icon_svg(stop ? "stop" : "send")}

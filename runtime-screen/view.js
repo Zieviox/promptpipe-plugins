@@ -76,9 +76,10 @@ const icon_svg = (name) =>
   ></span>`;
 
 // A round icon button (header, sheet headers, the message bar); `cls` "act" for the small
-// square ones under messages.
-const icon_render = (name, label, onClick, on, cls = "icon") =>
-  html`<button class=${`${cls}${on ? " on" : ""}`} aria-label=${label} title=${label} onClick=${onClick}>
+// square ones under messages; `help` names its command, or is its own line for help mode.
+const icon_render = (name, label, onClick, on, cls = "icon", help) =>
+  html`<button class=${`${cls}${on ? " on" : ""}`} aria-label=${label} title=${label} onClick=${onClick}
+    data-command=${help && PP.HELP && PP.HELP[help] ? help : undefined} data-help=${help && !(PP.HELP && PP.HELP[help]) ? help : undefined}>
     ${ICONS[name] ? icon_svg(name) : name}
   </button>`;
 

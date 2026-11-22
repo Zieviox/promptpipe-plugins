@@ -108,9 +108,37 @@ textarea.field { resize: vertical; min-height: 6em; }
 .toast { background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 99px; font-size: 13px; }
 .toast.error { background: var(--error); color: #1a1208; border-radius: 14px; }
 .dialog { z-index: 30; }
-.site-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; }
+.site-bar { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; }
+.site-bar .top { padding-bottom: 4px; }
+.site-bar .top .t { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.site-bar .top .pill { max-width: none; flex: none; }
+.icon.card { background: var(--raise); }
+.tabstrip { display: flex; gap: 4px; overflow-x: auto; padding: 0 10px; align-items: center; }
+.it.page { display: flex; align-items: center; gap: 2px; flex: none; padding: 4px 4px 4px 10px; border-radius: 12px; background: var(--raise); }
+.it.page.on { outline: 1.5px solid var(--accent); }
+.it.page .pt { display: flex; gap: 6px; align-items: center; max-width: 140px; color: var(--text); }
+.it.page .tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.it.page .act { width: 24px; height: 24px; }
+.dot.ready { background: var(--ok); }
+.urlbar { display: flex; gap: 6px; align-items: center; margin: 0 10px; }
+.urlbar .search { flex: 1; min-width: 0; padding: 7px 10px; }
+.site-bar .linkrow { margin: 0 12px; }
+.site-bar .item.linkrow { margin: 0 10px; width: auto; }
+.site-page { flex: 1; margin: 0 10px 12px; border-radius: 14px; background: var(--raise); padding: 14px; color: var(--muted); font-size: 12.5px; overflow: hidden; }
+.site-page b { display: block; color: var(--text); margin-bottom: 8px; }
+.site-page p { margin: 0; }
 .lit { outline: 2px solid var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 12px; }
-.help-bar { margin: 0 10px; background: var(--accent); color: var(--on-accent); border-radius: 14px; padding: 8px 12px; display: flex; gap: 8px; align-items: center; }
+.help-layer { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+.help-layer > * { pointer-events: auto; }
+.help-bar { position: absolute; top: 62px; left: 10px; right: 10px; background: var(--accent); color: var(--on-accent); border-radius: 14px; padding: 8px 8px 8px 12px; font-size: 13px; font-weight: 600; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+.help-bar .row { display: flex; gap: 6px; flex: none; background: none; padding: 0; min-height: 0; }
+.help-bar .pill { background: var(--on-accent); color: var(--accent); border-color: var(--on-accent); }
+.sheet.helpcard { position: absolute; left: 0; right: 0; bottom: 0; min-height: 0; max-height: none; }
+.sheet.helpcard h3 { font-size: 17px; margin: 4px 0 6px; }
+.sheet.helpcard p { margin: 0 0 4px; }
+.sheet.helpcard small { display: block; color: var(--muted); margin-bottom: 8px; }
+.sheet.helpcard .chips .item { width: auto; }
+.hoverq { position: fixed; z-index: 50; width: 20px; height: 20px; border-radius: 50%; background: #f0a068; color: #1a1208; font-size: 12px; font-weight: 700; display: grid; place-items: center; border: 0; padding: 0; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4); cursor: help; }
 
 /* Matched to the wireframe (design/ux/wireframe.html): line icons, small actions under messages,
    rows, tabs, segments, search, badges. */
@@ -214,3 +242,13 @@ textarea.field { resize: vertical; min-height: 6em; }
 .item .lead { display: inline-flex; align-self: flex-start; margin: 1px 4px 0 0; }
 .toast.tap { pointer-events: auto; cursor: pointer; }
 .ddrow .pill.big { padding: 7px 12px; font-size: 13.5px; }
+/* Settings: a choice's row holds its segments or chips under the label. */
+.item.col { flex-direction: column; align-items: stretch; gap: 8px; }
+.item.col .seg { align-self: flex-start; }
+.chips.choose button { border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px; font-size: 12.5px; background: var(--raise2); }
+.chips.choose .on, .seg .on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.item .lead { color: var(--text); }
+details { background: var(--raise); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+details summary { cursor: pointer; color: var(--muted); }
+details .item { margin-top: 6px; }
+

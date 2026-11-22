@@ -281,43 +281,62 @@ const site_bar_render = (state) => {
     PP.ui_set(() => ({ site_view: { open: false, page: null } })),
     PP.call_try("view_set", { page: null })
   );
+  // A page not linked to a chat: a chat linked to it (made if there's none), then opened.
+  const open_here = async (page) => {
+    const chat = await PP.call_try("site_chat_open", {
+      provider: page.provider,
+      url: page.url,
+      name: page.title,
+      id: PP.id_create(),
+      at: PP.time_get(),
+    });
+    if (chat) (close(), PP.chat_open(chat.id));
+  };
+  const chat_of = (page) => state.chats.find((c) => c.site_url && page.url.startsWith(c.site_url));
+  const plugin = shown && state.plugins.find((p) => p.id === shown.provider);
+  const dot = (p) => (p.status === "ready" ? "ready" : p.status === "busy" ? "busy" : "off");
   return html`<div class="site-bar" id="site-bar">
-    <div class="chips">
-      ${PP.icon_render("back", "Back to the chat", close)}<b class="grow">AI page</b> ${PP.icon_render(
-        "retry",
-        "Reload",
-        () => PP.call_try("page_navigate", { page: shown.id, to: "reload" }),
-      )}
-      ${PP.icon_render("back", "Back inside the site", () =>
-        PP.call_try("page_navigate", { page: shown.id, to: "back" }),
-      )}
-    </div>
-    <div class="chips">
-      ${state.pages.map(
-        (p) =>
-          html`<span class=${`pill${p === shown ? " on" : ""}`} key=${p.id}>
-            <button onClick=${() => show(p)}>
-              <span
-                class=${`dot ${p.status === "ready" ? "" : p.status === "busy" ? "busy" : "off"}`}
-              ></span>
-              ${p.title || p.url}
+      <div class="top">
+        ${PP.icon_render("back", "Back to the chat", close)}
+        <span class="t">AI page${plugin ? ` · ${plugin.manifest.name}` : ""}</span>
+        ${PP.setting_get(state, "help.button") ? PP.icon_render("help", "Help: explain things", () => PP.command_run("help_mode"), state.ui.help) : null}
+        <button class="pill" onClick=${() => PP.sheet_open("provider")}>Profile and site</button>
+      </div>
+      <div class="tabstrip" role="tablist">
+        ${state.pages.map((p) => {
+          const chat = chat_of(p);
+          return html`<div class=${`it page${p === shown ? " on" : ""}`} role="tab" aria-selected=${String(p === shown)} key=${p.id}>
+            <button class="pt" onClick=${() => show(p)}>
+              <span class=${`dot ${dot(p)}`}></span><span class="tx">${chat ? chat.name : "Not linked"}</span>
             </button>
-            <button
-              aria-label="Close page"
-              onClick=${() => PP.call_try("page_close", { page: p.id })}
-            >
-              ${PP.icon_svg("close")}
-            </button></span
-          >`,
-      )} <button class="pill" aria-label="New page" onClick=${() => PP.view_page_add(state)}>${PP.icon_svg("plus")}</button>
+            ${PP.icon_render("close", "Close page", () => PP.call_try("page_close", { page: p.id }), false, "act")}
+          </div>`;
+        })}
+        ${PP.icon_render("plus", "New page", () => PP.view_page_add(state), false, "icon card")}
+      </div>
+      ${
+        shown
+          ? html`<div class="urlbar">
+              ${PP.icon_render("back", "Back inside the site", () => PP.call_try("page_navigate", { page: shown.id, to: "back" }), false, "icon card")}
+              <label class="search"><input aria-label="Page address" value=${shown.url} onKeyDown=${go} /></label>
+              ${PP.icon_render("retry", "Reload", () => PP.call_try("page_navigate", { page: shown.id, to: "reload" }), false, "icon card")}
+            </div>`
+          : null
+      }
+      ${
+        shown
+          ? linked
+            ? html`<div class="foot linkrow">
+                <span class="grow">Linked to chat: ${linked.name}</span>
+                <button class="pill" onClick=${() => (close(), PP.chat_open(linked.id))}>Open chat</button>
+              </div>`
+            : html`<button class="item prim linkrow" onClick=${() => open_here(shown)}>Open in PromptPipe</button>`
+          : null
+      }
     </div>
-    ${
-      shown
-        ? html`<input class="field" aria-label="Address" value=${shown.url} onKeyDown=${go} />`
-        : null
-    }
-    <small>${linked ? `Linked to “${linked.name}”` : "Not linked to a chat"}</small>
-  </div>`;
+    <div class="site-page">
+      ${shown ? html`<b>${new URL(shown.url).host}</b><p>The site's page shows here: your log-in, the chat as the site draws it, and its own buttons.</p>` : "No pages open. Tap + for a new one."}
+    </div>`;
 };
 
 // ---------- Find ----------
@@ -393,7 +412,7 @@ const find_entries = (state) => [
 // A pick: a chat opens; a setting opens its section with the row lit up; a function runs.
 const find_run = (state, entry) => {
   recent_add(entry);
-  if (entry.chat) return PP.ui_set(() => ({ sheets: [] })), PP.chat_open(entry.chat.id);
+  if (entry.chat) return (PP.ui_set(() => ({ sheets: [] })), PP.chat_open(entry.chat.id));
   if (entry.setting)
     return PP.ui_set(() => ({
       sheets: [
