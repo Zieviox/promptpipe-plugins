@@ -111,3 +111,55 @@ textarea.field { resize: vertical; min-height: 6em; }
 .site-bar { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px; }
 .lit { outline: 2px solid var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 12px; }
 .help-bar { margin: 0 10px; background: var(--accent); color: var(--on-accent); border-radius: 14px; padding: 8px 12px; display: flex; gap: 8px; align-items: center; }
+
+/* Matched to the wireframe (design/ux/wireframe.html): line icons, small actions under messages,
+   rows, tabs, segments, search, badges. */
+.svg { display: inline-flex; flex: none; }
+.act { width: 32px; height: 30px; display: grid; place-items: center; border-radius: 9px; color: var(--muted); }
+.act:hover { background: var(--raise); color: var(--text); }
+.actions { gap: 2px; margin-top: 4px; }
+.ch { color: var(--muted); display: inline-flex; }
+.top .pill { min-width: 0; flex: 0 1 auto; gap: 6px; max-width: 42%; }
+.top .pill .tx { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.top .pill .svg svg { width: 16px; height: 16px; }
+.top .title { flex: 1 1 40px; padding: 4px 2px; }
+.send .svg svg { width: 18px; height: 18px; }
+.sheet { padding: 14px 14px 18px; min-height: 30%; max-height: calc(100% - 44px); box-shadow: 0 -1px 0 var(--line); }
+.sheet h2 { font-size: 15px; font-weight: 600; }
+.grip .svg svg { width: 18px; height: 18px; }
+.row { gap: 8px; padding: 6px 8px; border-radius: 9px; min-height: 36px; }
+.row .pb { width: 26px; height: 28px; display: grid; place-items: center; color: var(--muted); opacity: .7; }
+.row .pb.on { color: var(--accent); opacity: 1; }
+.row .pb .svg svg, .row.folder .svg svg { width: 18px; height: 18px; }
+.cb { width: 18px; height: 18px; border-radius: 5px; border: 1.5px solid var(--muted); display: grid; place-items: center; flex: none; }
+.cb.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.cb .svg svg { width: 14px; height: 14px; }
+.tabs { display: flex; gap: 4px; margin: 2px 0 6px; }
+.tabs button { flex: 1; text-align: center; padding: 8px; border-radius: 10px; background: var(--raise); font-size: 13.5px; }
+.tabs .on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: 99px; overflow: hidden; }
+.seg button { padding: 5px 12px; font-size: 13px; }
+.seg .on { background: var(--accent); color: var(--on-accent); }
+.search { background: var(--raise); border-radius: 12px; padding: 10px 12px; display: flex; gap: 8px; align-items: center; }
+.search input { flex: 1; min-width: 0; background: none; border: 0; color: inherit; font: inherit; outline: 0; }
+.search .svg { color: var(--muted); }
+.pdot { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
+.pill { position: relative; }
+.chips .pill { background: var(--raise); }
+.thin { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; padding: 4px 0; margin-top: 2px; }
+.thin .svg svg { width: 14px; height: 14px; }
+.thinbox { border-left: 2px solid var(--line); padding-left: 10px; margin-top: 2px; }
+.foot { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.jump { position: absolute; left: 50%; transform: translateX(-50%); bottom: 78px; background: var(--raise); border: 1px solid var(--line); border-radius: 99px; padding: 6px 12px; font-size: 12.5px; z-index: 4; box-shadow: 0 4px 14px rgba(0, 0, 0, .3); }
+.mv { display: flex; gap: 2px; flex: none; }
+.mv .act { width: 28px; height: 28px; }
+.youwrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.you.tuck { max-height: 8.4em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.actions.right { margin: 0; }
+.ai > small { color: var(--muted); display: block; }
+.foot .tg { border: 1px solid var(--line); border-radius: 99px; padding: 1px 8px; }
+.turn { gap: 12px; }
+.reply { font-size: var(--reply-size, 14px); }
+.reply > :first-child { margin-top: 0; }
+.reply > :last-child { margin-bottom: 0; }
+

@@ -69,8 +69,8 @@ const chat_row = (state, chat) => {
     key=${chat.id}
     data-id=${chat.id}
   >
-    <span class="grip" aria-label="Drag to move">⋮⋮</span>
-    ${selecting ? html`<span>${picked ? "☑" : "☐"}</span>` : null}
+    <span class="grip" aria-label="Drag to move">${PP.icon_svg("grip")}</span>
+    ${selecting ? html`<span class=${`cb${picked ? " on" : ""}`}>${picked ? PP.icon_svg("check") : null}</span>` : null}
     <button class="grow" onClick=${open}>
       ${chat.name}${
         (chat.tags || []).length ? html` <small>#${chat.tags.join(" #")}</small>` : null
@@ -83,7 +83,7 @@ const chat_row = (state, chat) => {
           ? html`<small class="badge">new</small>`
           : null
     }
-    <button aria-label="Pin" onClick=${pin}>📌</button>
+    <button class="pb" aria-label="Pin" onClick=${pin}>${PP.icon_svg("pin")}</button>
   </div>`;
 };
 
@@ -101,15 +101,15 @@ const folder_rows = (state, path, depth = 0) =>
       }));
     return html`<div key=${e.folder} data-id=${e.folder}>
       <div class="row folder">
-        <span class="grip">⋮⋮</span
+        <span class="grip">${PP.icon_svg("grip")}</span
         ><button class="grow" onClick=${toggle}>
-          ${open ? "▾" : "▸"} ${e.folder.split("/").pop()}
+          ${PP.icon_svg(open ? "down" : "right")} ${e.folder.split("/").pop()}
         </button>
         <button
           aria-label="New chat here"
           onClick=${() => (PP.ui_set(() => ({ folder: e.folder })), PP.chat_open(null))}
         >
-          ＋
+          ${PP.icon_svg("plus")}
         </button>
       </div>
       ${
@@ -226,12 +226,12 @@ const site_bar_render = (state) => {
   );
   return html`<div class="site-bar" id="site-bar">
     <div class="chips">
-      ${PP.icon_render("‹", "Back to the chat", close)}<b class="grow">AI page</b> ${PP.icon_render(
-        "↻",
+      ${PP.icon_render("back", "Back to the chat", close)}<b class="grow">AI page</b> ${PP.icon_render(
+        "retry",
         "Reload",
         () => PP.call_try("page_navigate", { page: shown.id, to: "reload" }),
       )}
-      ${PP.icon_render("⇠", "Back inside the site", () =>
+      ${PP.icon_render("back", "Back inside the site", () =>
         PP.call_try("page_navigate", { page: shown.id, to: "back" }),
       )}
     </div>
@@ -249,10 +249,10 @@ const site_bar_render = (state) => {
               aria-label="Close page"
               onClick=${() => PP.call_try("page_close", { page: p.id })}
             >
-              ✕
+              ${PP.icon_svg("close")}
             </button></span
           >`,
-      )} <button class="pill" aria-label="New page" onClick=${() => PP.view_page_add(state)}>＋</button>
+      )} <button class="pill" aria-label="New page" onClick=${() => PP.view_page_add(state)}>${PP.icon_svg("plus")}</button>
     </div>
     ${
       shown

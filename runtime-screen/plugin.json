@@ -12,6 +12,7 @@
     "vendor/markdown-it.js",
     "vendor/sortable.js",
     "screen.css",
+    "icons.json",
     "view.js",
     "commands.js",
     "chat.js",

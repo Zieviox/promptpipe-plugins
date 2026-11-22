@@ -353,7 +353,7 @@ const SHEETS = {
                 key=${b.id}
                 data-id=${b.id}
               >
-                <span class="grip">⋮⋮</span
+                <span class="grip">${PP.icon_svg("grip")}</span
                 ><span class="grow">${PP.block_name_get(state, b)}</span> ${
                   b.type === "message"
                     ? null
@@ -448,7 +448,7 @@ const SHEETS = {
           ${blocks.map(
             (b) =>
               html`<div class=${`item${b.on === false ? " off" : ""}`} key=${b.id} data-id=${b.id}>
-                <span class="grip">⋮⋮</span
+                <span class="grip">${PP.icon_svg("grip")}</span
                 ><button class="grow" onClick=${() => PP.sheet_open("block", { id: b.id })}>
                   ${PP.block_name_get(state, b)}<small
                     >${b.type === "prompt" ? b.send : b.type}</small
@@ -653,7 +653,7 @@ ${b.text || ""}</textarea
         ...state.prompts.map((p) =>
           item({
             key: p.id,
-            label: `${p.pinned ? "📌 " : ""}${p.name || p.text.slice(0, 40)}`,
+            label: `${p.pinned ? "Pinned · " : ""}${p.name || p.text.slice(0, 40)}`,
             sub: "Linked from the library",
             onClick: () => add({ type: "prompt", link: p.id, send: "every", number: 5 }),
           }),
@@ -672,6 +672,14 @@ ${b.text || ""}</textarea
 
   text: (state, { title, text }) => ({ title, rows: [PP.markdown_render(text)] }),
 
+  // A box where picking a part of a reply is easy (long-press works on the reply too).
+  select_text: (state, { text }) => ({
+    title: "Select text",
+    rows: [
+      html`<textarea class="field" rows="16" readonly onFocus=${(e) => e.target.select()}>${text}</textarea>`,
+    ],
+  }),
+
   preview: (state, { id }) => ({
     title: "What will be sent",
     rows: [html`<pre>${PP.preview_build(state, { id }, true) || "(nothing)"}</pre>`],
@@ -689,7 +697,7 @@ ${b.text || ""}</textarea
         .map((p) =>
           item({
             key: p.id,
-            label: `${p.pinned ? "📌 " : ""}${p.name || p.text.split("\n")[0].slice(0, 40)}`,
+            label: `${p.pinned ? "Pinned · " : ""}${p.name || p.text.split("\n")[0].slice(0, 40)}`,
             sub: p.text.replace(/\s+/g, " ").slice(0, 90),
             right: "›",
             onClick: () => PP.sheet_open("prompt", { id: p.id }),
@@ -1379,10 +1387,10 @@ const frame = (state, title, rows) =>
     <div class="scrim" onClick=${() => PP.ui_set(() => ({ sheets: [] }))}></div>
     <section class="sheet" role="dialog" aria-label=${title}>
       <h2>
-        ${state.ui.sheets.length > 1 ? PP.icon_render("‹", "Back", PP.sheet_close) : null}<span
+        ${state.ui.sheets.length > 1 ? PP.icon_render("back", "Back", PP.sheet_close) : null}<span
           style="flex:1"
           >${title}</span
-        >${PP.icon_render("✕", "Close", () => PP.ui_set(() => ({ sheets: [] })))}
+        >${PP.setting_get(state, "help.button") ? PP.icon_render("help", "Help: explain things", () => PP.command_run("help_mode"), state.ui.help) : null}${PP.icon_render("close", "Close", () => PP.ui_set(() => ({ sheets: [] })))}
       </h2>
       <div class="body">${rows}</div>
     </section>

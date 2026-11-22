@@ -19,24 +19,24 @@ const header_render = (state) => {
   const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, chat));
   const model = PP.model_get(state, chat);
   return html`<div class="top">
-    ${PP.icon_render("☰", "Chats", () => PP.command_run("drawer"))}
+    ${PP.icon_render("menu", "Chats", () => PP.command_run("drawer"))}
     <button class="title" aria-label="Chat title" onClick=${() => PP.command_run("chat_sheet")}>
-      ${chat ? chat.name : "New chat"} ▾
+      ${chat ? chat.name : "New chat"}
     </button>
     <button
       class="pill"
       aria-label="Switch provider"
       onClick=${() => PP.ui_set((ui) => ({ menu: !ui.menu }))}
     >
-      <span class=${`dot ${page_status(state, chat)}`}></span>${
-        plugin ? plugin.manifest.name : "No provider"
-      }${model ? html` · <small>${model}</small>` : null}
+      <span class=${`dot ${page_status(state, chat)}`}></span
+      ><span class="tx">${plugin ? plugin.manifest.name : "No provider"}${model ? ` · ${model}` : ""}</span
+      >${PP.icon_svg("down")}
     </button>
-    ${PP.icon_render("⌕", "Find chats and functions", () => PP.command_run("find"))}
+    ${PP.icon_render("search", "Find chats and functions", () => PP.command_run("find"))}
     ${
       PP.setting_get(state, "help.button")
         ? PP.icon_render(
-            "?",
+            "help",
             "Help: tap, then tap anything",
             () => PP.command_run("help_mode"),
             state.ui.help,
@@ -87,30 +87,63 @@ const fold_toggle = (id) =>
     unfolded: ui.unfolded.includes(id) ? ui.unfolded.filter((x) => x !== id) : [...ui.unfolded, id],
   }));
 
-const reply_actions = (state, turn, last) => {
+const time_short = (iso) =>
+  iso
+    ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })
+    : "";
+
+// The provider that answered: the one whose site the turn's site chat is on, else the chat's.
+const provider_name_get = (state, turn) => {
+  const host = (url) => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return "";
+    }
+  };
+  const site = host(turn.page_url);
+  const by_site =
+    site &&
+    state.plugins.find((p) => p.manifest.provider && host(p.manifest.provider.url) === site);
+  const plugin =
+    by_site || state.plugins.find((p) => p.id === PP.provider_get(state, PP.chat_get(state)));
+  return plugin ? plugin.manifest.name : "AI";
+};
+
+const quote_add = (state, text) =>
+  PP.draft_set(
+    `${PP.draft_get(state).text}${text
+      .split("\n")
+      .map((l) => `> ${l}`)
+      .join("\n")}\n\n`,
+  );
+
+// Under a reply: the foot (open or close the actions, the time, the tag count when closed); open,
+// the actions (Copy, Quote, Send again, Select text, More) and the tags with "+ tag". Open by
+// default on the newest reply, every reply or none, as set.
+const reply_foot = (state, turn, last) => {
   const mode = PP.setting_get(state, "look.quick_actions");
-  const shown =
+  const open =
     unfolded(state, `actions:${turn.id}`) !== (mode === "every" || (mode === "newest" && last));
-  const copy = () => PP.call_try("clipboard_write", { text: turn.reply }, "Copied");
-  const quote = () =>
-    PP.draft_set(
-      `${PP.draft_get(state).text}${turn.reply
-        .split("\n")
-        .map((l) => `> ${l}`)
-        .join("\n")}\n\n`,
-    );
-  if (!shown)
-    return html`<div class="actions">
-      ${PP.icon_render("⋯", "Show actions", () => fold_toggle(`actions:${turn.id}`))}
-    </div>`;
-  return html`<div class="actions">
-    ${PP.icon_render("⧉", "Copy", copy)}${PP.icon_render("❝", "Quote", quote)}
-    ${PP.icon_render("↻", "Send again", () =>
-      PP.message_send({ chat: turn.chat, message: turn.message }),
-    )}
-    ${PP.icon_render("⋯", "More", () => PP.sheet_open("turn", { id: turn.id }))}
-    ${(turn.tags || []).map((t) => html`<span class="tag" key=${t}>#${t}</span>`)}
+  const toggle = () => fold_toggle(`actions:${turn.id}`);
+  const tags = turn.tags || [];
+  const foot = html`<div class="foot">
+    ${PP.icon_render(open ? "up" : "more", open ? "Hide actions" : "Show actions", toggle, false, "act")}
+    <span>${time_short(turn.at)}</span>${!open && tags.length ? html`<span class="tg">#${tags.length}</span>` : null}
   </div>`;
+  if (!open) return foot;
+  return html`${foot}
+    <div class="actions">
+      ${PP.icon_render("copy", "Copy", () => PP.call_try("clipboard_write", { text: turn.reply }, "Copied"), false, "act")}
+      ${PP.icon_render("quote", "Quote", () => quote_add(state, turn.reply), false, "act")}
+      ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message }), false, "act")}
+      ${PP.icon_render("select", "Select text", () => PP.sheet_open("select_text", { text: turn.reply }), false, "act")}
+      ${PP.icon_render("more", "More", () => PP.sheet_open("turn", { id: turn.id }), false, "act")}
+    </div>
+    <div class="chips">
+      ${tags.map((t) => html`<span class="tag" key=${t}>#${t}</span>`)}
+      <button class="tag" onClick=${() => PP.dialog_open({ title: "Tag this message (name# numbers it)", ok: "Add", command: "turn_tag_add", data: { id: turn.id } })}>+ tag</button>
+    </div>`;
 };
 
 // A swipe across a reply: right quotes it, left copies it (UC6).
@@ -124,41 +157,64 @@ const swipe_handlers = (turn, state) => {
       const dy = Math.abs(e.clientY - start.y);
       start = null;
       if (Math.abs(dx) < 80 || dy > 40) return;
-      if (dx > 0)
-        PP.draft_set(`${PP.draft_get(state).text}> ${turn.reply.replace(/\n/g, "\n> ")}\n\n`);
+      if (dx > 0) quote_add(state, turn.reply);
       else PP.call_try("clipboard_write", { text: turn.reply }, "Copied");
     },
   };
 };
 
-const turn_render = (state, turn, last) => {
-  const long = (turn.message || "").split("\n").length > 6 || (turn.message || "").length > 500;
-  const think_id = `think:${turn.id}`;
-  return html`<div class="turn" key=${turn.id} id=${`turn-${turn.id}`}>
-    <div
-      class=${`you${long && !unfolded(state, turn.id) ? " folded" : ""}`}
-      onClick=${() => long && fold_toggle(turn.id)}
-    >
-      ${turn.message}
+// Your message: over 8 lines or 600 characters it's tucked (about 6 lines, fading out) with a
+// "Show more" line; Copy and Edit under it (Edit puts it back in the box and replaces it when sent).
+const message_render = (state, turn) => {
+  const text = turn.message || "";
+  const long = text.split("\n").length > 8 || text.length > 600;
+  const open = unfolded(state, turn.id);
+  return html`<div class="youwrap">
+    <div class=${`you${long && !open ? " tuck" : ""}`}>${text}</div>
+    ${long ? html`<button class="thin" onClick=${() => fold_toggle(turn.id)}>${open ? "Show less" : "Show more"} ${PP.icon_svg(open ? "up" : "down")}</button>` : null}
+    <div class="actions right">
+      ${PP.icon_render("copy", "Copy your message", () => PP.call_try("clipboard_write", { text }, "Copied"), false, "act")}
+      ${PP.icon_render("edit", "Edit and send again", () => PP.draft_set(text, { replaces: turn.id }), false, "act")}
     </div>
-    ${
-      turn.thinking
-        ? html`<details
-          open=${unfolded(state, think_id)}
-          onToggle=${(e) => e.target.open !== unfolded(state, think_id) && fold_toggle(think_id)}
-        >
-          <summary class="muted">
-            Thought for ${Math.max(1, Math.round((turn.thought_ms || 0) / 1000))}s
-          </summary>
-          <div class="thinking">${PP.markdown_render(turn.thinking)}</div>
-        </details>`
-        : null
-    }
-    <div ...${swipe_handlers(turn, state)}>${PP.markdown_render(turn.reply)}</div>
-    ${turn.error ? html`<div class="error">${turn.error.message}</div>` : null}
-    ${reply_actions(state, turn, last)}
   </div>`;
 };
+
+// "Thought for N s · sent with N": opens the thinking, what was sent with the message, and the
+// full text of what went out.
+const thin_render = (state, turn) => {
+  const id = `think:${turn.id}`;
+  const open = unfolded(state, id);
+  const sent = turn.blocks || [];
+  const label = [
+    turn.thinking ? `Thought for ${Math.max(1, Math.round((turn.thought_ms || 0) / 1000))} s` : "",
+    sent.length ? `sent with ${sent.length}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  if (!label) return null;
+  return html`<button class="thin" onClick=${() => fold_toggle(id)}>${PP.icon_svg(open ? "up" : "down")} ${label[0].toUpperCase() + label.slice(1)}</button>
+    ${
+      open
+        ? html`<div class="thinbox">
+      ${turn.thinking ? PP.markdown_render(turn.thinking) : null}
+      ${sent.length ? html`<small>Sent with: ${sent.join(", ")}</small>` : null}
+      <button class="thin" onClick=${() => PP.sheet_open("turn", { id: turn.id })}>Show the full text</button>
+    </div>`
+        : null
+    }`;
+};
+
+const turn_render = (state, turn, last) =>
+  html`<div class="turn" key=${turn.id} id=${`turn-${turn.id}`}>
+    ${message_render(state, turn)}
+    <div class="ai">
+      <small>${provider_name_get(state, turn)}${turn.model ? ` · ${turn.model}` : ""}</small>
+      <div ...${swipe_handlers(turn, state)}>${PP.markdown_render(turn.reply)}</div>
+      ${thin_render(state, turn)}
+      ${turn.error ? html`<div class="error">${turn.error.message}</div>` : null}
+      ${reply_foot(state, turn, last)}
+    </div>
+  </div>`;
 
 // A send on its way: the thinking's newest line and the reply so far; queued: under the chat,
 // with Move up, Edit and Remove (UC2); failed: its reason and what can be done (UC4).
@@ -279,7 +335,7 @@ const composer_render = (state) => {
       return e.preventDefault(), PP.command_run("last_edit");
   };
   return html`<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>
-    ${PP.icon_render("≡", "Quick edit and add", () => PP.command_run("quick_edit"))}
+    ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"))}
     <textarea
       id="message"
       rows="1"
@@ -291,7 +347,7 @@ const composer_render = (state) => {
     ></textarea>
     ${draft.attachments.length ? html`<small>${draft.attachments.length} attached</small>` : null}
     ${PP.icon_render(
-      "⤢",
+      state.ui.composer.big ? "shrink" : "expand",
       state.ui.composer.big ? "Smaller message box" : "Bigger message box",
       () => PP.command_run("composer_big"),
     )}
@@ -300,7 +356,7 @@ const composer_render = (state) => {
       aria-label=${stop ? "Stop" : "Send"}
       onClick=${() => PP.command_run(stop ? "stop" : "send")}
     >
-      ${stop ? "■" : "↑"}
+      ${PP.icon_svg(stop ? "stop" : "send")}
     </button>
   </div>`;
 };

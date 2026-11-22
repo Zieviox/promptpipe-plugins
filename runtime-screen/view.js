@@ -57,14 +57,20 @@ const dialog_open = (dialog) => ui_set(() => ({ dialog: { value: "", ok: "OK", .
 const markdown_render = (text) =>
   html`<div class="reply" dangerouslySetInnerHTML=${{ __html: md.render(text || "") }}></div>`;
 
-const icon_render = (name, label, onClick, on) =>
-  html`<button
-    class=${`icon${on ? " on" : ""}`}
-    aria-label=${label}
-    title=${label}
-    onClick=${onClick}
-  >
-    ${name}
+// The wireframe's line icons (one family, 1.7 stroke, in the text colour; design/ux/wireframe.html).
+const ICONS = JSON.parse(PP.content_read("runtime-screen", "icons.json") || "{}");
+
+const icon_svg = (name) =>
+  html`<span class="svg" aria-hidden="true"
+    ><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7"
+      stroke-linecap="round" stroke-linejoin="round" dangerouslySetInnerHTML=${{ __html: ICONS[name] || "" }}></svg
+  ></span>`;
+
+// A round icon button (header, sheet headers, the message bar); `cls` "act" for the small
+// square ones under messages.
+const icon_render = (name, label, onClick, on, cls = "icon") =>
+  html`<button class=${`${cls}${on ? " on" : ""}`} aria-label=${label} title=${label} onClick=${onClick}>
+    ${ICONS[name] ? icon_svg(name) : name}
   </button>`;
 
 const switch_render = (on, label, onClick) =>
@@ -79,7 +85,7 @@ const switch_render = (on, label, onClick) =>
 // One row of a sheet: label, a line under it, and what sits on the right.
 const item_render = ({ label, sub, right, onClick, cls = "", key }) =>
   html`<button key=${key} class=${`item ${cls}`} onClick=${onClick}>
-    <span class="grow">${label}${sub ? html`<small>${sub}</small>` : null}</span>${right || null}
+    <span class="grow">${label}${sub ? html`<small>${sub}</small>` : null}</span>${right === "›" ? html`<span class="ch">${icon_svg("right")}</span>` : right || null}
   </button>`;
 
 // A list SortableJS can reorder: the drop is undone on the page and handed to `on_move`.
@@ -108,6 +114,7 @@ PP.plugin_set({
     dialog_open,
     markdown_render,
     icon_render,
+    icon_svg,
     switch_render,
     item_render,
     sortable_ref,

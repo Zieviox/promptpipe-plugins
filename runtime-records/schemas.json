@@ -95,7 +95,7 @@
       "key": "look.text",
       "type": "number",
       "label": "Text size",
-      "default": 16,
+      "default": 14,
       "section": "Look",
       "min": 12,
       "max": 24

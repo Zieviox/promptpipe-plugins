@@ -203,7 +203,7 @@
         "plugin.json": "4eb815309c8a9613057ac9af10cbb2b2b9e054a6c1128f144df76272d8afae14",
         "records.js": "03f4d495e5a8895bc9653ff1d2ac9737338b25223a97cf63e6b52c3fe0e2148a",
         "export.js": "57c15f6e1952b61d3203a50b1d4d0114d195e489997907958c4707e6d00479dc",
-        "schemas.json": "053e2f8d02f87123c0459aaaaec62e411f5cd8687d662dda6aad47b3d0964b9b"
+        "schemas.json": "e6d2deb65361352456fb57e2a9e115911ca307d9812fbb5449a269945b595c85"
       }
     },
     {
@@ -219,18 +219,19 @@
       "path": "runtime-screen",
       "built_in": true,
       "hashes": {
-        "plugin.json": "da3b59561914a64b94860996743618394720d255793d7968a820c6812a0f9bf9",
+        "plugin.json": "cb0703b80c34ed7b2bde5082b4468c06d70b08f567b3eab81dfa46cc69e10071",
         "vendor/preact.js": "934b1716dd0c9bc6155258230f0d5fed01354fc4525abc120a645b3d295db049",
         "vendor/htm.js": "7a31776e04bd4afde0d4308177d26f377716fcf7e4bd70be590746d6aa594f08",
         "vendor/markdown-it.js": "b06c85174d2b1bb6339dfa1f0bc938cea57f62663f132a77abbf651562542443",
         "vendor/sortable.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
-        "screen.css": "1ca2b7b7aeb0549c2edd9605ac390316c20f04cb4cc6eebfc89ca1a98e6cc388",
-        "view.js": "ad3d0ff02bbfa5ea442f181bfec90608b3d80462a2c10a640caeaed5f3a5de20",
+        "screen.css": "c7c17caa7620502dc748ff31b62d22ece1c98b7f5b5318776a43db38f0a5e397",
+        "icons.json": "2bed02823387a5da1bb4f0e44f13d59c0a03633ad2e384aabcd083bba9334f4d",
+        "view.js": "69efa5624db76efbaccef42a44033b391c4e6fec37db85f29e5865e308aeea74",
         "commands.js": "a863e7ad6529f8b91e01b08c709e14c0e6f6726dab660f39efd50a1ad9dc5b39",
-        "chat.js": "77baf624c16555bb1e22e98c93cf81ab40155cb255b007dfe253b7ef751b429f",
-        "lists.js": "9332756822d0224eff821150da971538327010a9c080d775c23bd2d522417a33",
+        "chat.js": "a7152469f66ac27eee5d0fcc871bf49d1dc4a51685f4cfa30e09b48fc3803246",
+        "lists.js": "9607c484acb3311d66258d58adcaf2aaaecaa408f89ef85632995733eef3a031",
         "actions.js": "b307f7398eab7fd3e9111534e019ac2920c2ee89d7b2e86723e9d8e8115f082b",
-        "sheets.js": "5ede50ea8be7cd24cbea858e2d544afaa1f36ea752560b06ca6ea8ee39c8ab0d",
+        "sheets.js": "a48b7aa4cbbd77f71ba4f0931085b6ab4e861633c7be8ede2f1e5e72c214f561",
         "screen.js": "14ca07e1396bdc8ab8dc8a9bbbf77d64c69806b79a022817b33666e2bddc0738"
       }
     },
