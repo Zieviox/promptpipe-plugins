@@ -1471,6 +1471,7 @@ ${p.text}</textarea
         label("Sent with"),
         html`<small>${(turn.blocks || []).join(", ") || "Your message only"}</small>`,
         ...(turn.notes || []).map((n) => html`<small key=${n}>${n}</small>`),
+        live_render(turn),
         html`<details>
           <summary class="muted">What went out and what came back</summary>
           <pre>${turn.sent}</pre>
@@ -1479,6 +1480,25 @@ ${p.text}</textarea
       ],
     };
   },
+};
+
+// How the reply came in, in numbers (never text): the page's own log of the reply growing, and
+// how many progress updates the page sent and the app got. For finding where live updates stop.
+const live_render = (turn) => {
+  const d = turn.diagnostics || {};
+  if (!d.log) return null;
+  const rows = d.log.map(
+    (e) =>
+      `${String(e.at_s).padStart(4)} s  reply ${String(e.reply_length).padStart(5)}  thinking ${String(e.thinking_length).padStart(5)}  stop ${e.stop ? "yes" : "no "}  hidden ${e.hidden ? "yes" : "no"}`,
+  );
+  const report = [`Updates: the page sent ${d.sent}, the app got ${d.got}`, ...rows].join("\n");
+  return html`<details>
+    <summary class="muted">Live updates: the page sent ${d.sent}, the app got ${d.got}</summary>
+    <pre>${report}</pre>
+    <button class="pill" onClick=${() => PP.call_try("clipboard_write", { text: report }, "Copied")}>
+      Copy
+    </button>
+  </details>`;
 };
 
 // The rows some settings sections have besides their settings.

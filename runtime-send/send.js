@@ -23,6 +23,7 @@ const reply_apply = (send, part) => ({
   progress: part.progress ?? send.progress,
   thinking: part.thinking || send.thinking,
   reply: part.reply || send.reply,
+  updates_got: (send.updates_got || 0) + 1,
 });
 
 // ---------- attachments (UC48) ----------
@@ -271,7 +272,7 @@ const turn_save = async (id, answer) => {
     page_url: answer.url || "",
     blocks: answer.blocks || [],
     notes: answer.notes || [],
-    diagnostics: answer.diagnostics || [],
+    diagnostics: { ...(answer.diagnostics || {}), got: send.updates_got || 0 },
     ...(answer.error && { error: answer.error }),
   };
   const name =

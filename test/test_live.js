@@ -1,0 +1,78 @@
+"use strict";
+// The default routine in a real browser page against a stand-in site that streams its thinking
+// and then its reply: progress goes to the app while it's written, not only at the end, and the
+// reply's numbers-only log counts the updates sent.
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const { chromium } = require("playwright");
+
+const SITE = path.join(__dirname, "..", "runtime-site");
+const CODE = ["vendor/turndown.js", "vendor/turndown-plugin-gfm.js", "routine.js"]
+  .map((f) => fs.readFileSync(path.join(SITE, f), "utf8"))
+  .join("\n;\n");
+
+const PAGE = `<textarea id="in"></textarea><button id="send">Send</button><div id="log"></div>
+<script>
+  document.getElementById("send").onclick = () => {
+    const box = document.getElementById("in");
+    const you = document.createElement("div"); you.className = "user"; you.textContent = box.value;
+    box.value = "";
+    const stop = document.createElement("button"); stop.id = "stop"; document.body.appendChild(stop);
+    const think = document.createElement("div"); think.className = "think";
+    const answer = document.createElement("div"); answer.className = "answer";
+    log.append(you, think, answer);
+    let i = 0;
+    const timer = setInterval(() => {
+      i += 1;
+      if (i <= 6) think.textContent += " thought" + i; else answer.textContent += " word" + i;
+      if (i >= 15) clearInterval(timer), stop.remove();
+    }, 200);
+  };
+</script>`;
+
+test(
+  "progress goes to the app while the reply is written (live thinking and reply)",
+  { timeout: 30000 },
+  async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(PAGE);
+      const out = await page.evaluate(async (code) => {
+        const events = [];
+        const PP = {
+          event_send: (name, data) => events.push({ name, ...data }),
+          pause: (ms) => new Promise((r) => setTimeout(r, ms)),
+          cancelled: () => false,
+          stages: {},
+          defaults: {},
+        };
+        const provider = {
+          id: "x",
+          settle_ms: 800,
+          selectors: {
+            input: ["#in"],
+            send: ["#send"],
+            stop: ["#stop"],
+            reply: [".answer"],
+            user: [".user"],
+            thinking: [".think"],
+          },
+        };
+        const stages = new Function("PP", "provider", code)(PP, provider);
+        const result = await stages.site_send({ text: "hi", limits: {} }, provider);
+        return { events, result };
+      }, CODE);
+      const thinking = out.events.filter((e) => e.thinking && !e.reply);
+      const writing = out.events.filter((e) => e.reply);
+      assert.ok(thinking.length >= 3, `thinking came in parts (${thinking.length})`);
+      assert.ok(writing.length >= 3, `the reply came in parts (${writing.length})`);
+      assert.ok(writing[0].reply.length < out.result.reply.length, "the first part is partial");
+      assert.equal(out.result.diagnostics.sent, out.events.length, "the log counts what it sent");
+    } finally {
+      await browser.close();
+    }
+  },
+);

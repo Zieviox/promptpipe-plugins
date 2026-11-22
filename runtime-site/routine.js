@@ -142,7 +142,11 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
   let active = Date.now();
   let changed = Date.now();
   let shape = "";
-  const diagnostics = () => (Date.now() - start > 30000 ? log.slice(-10) : []);
+  // Numbers only (never text), kept for every reply: how it grew on the page, and how many
+  // progress updates went to the app (the reply's sheet shows them under Live updates).
+  let sent = 0;
+  const progress = (data) => ((sent += 1), PP.event_send("reply_changed", data));
+  const diagnostics = () => ({ log: log.slice(-30), sent });
   while (!(total && Date.now() - start >= total) && !(idle && Date.now() - active >= idle)) {
     if (PP.cancelled()) {
       if (text) return { reply: text, thinking, diagnostics: diagnostics() };
@@ -195,14 +199,14 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
     if (th !== thinking || now !== text) changed = Date.now();
     if (busy && now && now === text && Date.now() - changed > stuck) break;
     if (th !== thinking && !now)
-      PP.event_send("reply_changed", { progress: `thinking… ${th.length} chars`, thinking: th });
+      progress({ progress: `thinking… ${th.length} chars`, thinking: th });
     thinking = th;
     if (now && now === text && !busy) {
       if (Date.now() - stable > settle)
         return { reply: text, thinking, diagnostics: diagnostics() };
     } else {
       if (now !== text)
-        PP.event_send("reply_changed", {
+        progress({
           progress: `writing… ${now.length} chars`,
           thinking,
           reply: now,
@@ -217,7 +221,7 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
     total && Date.now() - start >= total
       ? `No finished reply after ${minutes} min (your limit in Settings)`
       : `No activity on the page for ${minutes} min (your limit in Settings, or check the provider's reply selectors)`;
-  throw Object.assign(fail("deadline_exceeded", why), { diagnostics: log.slice(-10) });
+  throw Object.assign(fail("deadline_exceeded", why), { diagnostics: diagnostics() });
 };
 
 // ---------- sending ----------
