@@ -102,12 +102,15 @@ const text_files_add = async (state, many) => {
 // them under "new" until its first message.
 const files_attach = async (state) => {
   const files = await PP.call_try("picker_open", { types: ["*/*"], many: true });
-  if (files && files.length)
-    PP.call_try(
-      "attachment_add",
-      { chat: state.ui.chat || "new", files },
-      `${files.length} attached`,
-    );
+  if (!files || !files.length) return;
+  const added = await PP.call_try("attachment_add", { chat: state.ui.chat || "new", files });
+  if (!added) return;
+  // Said at once when the chat's provider can't send them, not only when the send fails.
+  const now = PP.state_get();
+  const plugin = now.plugins.find((p) => p.id === PP.provider_get(now, PP.chat_get(now)));
+  const refused = PP.attachments_check(plugin, PP.draft_get(now).attachments);
+  if (refused) PP.toast(`Attached, but: ${refused}`, true);
+  else PP.toast(`${files.length} attached`);
 };
 
 // After a change that moved chats' files (a move, a folder renamed or deleted): the files at the

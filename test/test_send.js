@@ -230,3 +230,29 @@ test("page_changed keeps the pool's pages up to date; a closed page leaves it", 
   pp.event_send("page_changed", { page: "p1", status: "closed" });
   assert.deepEqual(pp.state.pages, []);
 });
+
+test("attachments a provider's plugin can't send are reported, never dropped (UC48)", async () => {
+  const { pp, pending } = world_build();
+  const file = { id: "a1", name: "map.png", mime_type: "image/png", path: "x/map.png" };
+  pp.message_send({ chat: "c2", message: "look", attachments: [file] });
+  await tick();
+  await tick();
+  assert.equal(pending.length, 0, "nothing went to the site");
+  const failed = pp.state.sends[0];
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.error.code, "failed_precondition");
+  assert.match(failed.error.message, /DeepSeek's plugin can't send attachments yet \(1 attached\)/);
+  await pp.failure_resolve(failed.id, "edit");
+  assert.deepEqual(pp.state.drafts[0].attachments, [file], "Edit gives them back");
+
+  const takes = (accepts) => ({ manifest: { name: "Site", provider: { accepts } } });
+  assert.equal(pp.attachments_check(takes({ types: ["image/*"], max: 2 }), [file]), null);
+  assert.match(
+    pp.attachments_check(takes({ types: ["text/*"], max: 2 }), [file]),
+    /doesn't take map.png/,
+  );
+  assert.match(
+    pp.attachments_check(takes({ types: ["image/*"], max: 1 }), [file, file]),
+    /at most 1/,
+  );
+});

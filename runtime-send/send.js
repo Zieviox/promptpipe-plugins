@@ -25,6 +25,30 @@ const reply_apply = (send, part) => ({
   reply: part.reply || send.reply,
 });
 
+// ---------- attachments (UC48) ----------
+
+// What stops these attachments going to this provider, said plainly; null when nothing does.
+// A provider declares what it really sends in `provider.accepts` ({ types, max }); max 0 (or no
+// `accepts`) means its plugin has no way to send attachments yet.
+const type_match = (pattern, type) =>
+  pattern === "*/*" ||
+  pattern === type ||
+  (pattern.endsWith("/*") && String(type || "").startsWith(pattern.slice(0, -1)));
+
+const attachments_check = (plugin, attachments = []) => {
+  if (!plugin || !attachments.length) return null;
+  const name = plugin.manifest.name;
+  const { types = [], max = 0 } = (plugin.manifest.provider || {}).accepts || {};
+  const n = attachments.length;
+  if (!max)
+    return `${name}'s plugin can't send attachments yet (${n} attached). Remove ${n === 1 ? "it" : "them"} to send.`;
+  if (n > max) return `${name} takes at most ${max} attachments; ${n} are attached.`;
+  const refused = attachments.filter((a) => !types.some((t) => type_match(t, a.mime_type)));
+  return refused.length
+    ? `${name} doesn't take ${refused.map((a) => a.name).join(", ")} (it takes ${types.join(", ")}).`
+    : null;
+};
+
 // ---------- the queue and the page pool ----------
 
 const message_send = (draft) => {
@@ -43,7 +67,7 @@ const message_send = (draft) => {
     progress: "",
   };
   PP.state_set((state) => ({ ...state, sends: [...state.sends, send] }));
-  if (send.chat) return queue_run(), send;
+  if (send.chat) return (queue_run(), send);
   // A side request runs at once; its answer is what the call returns (UC42.3).
   PP.state_set((state) => send_set(state, send.id, { status: "sending" }));
   return send_run(send.id);
@@ -136,6 +160,8 @@ const send_run = async (id) => {
     const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, view));
     if (!plugin)
       throw { code: "failed_precondition", message: "No provider yet: get one from the header" };
+    const refused = attachments_check(plugin, send.attachments);
+    if (refused) throw { code: "failed_precondition", message: refused };
     const provider = provider_build(state, plugin);
     const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
     const first = !chat || !turns.length || route.url === "new";
@@ -210,7 +236,7 @@ const send_run = async (id) => {
       });
     else PP.state_set((s) => send_set(s, id, { status: "failed", error, progress: "" }));
   } finally {
-    if (!waiting) queue_run(), pool_add();
+    if (!waiting) (queue_run(), pool_add());
   }
 };
 
@@ -381,6 +407,7 @@ PP.plugin_set({
   functions: {
     page_add,
     message_send,
+    attachments_check,
     queue_run,
     reply_apply,
     send_set,

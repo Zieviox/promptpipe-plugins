@@ -1,7 +1,7 @@
 {
   "id": "openai",
   "name": "OpenAI-style API",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Any service with an OpenAI-style chat API (OpenAI, OpenRouter, DeepSeek's API, a local server): its address, a credential for its host, and a model.",
   "tags": ["provider", "api"],
   "pp": 1,
@@ -9,7 +9,7 @@
   "provider": {
     "protocol": "openai",
     "base_url": "https://api.openai.com/v1",
-    "accepts": { "types": ["image/*"], "max": 4 }
+    "accepts": { "types": [], "max": 0 }
   },
   "settings": [
     {
