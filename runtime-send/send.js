@@ -355,6 +355,17 @@ const job_run = async (job) => {
 
 // ---------- events ----------
 
+// What the platform reports about a page (its address, title, state, a sign-in pop-up, an error)
+// kept in the pool; a closed page leaves it.
+const page_changed = (event) =>
+  PP.state_set((s) => {
+    if (event.status === "closed")
+      return { ...s, pages: s.pages.filter((p) => p.id !== event.page) };
+    const fields = ["url", "title", "status", "popup", "error"].filter((k) => k in event);
+    const update = (p) => ({ ...p, ...Object.fromEntries(fields.map((k) => [k, event[k]])) });
+    return { ...s, pages: s.pages.map((p) => (p.id === event.page ? update(p) : p)) };
+  });
+
 const reply_changed = (event) => {
   const send = PP.state_get().sends.find((s) => s.page === event.page && s.status === "sending");
   if (!send) return;
@@ -384,5 +395,5 @@ PP.plugin_set({
     failure_resolve: (d) => failure_resolve(d.send, d.choice),
     job_run: (job) => job_run(job),
   },
-  events: { reply_changed, job_received: job_run },
+  events: { reply_changed, page_changed, job_received: job_run },
 });

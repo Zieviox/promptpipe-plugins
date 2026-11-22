@@ -205,3 +205,28 @@ test("Model and options opens its page through the pool: tracked and within the 
   };
   await assert.rejects(pp.model_list(pp.state, pp.state.chats[0]), { code: "resource_exhausted" });
 });
+
+test("page_changed keeps the pool's pages up to date; a closed page leaves it", () => {
+  const { pp } = world_build();
+  pp.state = {
+    ...pp.state,
+    pages: [{ id: "p1", provider: "deepseek", url: "", status: "loading" }],
+  };
+  pp.event_send("page_changed", {
+    page: "p1",
+    url: "https://ds/c/1",
+    title: "Trip",
+    status: "ready",
+    popup: false,
+  });
+  assert.deepEqual(pp.state.pages[0], {
+    id: "p1",
+    provider: "deepseek",
+    url: "https://ds/c/1",
+    title: "Trip",
+    status: "ready",
+    popup: false,
+  });
+  pp.event_send("page_changed", { page: "p1", status: "closed" });
+  assert.deepEqual(pp.state.pages, []);
+});
