@@ -281,12 +281,20 @@ const send_render = (state, send) => {
       </div>
     </div>`;
   }
-  const last_line = (send.thinking || "").trim().split("\n").pop();
+  // The thinking as it comes, its newest lines in view, until the reply starts; then it folds to
+  // one line ("Thought for N s" once the turn is saved).
+  const secs = Math.max(1, Math.round((Date.now() - Date.parse(send.at || 0)) / 1000));
+  const live = send.thinking && !send.reply;
   return html`<div class="turn" key=${send.id}>
     <div class="you">${send.message}</div>
-    ${send.thinking ? html`<div class="thinking"><small>${last_line}</small></div>` : null}
+    ${
+      send.thinking
+        ? html`<div class="thin">${live ? `Thinking… ${secs} s` : "Thought · writing the reply"}</div>
+          ${live ? html`<div class="thinking live"><div>${PP.markdown_render(send.thinking)}</div></div>` : null}`
+        : null
+    }
     ${send.reply ? PP.markdown_render(send.reply) : null}
-    <small class="muted">${send.progress}</small>
+    ${live ? null : html`<small class="muted">${send.progress}</small>`}
   </div>`;
 };
 

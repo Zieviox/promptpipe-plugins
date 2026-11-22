@@ -80,6 +80,8 @@ textarea.field { resize: vertical; min-height: 6em; }
 .reply blockquote { border-left: 2px solid var(--line); margin: .5em 0; padding-left: 12px; color: var(--muted); }
 .code-copy { position: absolute; top: 4px; right: 4px; padding: 2px 8px; font-size: 12px; color: var(--muted); background: var(--raise2); border-radius: 8px; }
 .thinking { border-left: 2px solid var(--line); padding-left: 10px; color: var(--muted); font-size: 13px; }
+.thinking.live { max-height: 9.5em; overflow: hidden; display: flex; flex-direction: column-reverse; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.2em); mask-image: linear-gradient(to bottom, transparent, #000 2.2em); }
+.thinking.live .reply { font-size: 13px; color: var(--muted); }
 .actions { display: flex; gap: 2px; margin-top: 4px; align-items: center; }
 .failed .you, .queued .you { opacity: .65; }
 .new-reply { position: absolute; left: 50%; transform: translateX(-50%); bottom: 78px; z-index: 4; }
