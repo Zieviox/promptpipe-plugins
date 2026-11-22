@@ -138,6 +138,52 @@ const folder_move = (state, ids, place) => {
 
 // ---------- site chats (UC13) ----------
 
+// A folder renamed: its chats (and those of folders inside it) get the new path, and so do its
+// Folder records. `moves` are the files to move ({ from, to }), done by whoever applies this.
+const folder_rename = (state, { from, to }) => {
+  const clean = String(to || "")
+    .trim()
+    .replace(/[\\:*?"<>|]/g, "-")
+    .replace(/^\/+|\/+$/g, "");
+  if (!clean) return { error: { code: "invalid_argument", message: "Give the folder a new name" } };
+  const path = from.includes("/") ? `${from.slice(0, from.lastIndexOf("/"))}/${clean}` : clean;
+  if (path === from)
+    return { error: { code: "invalid_argument", message: "Give the folder a new name" } };
+  const swap = (p) =>
+    p === from ? path : p.startsWith(`${from}/`) ? path + p.slice(from.length) : p;
+  if (
+    state.folders.some((f) => f.id === path) ||
+    state.chats.some((c) => c.file.startsWith(`${path}/`))
+  )
+    return { error: { code: "already_exists", message: `There's already a folder "${clean}"` } };
+  const moves = state.chats
+    .filter((c) => swap(c.file) !== c.file)
+    .map((c) => ({ id: c.id, from: c.file, to: swap(c.file) }));
+  const files = new Map(moves.map((m) => [m.id, m.to]));
+  const chats = state.chats.map((c) => (files.has(c.id) ? { ...c, file: files.get(c.id) } : c));
+  const folders = state.folders.map((f) => ({ ...f, id: swap(f.id), order: f.order.map(swap) }));
+  const targets = [{ file: "folders" }, ...moves.map((m) => ({ chat: m.id }))];
+  return { state: { ...state, chats, folders }, targets, moves };
+};
+
+// A folder deleted: its chats (and those of folders inside it) go to the top level, kept.
+const folder_delete = (state, { path }) => {
+  const inside = (p) => p === path || p.startsWith(`${path}/`);
+  const ids = state.chats
+    .filter((c) => inside(c.file.slice(0, Math.max(0, c.file.lastIndexOf("/")))))
+    .map((c) => c.id);
+  const moved = ids.length
+    ? folder_move(state, ids, { folder: "" })
+    : { state, targets: [], moves: [] };
+  if (moved.error) return moved;
+  const folders = moved.state.folders.filter((f) => !inside(f.id));
+  return {
+    ...moved,
+    state: { ...moved.state, folders },
+    targets: [{ file: "folders" }, ...moved.targets],
+  };
+};
+
 const url_same = (a, b) => {
   const clean = (u) =>
     String(u || "")
@@ -312,6 +358,8 @@ PP.plugin_set({
     query_parse,
     chat_find,
     folder_move,
+    folder_rename,
+    folder_delete,
     chat_file_build,
     chat_create,
     url_same,

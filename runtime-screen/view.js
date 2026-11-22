@@ -43,7 +43,11 @@ const call_try = async (name, data, done) => {
 // A record operation applied and saved; a failure becomes an error toast.
 const apply_try = async (operation, message) => {
   try {
-    return await PP.record_apply(operation, message);
+    const result = await PP.record_apply(operation, message);
+    const failed = result && result.commit_error;
+    if (failed && failed.code !== "unimplemented")
+      toast(`Saved, but not added to the history: ${failed.message}`, true);
+    return result;
   } catch (error) {
     toast(error.message, true);
     return null;
@@ -53,6 +57,10 @@ const apply_try = async (operation, message) => {
 // The app's own confirm and text prompt: what OK runs is a command id and its data, so the
 // dialog is plain data in the State.
 const dialog_open = (dialog) => ui_set(() => ({ dialog: { value: "", ok: "OK", ...dialog } }));
+
+// "Are you sure?" with one button that runs `command` (a run or command id) with `data`.
+const confirm_open = (title, label, command, data = {}) =>
+  dialog_open({ title, choices: [["yes", label]], command, data });
 
 const markdown_render = (text) =>
   html`<div class="reply" dangerouslySetInnerHTML=${{ __html: md.render(text || "") }}></div>`;
@@ -84,24 +92,65 @@ const switch_render = (on, label, onClick) =>
 
 // One row of a sheet: label, a line under it, and what sits on the right.
 const item_render = ({ label, sub, right, onClick, cls = "", key }) =>
-  html`<button key=${key} class=${`item ${cls}`} onClick=${onClick}>
+  html`<button key=${key} class=${`item ${cls}`} onClick=${onClick} data-lit=${typeof label === "string" ? label : undefined}>
     <span class="grow">${label}${sub ? html`<small>${sub}</small>` : null}</span>${right === "›" ? html`<span class="ch">${icon_svg("right")}</span>` : right || null}
   </button>`;
 
-// A list SortableJS can reorder: the drop is undone on the page and handed to `on_move`.
-const sortable_ref = (on_move) => (el) => {
-  if (!el || el.__sortable) return;
-  el.__sortable = Sortable.create(el, {
-    handle: ".grip",
-    animation: 120,
-    onEnd: (e) => {
-      if (e.oldIndex === e.newIndex) return;
-      el.removeChild(e.item);
-      el.insertBefore(e.item, el.children[e.oldIndex] || null);
-      on_move(e.item.dataset.id, e.newIndex);
-    },
-  });
+// A text box that takes the focus when it first appears (`autofocus` only works on page load).
+const focus_ref = (el) => {
+  if (el && !el.__focused) {
+    el.__focused = true;
+    setTimeout(() => el.focus(), 0);
+  }
 };
+
+// A list SortableJS can reorder; lists with the same `group` trade items. A drop is undone on the
+// page and handed to `on_drop({ id, kind, from, to, index, into })` (`from`/`to`: the lists'
+// data-list; `into`: the data-into of a row it was dropped onto, when `into` is on), so Preact
+// stays the only one changing the page.
+const sortable_ref =
+  (on_drop, { group, into } = {}) =>
+  (el) => {
+    if (!el || el.__sortable) return;
+    let target = null;
+    const mark = (row) => {
+      if (target && target !== row) target.classList.remove("di");
+      if (row) row.classList.add("di");
+      target = row;
+    };
+    el.__sortable = Sortable.create(el, {
+      group,
+      handle: ".grip",
+      animation: 120,
+      onMove: (e, pointer) => {
+        if (!into) return true;
+        const row = e.related.closest("[data-into]");
+        const box = row && row.getBoundingClientRect();
+        const middle =
+          box &&
+          pointer.clientY > box.top + box.height / 4 &&
+          pointer.clientY < box.bottom - box.height / 4;
+        mark(middle && row !== e.dragged ? row : null);
+        return !middle;
+      },
+      onEnd: (e) => {
+        const into_path = target ? target.dataset.into : null;
+        mark(null);
+        e.to.removeChild(e.item);
+        e.from.insertBefore(e.item, e.from.children[e.oldIndex] || null);
+        if (into_path === null && e.from === e.to && e.oldIndex === e.newIndex) return;
+        const { id, kind } = e.item.dataset;
+        on_drop({
+          id,
+          kind,
+          from: e.from.dataset.list,
+          to: e.to.dataset.list,
+          index: e.newIndex,
+          into: into_path,
+        });
+      },
+    });
+  };
 
 PP.plugin_set({
   functions: {
@@ -112,11 +161,13 @@ PP.plugin_set({
     call_try,
     apply_try,
     dialog_open,
+    confirm_open,
     markdown_render,
     icon_render,
     icon_svg,
     switch_render,
     item_render,
     sortable_ref,
+    focus_ref,
   },
 });

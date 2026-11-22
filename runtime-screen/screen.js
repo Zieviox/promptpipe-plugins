@@ -162,6 +162,7 @@ const back_run = () => {
 
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") return back_run() && e.preventDefault();
+  if (e.key === "F3") return e.preventDefault(), PP.command_run("find");
   const name = key_name(e);
   if (["ArrowUp", "Enter"].includes(name)) return; // the message box's own keys
   const command = [...PP.COMMANDS, ...(PP.plugin_commands || [])].find((c) => c.key === name);
@@ -224,7 +225,7 @@ const dialog_render = (state) => {
           : html`<input
             class="field"
             id="dialog-value"
-            autofocus
+            ref=${PP.focus_ref}
             value=${d.value}
             onKeyDown=${(e) => e.key === "Enter" && run()}
           />`
@@ -327,6 +328,18 @@ const after_draw = (state) => {
     document
       .querySelector(GUIDES.find((g) => g.id === state.ui.tour.id).stages[state.ui.tour.at][0])
       ?.classList.add("lit");
+  // A control Find pointed to: lit up and brought into view for a moment.
+  if (state.ui.lit) {
+    const el = [...document.querySelectorAll(".sheet [data-lit]")].find(
+      (x) => x.dataset.lit === state.ui.lit,
+    );
+    if (el) {
+      el.classList.add("hl");
+      el.scrollIntoView({ block: "center" });
+      setTimeout(() => el.classList.remove("hl"), 2600);
+    }
+    PP.ui_set(() => ({ lit: null }));
+  }
   if (state.ui.site_view.open !== view_open) {
     view_open = state.ui.site_view.open;
     PP.call_send(

@@ -121,3 +121,43 @@ test("moving chats keeps the order and refuses a clash (UC17)", () => {
   assert.deepEqual(pinned.state.folders.find((f) => f.id === "").pinned, ["c3", "c2"]);
   assert.equal(pp.chat_file_build(state, "B", ""), "B (2).md");
 });
+
+test("renaming a folder moves its chats and inner folders; deleting one keeps its chats (UC17)", () => {
+  const state = {
+    chats: [
+      { id: "c1", file: "Worlds/Ilse.md" },
+      { id: "c2", file: "Worlds/Maps/Coast.md" },
+      { id: "c3", file: "Plain.md" },
+    ],
+    folders: [
+      { id: "", order: ["Worlds", "c3"], pinned: [] },
+      { id: "Worlds", order: ["c1", "Worlds/Maps"], pinned: [] },
+      { id: "Worlds/Maps", order: ["c2"], pinned: [] },
+    ],
+  };
+  const r = pp.folder_rename(state, { from: "Worlds", to: "Places" });
+  assert.deepEqual(
+    r.moves.map((m) => m.to),
+    ["Places/Ilse.md", "Places/Maps/Coast.md"],
+  );
+  assert.deepEqual(
+    r.state.folders.map((f) => f.id),
+    ["", "Places", "Places/Maps"],
+  );
+  assert.deepEqual(r.state.folders[0].order, ["Places", "c3"]);
+  assert.equal(pp.folder_rename(state, { from: "Worlds", to: "Plain.md" }).error, undefined);
+  assert.equal(
+    pp.folder_rename(state, { from: "Worlds/Maps", to: "Maps" }).error.code,
+    "invalid_argument",
+  );
+
+  const d = pp.folder_delete(state, { path: "Worlds" });
+  assert.deepEqual(
+    d.state.chats.map((c) => c.file),
+    ["Ilse.md", "Coast.md", "Plain.md"],
+  );
+  assert.deepEqual(
+    d.state.folders.map((f) => f.id),
+    [""],
+  );
+});

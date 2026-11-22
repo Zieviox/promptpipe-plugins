@@ -49,7 +49,7 @@ const field_render = (state, def, value, on_set) => {
     const shown = (choices.find((c) => c.value === value) || {}).label || "—";
     return item({ key: def.key, label: def.label, sub: shown, onClick: () => on_set(next.value) });
   }
-  return html`<label class="item" key=${def.key}
+  return html`<label class="item" key=${def.key} data-lit=${def.label}
     ><span class="grow"
       >${def.label}${def.description ? html`<small>${def.description}</small>` : null}</span
     >
@@ -146,9 +146,9 @@ const SHEETS = {
               html`<button
                 class=${`tag${t.endsWith("#") ? " counter" : ""}`}
                 key=${t}
-                onClick=${() => PP.chat_tag_remove(state, t)}
+                onClick=${() => PP.confirm_open(`Remove the tag #${t} from this chat?`, "Remove", "chat_tag_remove", { tag: t })}
               >
-                #${t} ✕
+                #${t}
               </button>`,
           )} <button class="tag" onClick=${() => PP.command_run("chat_tag")}>+ tag</button>
         </div>`,
@@ -158,19 +158,18 @@ const SHEETS = {
         item({
           label: "Pin to top",
           sub: pinned ? "Pinned" : "Not pinned",
+          right: pinned ? html`<span class="ondot"></span>` : null,
           onClick: () =>
-            PP.apply_try((s) =>
-              PP.folder_move(
-                s,
-                [chat.id],
-                pinned
-                  ? {
-                      folder: chat.file.includes("/")
-                        ? chat.file.slice(0, chat.file.lastIndexOf("/"))
-                        : "",
-                    }
-                  : { pinned: 0 },
-              ),
+            PP.chats_move(
+              [chat.id],
+              pinned
+                ? {
+                    folder: chat.file.includes("/")
+                      ? chat.file.slice(0, chat.file.lastIndexOf("/"))
+                      : "",
+                  }
+                : { pinned: 0 },
+              pinned ? `unpinned: ${chat.name}` : `pinned: ${chat.name}`,
             ),
         }),
         item({
@@ -186,7 +185,7 @@ const SHEETS = {
           .map((c) => item({ key: c.id, label: c.label, onClick: () => PP.command_run(c.id) })),
         label("History"),
         item({
-          label: `${state.turns.filter((t) => t.chat === chat.id).length} messages`,
+          label: `Saved ${new Date(chat.updated || chat.created || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })} · ${state.turns.filter((t) => t.chat === chat.id).length} messages`,
           sub: "The chat's commits",
           right: "›",
           onClick: () => PP.sheet_open("history", { path: chat.file }),
@@ -195,7 +194,43 @@ const SHEETS = {
           label: "Delete this chat",
           cls: "danger",
           sub: "It stays in the history",
-          onClick: () => PP.chats_delete([chat.id]),
+          onClick: () => PP.chats_delete_ask([chat.id]),
+        }),
+      ],
+    };
+  },
+
+  // A folder: rename it, or delete it (its chats go to the top level).
+  folder: (state, { path }) => {
+    const count = state.chats.filter((c) => c.file.startsWith(`${path}/`)).length;
+    const name = path.split("/").pop();
+    return {
+      title: name,
+      rows: [
+        html`<div class="search">${PP.icon_svg("folder")}<input aria-label="Folder name" value=${state.ui.folder_name ?? name}
+          onInput=${(e) => PP.ui_set(() => ({ folder_name: e.target.value }))} /></div>`,
+        item({
+          label: "Rename",
+          cls: "prim",
+          onClick: () =>
+            PP.folder_rename_run(path, state.ui.folder_name ?? name).then(
+              (r) =>
+                r && PP.ui_set((ui) => ({ folder_name: null, sheets: ui.sheets.slice(0, -1) })),
+            ),
+        }),
+        item({
+          label: "Delete folder",
+          cls: "danger",
+          sub: count
+            ? `Its ${count} chat${count === 1 ? "" : "s"} move to the top level`
+            : "It's empty",
+          onClick: () =>
+            PP.confirm_open(
+              `Delete the folder “${name}”?${count ? ` Its ${count} chat${count === 1 ? "" : "s"} move to the top level.` : ""}`,
+              "Delete",
+              "folder_delete",
+              { path },
+            ),
         }),
       ],
     };
@@ -204,9 +239,11 @@ const SHEETS = {
   move: (state, { ids }) => {
     const folders = PP.folder_list(state);
     const to = (folder) =>
-      PP.apply_try((s) => PP.folder_move(s, ids || [state.ui.chat], { folder })).then(() =>
-        PP.sheet_close(),
-      );
+      PP.chats_move(
+        ids || [state.ui.chat],
+        { folder },
+        `moved to ${folder || "the top level"}`,
+      ).then(() => PP.sheet_close());
     return {
       title: "Move to folder",
       rows: [
@@ -336,13 +373,14 @@ const SHEETS = {
       );
     return {
       title: profile.name,
+      short: true,
       rows: [
         html`<small
           >Toggles are this chat's own; a new chat starts with the profile's. Drag to reorder the
           profile.</small
         >`,
         html`<div
-          ref=${PP.sortable_ref((id, index) =>
+          ref=${PP.sortable_ref(({ id, index }) =>
             PP.apply_try((s) => PP.record_move(s, { collection: "blocks", id, index })),
           )}
         >
@@ -441,7 +479,7 @@ const SHEETS = {
       rows: [
         label("Sent top to bottom"),
         html`<div
-          ref=${PP.sortable_ref((bid, index) =>
+          ref=${PP.sortable_ref(({ id: bid, index }) =>
             PP.apply_try((s) => PP.record_move(s, { collection: "blocks", id: bid, index })),
           )}
         >
@@ -507,8 +545,11 @@ const SHEETS = {
               label: "Delete this profile",
               cls: "danger",
               onClick: () =>
-                PP.apply_try((s) => PP.record_delete(s, { collection: "profiles", id })).then(() =>
-                  PP.sheet_close(),
+                PP.confirm_open(
+                  `Delete the profile “${profile.name}”?`,
+                  "Delete",
+                  "profile_delete",
+                  { id },
                 ),
             })
           : null,
@@ -961,10 +1002,11 @@ ${p.text}</textarea
               label: "Remove",
               cls: "danger",
               onClick: () =>
-                PP.call_try(
+                PP.confirm_open(
+                  `Remove ${m.name}? Restart the app afterwards.`,
+                  "Remove",
                   "plugin_remove",
                   { plugin: id, copy: p.copy },
-                  "Removed. Restart the app.",
                 ),
             })
           : item({ label: "Built in", sub: "Take it out of a profile instead." }),
@@ -1347,7 +1389,12 @@ const SECTION_EXTRAS = {
     item({
       label: "Reset to first launch",
       sub: "Shows the welcome again. Chats, profiles and plugins stay.",
-      onClick: () => set({ "help.seen": [] }),
+      onClick: () =>
+        PP.confirm_open(
+          "Reset to first launch? The welcome shows again; your chats, profiles and plugins stay.",
+          "Reset",
+          "first_launch_reset",
+        ),
     }),
     item({
       label: state.app.safe_mode ? "Leave safe mode" : "Restart in safe mode",
@@ -1379,13 +1426,14 @@ const sheet_render = (state) => {
   const sheet = make
     ? make(state, top.data || {})
     : { title: top.name, rows: [item({ label: "Not available" })] };
-  return frame(state, sheet.title, sheet.rows);
+  return frame(state, sheet.title, sheet.rows, !sheet.short);
 };
 
-const frame = (state, title, rows) =>
+// Sheets are tall (nearly the whole screen), as in the wireframe; a short one fits its rows.
+const frame = (state, title, rows, tall = true) =>
   html`<div class="layer">
     <div class="scrim" onClick=${() => PP.ui_set(() => ({ sheets: [] }))}></div>
-    <section class="sheet" role="dialog" aria-label=${title}>
+    <section class=${`sheet${tall ? " tall" : ""}`} role="dialog" aria-label=${title}>
       <h2>
         ${state.ui.sheets.length > 1 ? PP.icon_render("back", "Back", PP.sheet_close) : null}<span
           style="flex:1"

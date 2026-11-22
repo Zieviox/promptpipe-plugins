@@ -162,4 +162,42 @@ textarea.field { resize: vertical; min-height: 6em; }
 .reply { font-size: var(--reply-size, 14px); }
 .reply > :first-child { margin-top: 0; }
 .reply > :last-child { margin-bottom: 0; }
+/* The chats drawer (wireframe): header, lists, folders, Pinned, the foot with Settings and Quick start. */
+.drawer h2 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 17px; }
+.drawer .grow, .chips .grow { flex: 1; min-width: 0; }
+.item.auto { width: auto; flex: none; }
+.lists { display: flex; flex-direction: column; gap: 6px; }
+.list { display: flex; flex-direction: column; gap: 6px; min-height: 4px; }
+.list.ind { margin-left: 16px; margin-top: 6px; }
+.list.shut { min-height: 0; }
+.row .ct { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.row .ctag, .row .status { font-size: 11px; color: var(--muted); max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: none; display: flex; align-items: center; gap: 5px; }
+.row .status .dot { margin: 0; }
+.row.sel { background: color-mix(in srgb, var(--accent) 22%, var(--raise)); }
+.row.folder { padding-left: 4px; }
+.row .fold { display: flex; align-items: center; gap: 6px; font-weight: 600; flex: 1; min-width: 0; }
+.row .count { color: var(--muted); font-size: 12.5px; }
+.row.di { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.drawerfoot { margin-top: auto; padding-top: 10px; }
+.pill.big { padding: 10px 14px; font-size: 14px; gap: 8px; background: var(--raise); }
+.pill.big .badge { margin-left: 2px; }
+.selbar { align-items: center; }
+/* The provider menu (wireframe): radio, name and model, status dot; plain rows under a line. */
+.menu { width: 270px; padding: 8px; display: flex; flex-direction: column; }
+.menu .mi { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; width: 100%; }
+.menu .mi:hover { background: var(--raise2); }
+.menu .mi small { display: block; color: var(--muted); font-size: 12px; }
+.menu .mi.pv { font-weight: 500; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 6px 4px; width: calc(100% - 8px); }
+.radio { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--text); flex: none; }
+.radio.on { background: var(--text); }
+
+.menu .grow { flex: 1; min-width: 0; }
+/* Find's pick lit up (wireframe's .hl) and keys in result rows. */
+.hl { outline: 2px solid var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 28%, transparent); animation: hlpulse 1.1s ease-in-out infinite; }
+@keyframes hlpulse { 50% { box-shadow: 0 0 0 11px transparent; } }
+.item kbd { border: 0; color: var(--muted); font: 12px ui-monospace, monospace; }
+.sheet.tall { height: calc(100% - 44px); }
+.ch .svg svg { width: 16px; height: 16px; }
+.ondot { width: 10px; height: 10px; border-radius: 50%; background: var(--text); flex: none; }
 

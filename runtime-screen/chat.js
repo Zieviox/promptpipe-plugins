@@ -51,33 +51,48 @@ const header_render = (state) => {
 const provider_menu_render = (state) => {
   const chat = PP.chat_get(state);
   const providers = state.plugins.filter((p) => (p.manifest.tags || []).includes("provider"));
-  const pick = (id) =>
+  const current = PP.provider_get(state, chat);
+  const close = () => PP.ui_set(() => ({ menu: false }));
+  const has_replies = chat && state.turns.some((t) => t.chat === chat.id);
+  const pick = (p) => {
+    close();
+    if (p.id === current) return;
+    if (has_replies)
+      return PP.confirm_open(
+        `Continue this chat on ${p.manifest.name}? It starts a new conversation there, and Memory carries the context.`,
+        "Yes",
+        "provider_switch",
+        { chat: chat.id, provider: p.id },
+      );
     PP.apply_try((s) =>
       chat
-        ? PP.record_set(s, { collection: "chats", id: chat.id, fields: { own: { provider: id } } })
-        : PP.record_set(s, { collection: "settings", fields: { "chats.provider": id } }),
-    ).then(() => PP.ui_set(() => ({ menu: false })));
-  const current = PP.provider_get(state, chat);
+        ? PP.record_set(s, {
+            collection: "chats",
+            id: chat.id,
+            fields: { own: { provider: p.id } },
+          })
+        : PP.record_set(s, { collection: "settings", fields: { "chats.provider": p.id } }),
+    );
+  };
+  const status = (p) => {
+    const page = state.pages.find((x) => x.provider === p.id);
+    return page ? (page.status === "ready" ? "" : page.status === "busy" ? "busy" : "off") : "none";
+  };
+  const plain = (label, run) =>
+    html`<button class="mi" onClick=${() => (close(), run())}>${label}</button>`;
   return html`<div class="menu" role="menu">
-    ${providers.map((p) =>
-      PP.item_render({
-        key: p.id,
-        label: p.manifest.name,
-        sub: p.id === current ? "This chat uses it" : "",
-        onClick: () => pick(p.id),
-        right: p.id === current ? "✓" : null,
-      }),
+    ${providers.map(
+      (p) => html`<button class="mi pv" key=${p.id} onClick=${() => pick(p)}>
+        <span class=${`radio${p.id === current ? " on" : ""}`}></span>
+        <span class="grow">${p.manifest.name}<small>${PP.model_get(state, { own: { provider: p.id } }) || "Model as the site has it"}</small></span>
+        <span class=${`dot ${status(p)}`}></span>
+      </button>`,
     )}
-    ${PP.item_render({
-      label: "Open its site",
-      sub: "Log in once, see the pages",
-      onClick: () => (PP.ui_set(() => ({ menu: false })), PP.command_run("site_view")),
-    })}
-    ${PP.item_render({ label: "Profile and provider", onClick: () => PP.sheet_open("provider") })}
-    ${PP.item_render({
-      label: "Get providers",
-      onClick: () => PP.sheet_open("plugins", { tab: "catalogue", filter: "provider" }),
-    })}
+    <hr />
+    ${plain("Show the page", () => PP.command_run("site_view"))}
+    ${plain("Open a chat from the site", () => PP.sheet_open("site_chats"))}
+    ${plain("Site, model and profile…", () => PP.sheet_open("provider"))}
+    ${plain("Get providers", () => PP.sheet_open("plugins", { tab: "catalogue", filter: "provider" }))}
   </div>`;
 };
 

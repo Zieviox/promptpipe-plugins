@@ -277,7 +277,14 @@ const record_apply = async (operation, message) => {
     changes: [...(state.changes || []), ...saved.changes],
   }));
   const paths = saved.written.filter((w) => w.root === "chats").map((w) => w.path);
-  if (message && paths.length) await repo_commit(paths, message);
+  // The change is saved either way; a commit that fails is reported, not taken as a failed change.
+  if (message && paths.length) {
+    try {
+      await repo_commit(paths, message);
+    } catch (error) {
+      return { ...result, commit_error: error };
+    }
+  }
   return result;
 };
 

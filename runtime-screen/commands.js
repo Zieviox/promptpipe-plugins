@@ -224,6 +224,38 @@ const COMMANDS = [
 // What a dialog's OK or a sheet's item runs with its data (the dialog adds the text typed as `value` and
 // the button pressed as `choice`); not listed in Find.
 const RUNS = {
+  // Confirmed in the dialog first (choice "yes").
+  chats_delete: (s, d) => d.choice === "yes" && PP.chats_delete(d.ids),
+  folder_delete: (s, d) =>
+    d.choice === "yes" && PP.folder_delete_run(d.path).then(() => PP.sheet_close()),
+  profile_delete: (s, d) =>
+    d.choice === "yes" &&
+    PP.apply_try((x) => PP.record_delete(x, { collection: "profiles", id: d.id })).then(() =>
+      PP.sheet_close(),
+    ),
+  plugin_remove: (s, d) =>
+    d.choice === "yes" &&
+    PP.call_try("plugin_remove", { plugin: d.plugin, copy: d.copy }, "Removed. Restart the app."),
+  first_launch_reset: (s, d) =>
+    d.choice === "yes" &&
+    PP.apply_try((x) => PP.record_set(x, { collection: "settings", fields: { "help.seen": [] } })),
+  source_remove: (s, d) =>
+    d.choice === "yes" &&
+    PP.apply_try((x) => PP.record_delete(x, { collection: "sources", id: d.id })),
+  // Another provider for a chat that has replies: a new conversation there (Memory carries the
+  // context), so the chat's link to its old site chat goes.
+  provider_switch: (s, d) =>
+    d.choice === "yes" &&
+    PP.apply_try(
+      (x) =>
+        PP.record_set(x, {
+          collection: "chats",
+          id: d.chat,
+          fields: { own: { provider: d.provider }, site_url: "" },
+        }),
+      "provider switched",
+    ),
+  chat_tag_remove: (s, d) => d.choice === "yes" && PP.chat_tag_remove(s, d.tag),
   folder_create: (s, d) => PP.folder_create(s, d.value),
   chat_tag_add: (s, d) => PP.chat_tag_add(s, d.value),
   turn_tag_add: (s, d) => PP.turn_tag_add(s, d.id, d.value),

@@ -110,6 +110,54 @@ const files_attach = async (state) => {
     );
 };
 
+// After a change that moved chats' files (a move, a folder renamed or deleted): the files at the
+// old places are deleted (the change wrote them at the new ones) and that is committed too.
+const old_files_delete = async (result, message) => {
+  const gone = ((result && result.moves) || []).filter((m) => m.from !== m.to).map((m) => m.from);
+  for (const path of gone)
+    await PP.call_send("file_delete", { root: "chats", path }).catch(() => null);
+  if (gone.length) await PP.repo_commit(gone, message).catch(() => null);
+  return result;
+};
+
+// Chats moved into a folder (at a place in it) or into or out of Pinned (UC17).
+const chats_move = async (ids, place, message) => {
+  const fill = (s) => (place.folder !== undefined ? PP.order_fill(s, place.folder, ids) : s);
+  return old_files_delete(
+    await PP.apply_try((s) => PP.folder_move(fill(s), ids, place), message),
+    message,
+  );
+};
+
+const folder_rename = async (from, to) =>
+  old_files_delete(
+    await PP.apply_try((s) => PP.folder_rename(s, { from, to }), `folder renamed: ${from} → ${to}`),
+    `folder renamed: ${from}`,
+  );
+
+const folder_delete = async (path) =>
+  old_files_delete(
+    await PP.apply_try((s) => PP.folder_delete(s, { path }), `folder deleted: ${path}`),
+    `folder deleted: ${path}`,
+  );
+
+// Deleting asks first.
+const chats_delete_ask = (ids) => {
+  const names = PP.state_get()
+    .chats.filter((c) => ids.includes(c.id))
+    .map((c) => c.name);
+  if (!names.length) return;
+  PP.dialog_open({
+    title:
+      names.length === 1
+        ? `Delete “${names[0]}”? It stays in the history.`
+        : `Delete ${names.length} chats? They stay in the history.`,
+    choices: [["yes", "Delete"]],
+    command: "chats_delete",
+    data: { ids },
+  });
+};
+
 // A folder is a Folder record until a chat is moved into it.
 const folder_create = (state, name) => {
   const clean = String(name || "")
@@ -275,6 +323,10 @@ PP.plugin_set({
     turn_tag_add,
     chat_rename,
     chats_delete,
+    chats_move,
+    chats_delete_ask,
+    folder_rename_run: folder_rename,
+    folder_delete_run: folder_delete,
     view_page_add,
     region_get,
     page_report_copy,

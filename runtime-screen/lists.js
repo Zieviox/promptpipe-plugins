@@ -16,6 +16,35 @@ const folder_list = (state) =>
     .filter(Boolean)
     .sort();
 
+// A folder's order filled in from what's shown (leaving out `ids`), so an index into the shown
+// list is an index into the order.
+const order_fill = (state, path, ids = []) => {
+  const order = entries_get(state, path)
+    .map((e) => e.id)
+    .filter((id) => !ids.includes(id));
+  const record = state.folders.find((f) => f.id === path) || { id: path, order: [], pinned: [] };
+  return {
+    ...state,
+    folders: [...state.folders.filter((f) => f.id !== path), { ...record, order }],
+  };
+};
+
+// A folder moved among its neighbours: the parent's order is filled in from what's shown, then the
+// folder goes to its new place.
+const folder_order_move = (state, parent, path, index) => {
+  const ids = entries_get(state, parent)
+    .map((e) => e.id)
+    .filter((id) => id !== path);
+  ids.splice(index, 0, path);
+  const record = state.folders.find((f) => f.id === parent) || {
+    id: parent,
+    order: [],
+    pinned: [],
+  };
+  const folders = [...state.folders.filter((f) => f.id !== parent), { ...record, order: ids }];
+  return { state: { ...state, folders }, targets: [{ file: "folders" }] };
+};
+
 // A folder's entries in your order; what you never placed: folders by name, then chats newest first.
 const entries_get = (state, path) => {
   const record = state.folders.find((f) => f.id === path) || { order: [] };
@@ -47,164 +76,192 @@ const entries_get = (state, path) => {
   return [...known, ...rest];
 };
 
-const chat_row = (state, chat) => {
+const pinned_get = (state) =>
+  (state.folders.find((f) => f.id === "") || { pinned: [] }).pinned || [];
+const parent_get = (file) => (file.includes("/") ? file.slice(0, file.lastIndexOf("/")) : "");
+const chats_in = (state, path) =>
+  state.chats.filter((c) => c.file.startsWith(`${path}/`)).map((c) => c.id);
+
+// The ids a drag or a tap acts on: all the selected chats when the row is one of them.
+const picked_ids = (state, id) =>
+  state.ui.selection.on && state.ui.selection.ids.includes(id) ? state.ui.selection.ids : [id];
+
+const select_toggle = (ids) =>
+  PP.ui_set((ui) => {
+    const all = ids.every((id) => ui.selection.ids.includes(id));
+    const rest = ui.selection.ids.filter((id) => !ids.includes(id));
+    return { selection: { on: true, ids: all ? rest : [...rest, ...ids] } };
+  });
+
+// Press and hold a row to start selecting (UC17); the tap that ends the press is then ignored.
+let held_at = 0;
+const hold_handlers = (ids) => {
+  let timer = 0;
+  const cancel = () => clearTimeout(timer);
+  return {
+    onPointerDown: () =>
+      (timer = setTimeout(() => ((held_at = Date.now()), select_toggle(ids)), 500)),
+    onPointerUp: cancel,
+    onPointerLeave: cancel,
+    onClickCapture: (e) => Date.now() - held_at < 800 && (e.stopPropagation(), e.preventDefault()),
+  };
+};
+
+// A chat row: name, its tags (muted), "Replying…" or "Reply ready", the pin, the grip.
+const chat_row = (state, chat, pinned) => {
   const selecting = state.ui.selection.on;
   const picked = state.ui.selection.ids.includes(chat.id);
   const busy = state.sends.some((s) => s.chat === chat.id && s.status === "sending");
-  const unseen = !!state.ui.unseen[chat.id];
-  const pin = () => PP.apply_try((s) => PP.folder_move(s, [chat.id], { pinned: 0 }));
-  const open = () =>
-    selecting
-      ? PP.ui_set((ui) => ({
-          selection: {
-            on: true,
-            ids: picked
-              ? ui.selection.ids.filter((x) => x !== chat.id)
-              : [...ui.selection.ids, chat.id],
-          },
-        }))
-      : PP.chat_open(chat.id);
+  const ready = !!state.ui.unseen[chat.id];
+  const pin = () =>
+    PP.chats_move(
+      picked_ids(state, chat.id),
+      pinned ? { folder: parent_get(chat.file) } : { pinned: 0 },
+      pinned ? "chats: unpinned" : "chats: pinned",
+    );
+  const open = () => (selecting ? select_toggle([chat.id]) : PP.chat_open(chat.id));
   return html`<div
-    class=${`row${chat.id === state.ui.chat ? " current" : ""}`}
+    class=${`row${chat.id === state.ui.chat ? " current" : ""}${picked ? " sel" : ""}`}
     key=${chat.id}
     data-id=${chat.id}
+    data-kind="chat"
   >
-    <span class="grip" aria-label="Drag to move">${PP.icon_svg("grip")}</span>
     ${selecting ? html`<span class=${`cb${picked ? " on" : ""}`}>${picked ? PP.icon_svg("check") : null}</span>` : null}
-    <button class="grow" onClick=${open}>
-      ${chat.name}${
-        (chat.tags || []).length ? html` <small>#${chat.tags.join(" #")}</small>` : null
-      }
-    </button>
-    ${
-      busy
-        ? html`<small>answering…</small>`
-        : unseen
-          ? html`<small class="badge">new</small>`
-          : null
-    }
-    <button class="pb" aria-label="Pin" onClick=${pin}>${PP.icon_svg("pin")}</button>
+    <button class="grow ct" onClick=${open} ...${hold_handlers([chat.id])}>${chat.name}</button>
+    ${busy ? html`<small class="status">Replying…</small>` : ready ? html`<small class="status"><span class="dot"></span>Reply ready</small>` : (chat.tags || []).length ? html`<small class="ctag">${chat.tags.join(" ")}</small>` : null}
+    <button class=${`pb${pinned ? " on" : ""}`} aria-label=${pinned ? "Unpin" : "Pin"} onClick=${pin}>${PP.icon_svg("pin")}</button>
+    <span class="grip" aria-label="Drag to move">${PP.icon_svg("grip")}</span>
   </div>`;
 };
 
-const folder_rows = (state, path, depth = 0) =>
-  entries_get(state, path).map((e) => {
-    if (e.chat) return chat_row(state, e.chat);
-    const open =
-      state.ui.folders_open.includes(e.folder) ||
-      (PP.chat_get(state) || { file: "" }).file.startsWith(`${e.folder}/`);
-    const toggle = () =>
-      PP.ui_set((ui) => ({
-        folders_open: open
-          ? ui.folders_open.filter((f) => f !== e.folder)
-          : [...ui.folders_open, e.folder],
-      }));
-    return html`<div key=${e.folder} data-id=${e.folder}>
-      <div class="row folder">
-        <span class="grip">${PP.icon_svg("grip")}</span
-        ><button class="grow" onClick=${toggle}>
-          ${PP.icon_svg(open ? "down" : "right")} ${e.folder.split("/").pop()}
-        </button>
-        <button
-          aria-label="New chat here"
-          onClick=${() => (PP.ui_set(() => ({ folder: e.folder })), PP.chat_open(null))}
-        >
-          ${PP.icon_svg("plus")}
-        </button>
-      </div>
-      ${
-        open
-          ? html`<div style="margin-left:16px">${folder_rows(state, e.folder, depth + 1)}</div>`
-          : null
-      }
-    </div>`;
-  });
+// A folder: open or closed, its name, how many chats, rename or delete, the grip; a chat dropped
+// onto it goes into it.
+const folder_row = (state, path, depth) => {
+  const open =
+    state.ui.folders_open.includes(path) ||
+    (PP.chat_get(state) || { file: "" }).file.startsWith(`${path}/`);
+  const ids = chats_in(state, path);
+  const toggle = () =>
+    state.ui.selection.on
+      ? select_toggle(ids)
+      : PP.ui_set((ui) => ({
+          folders_open: open
+            ? ui.folders_open.filter((f) => f !== path)
+            : [...ui.folders_open, path],
+        }));
+  return html`<div key=${path} data-id=${path} data-kind="folder">
+    <div class="row folder" data-into=${path}>
+      <button class="grow fold" onClick=${toggle}>${PP.icon_svg(open ? "down" : "right")} <span>${path.split("/").pop()}</span></button>
+      <small class="count">${ids.length}</small>
+      <button class="pb" aria-label=${`Rename or delete folder ${path}`} onClick=${() => PP.sheet_open("folder", { path })}>${PP.icon_svg("edit")}</button>
+      <span class="grip" aria-label="Drag to move">${PP.icon_svg("grip")}</span>
+    </div>
+    ${open ? list_render(state, path, depth + 1) : null}
+  </div>`;
+};
+
+// One list of a folder's entries, which can trade chats with the other lists.
+const list_render = (state, path, depth = 0) => {
+  const pinned = pinned_get(state);
+  return html`<div class=${depth ? "list ind" : "list"} data-list=${path} ref=${PP.sortable_ref(drop_run, { group: "chats", into: true })}>
+    ${entries_get(state, path).map((e) => (e.chat ? chat_row(state, e.chat, pinned.includes(e.chat.id)) : folder_row(state, e.folder, depth)))}
+  </div>`;
+};
+
+// A drop: onto a folder = into it; into Pinned = pinned there; between rows = that place, which
+// also takes a chat out of a folder. A folder moves only among its own neighbours.
+const drop_run = ({ id, kind, from, to, index, into }) => {
+  const state = PP.state_get();
+  if (kind === "folder") {
+    if (into !== null || to !== from || to === "pinned") return;
+    return PP.apply_try((s) => PP.folder_order_move(s, to, id, index), "chats: folders reordered");
+  }
+  const ids = picked_ids(state, id);
+  if (into !== null) return PP.chats_move(ids, { folder: into }, `chats: moved to ${into}`);
+  if (to === "pinned") return PP.chats_move(ids, { pinned: index }, "chats: pinned");
+  return PP.chats_move(ids, { folder: to, index }, "chats: moved");
+};
 
 const drawer_render = (state) => {
   const query = state.ui.query.toLowerCase();
-  const pinned_ids = (state.folders.find((f) => f.id === "") || { pinned: [] }).pinned || [];
+  const pinned_ids = pinned_get(state);
   const pinned = pinned_ids.map((id) => state.chats.find((c) => c.id === id)).filter(Boolean);
   const found = query
     ? state.chats.filter((c) =>
         `${c.name} ${(c.tags || []).map((t) => `#${t}`).join(" ")}`.toLowerCase().includes(query),
       )
     : null;
-  const tags = [...new Set(state.chats.flatMap((c) => c.tags || []))].slice(0, 12);
-  const move = (id, index) => PP.apply_try((s) => PP.folder_move(s, [id], { folder: "", index }));
+  const tags = [...new Set(state.chats.flatMap((c) => c.tags || []))].sort().slice(0, 12);
   const sel = state.ui.selection;
-  const bulk = (run) => () => (
-    run(sel.ids), PP.ui_set(() => ({ selection: { on: false, ids: [] } }))
-  );
+  const all_pinned = sel.ids.length && sel.ids.every((id) => pinned_ids.includes(id));
+  const done = () => PP.ui_set(() => ({ selection: { on: false, ids: [] } }));
+  const pin_all = () =>
+    PP.chats_move(
+      sel.ids,
+      all_pinned ? { folder: "" } : { pinned: 0 },
+      all_pinned ? "chats: unpinned" : "chats: pinned",
+    ).then(done);
+  const updates = ((state.catalogue && state.catalogue.updates) || []).length;
+  const close = () => PP.ui_set(() => ({ drawer: false }));
   return html`<div class="layer">
-    <div class="scrim" onClick=${() => PP.ui_set(() => ({ drawer: false }))}></div>
+    <div class="scrim" onClick=${close}></div>
     <div class="drawer" role="dialog" aria-label="Chats">
-      <h2>Chats</h2>
+      <h2>
+        <span class="grow">Chats</span>
+        ${PP.icon_render("check", sel.on ? "Done selecting" : "Select chats", () => (sel.on ? done() : PP.ui_set(() => ({ selection: { on: true, ids: [] } }))), sel.on)}
+        ${PP.setting_get(state, "help.button") ? PP.icon_render("help", "Help: explain things", () => PP.command_run("help_mode"), state.ui.help) : null}
+        ${PP.icon_render("close", "Close", close)}
+      </h2>
       <div class="chips">
-        <button class="item prim" style="flex:1" onClick=${() => PP.command_run("chat_new")}>
-          New chat
-        </button>
-        <button class="pill" onClick=${() => PP.command_run("folder_new")}>New folder</button>
-        <button
-          class="pill"
-          aria-label="Select chats"
-          onClick=${() => PP.ui_set(() => ({ selection: { on: !sel.on, ids: [] } }))}
-        >
-          ${sel.on ? "Done" : "Select"}
-        </button>
+        <button class="item prim grow" onClick=${() => PP.command_run("chat_new")}>+ New chat</button>
+        <button class="item auto" onClick=${() => PP.ui_set(() => ({ folder_new: "" }))}>+ Folder</button>
       </div>
-      <input
-        class="field"
-        type="search"
-        placeholder="Search chats"
-        aria-label="Search chats"
-        value=${state.ui.query}
-        onInput=${(e) => PP.ui_set(() => ({ query: e.target.value }))}
-      />
       ${
-        tags.length
-          ? html`<div class="chips">
-            ${tags.map(
-              (t) =>
-                html`<button
-                  class="tag"
-                  key=${t}
-                  onClick=${() => PP.ui_set(() => ({ query: `#${t}` }))}
-                >
-                  #${t}
-                </button>`,
-            )}
+        state.ui.folder_new !== undefined && state.ui.folder_new !== null
+          ? html`<div class="search">
+            ${PP.icon_svg("folder")}
+            <input aria-label="Folder name" placeholder="Folder name" ref=${PP.focus_ref} value=${state.ui.folder_new}
+              onInput=${(e) => PP.ui_set(() => ({ folder_new: e.target.value }))}
+              onKeyDown=${(e) => e.key === "Enter" && PP.folder_create(PP.state_get(), e.target.value).then(() => PP.ui_set(() => ({ folder_new: null })))} />
+            <button class="pill" onClick=${() => PP.folder_create(PP.state_get(), state.ui.folder_new).then(() => PP.ui_set(() => ({ folder_new: null })))}>Create</button>
+            <button class="pill" onClick=${() => PP.ui_set(() => ({ folder_new: null }))}>Cancel</button>
           </div>`
           : null
       }
+      <div class="search">
+        ${PP.icon_svg("search")}
+        <input type="search" placeholder="Search chats, #tag" aria-label="Search chats" value=${state.ui.query} onInput=${(e) => PP.ui_set(() => ({ query: e.target.value }))} />
+      </div>
+      ${tags.length ? html`<div class="chips">${tags.map((t) => html`<button class="pill" key=${t} onClick=${() => PP.ui_set(() => ({ query: `#${t}` }))}>#${t}</button>`)}</div>` : null}
       ${
         sel.on
-          ? html`<div class="chips">
-            <small>${sel.ids.length} picked</small>
-            <button
-              class="pill"
-              onClick=${bulk((ids) => PP.apply_try((s) => PP.folder_move(s, ids, { pinned: 0 })))}
-            >
-              Pin
-            </button>
-            <button class="pill" onClick=${() => PP.sheet_open("move", { ids: sel.ids })}>
-              Move
-            </button>
-            <button class="pill" onClick=${bulk((ids) => PP.chats_delete(ids))}>Delete</button>
+          ? html`<div class="chips selbar">
+            <small class="grow">${sel.ids.length} selected</small>
+            <button class="pill" onClick=${pin_all}>${all_pinned ? "Unpin" : "Pin"}</button>
+            <button class="pill" onClick=${() => PP.sheet_open("move", { ids: sel.ids })}>Move…</button>
+            <button class="pill" onClick=${() => PP.chats_delete_ask(sel.ids)}>Delete</button>
+            <button class="pill on" onClick=${done}>Done</button>
           </div>`
           : null
       }
-      ${
-        found
-          ? found.map((c) => chat_row(state, c))
-          : html`${
-              pinned.length
-                ? html`<div class="label">Pinned</div>
-                  ${pinned.map((c) => chat_row(state, c))}`
-                : null
-            }
-            <div ref=${PP.sortable_ref(move)}>${folder_rows(state, "")}</div>`
-      }
-      <button class="pill" onClick=${() => PP.sheet_open("site_chats")}>On the site…</button>
+      <div class="lists">
+        ${
+          found
+            ? found.map((c) => chat_row(state, c, pinned_ids.includes(c.id)))
+            : html`<div class="row folder pinhead">
+                <button class="grow fold" onClick=${() => PP.ui_set((ui) => ({ pinned_closed: !ui.pinned_closed }))}>${PP.icon_svg(state.ui.pinned_closed ? "right" : "down")} <span>Pinned</span></button>
+                <small class="count">${pinned.length}</small><span class="pb">${PP.icon_svg("pin")}</span>
+              </div>
+              <div class=${`list${state.ui.pinned_closed ? " shut" : ""}`} data-list="pinned" ref=${PP.sortable_ref(drop_run, { group: "chats" })}>
+                ${state.ui.pinned_closed ? null : pinned.map((c) => chat_row(state, c, true))}
+              </div>
+              ${list_render(state, "")}`
+        }
+      </div>
+      <div class="chips drawerfoot">
+        <button class="pill big" onClick=${() => PP.command_run("settings")}>${PP.icon_svg("settings")} Settings${updates ? html`<span class="badge">${updates}</span>` : null}</button>
+        <button class="pill big" onClick=${() => PP.command_run("quick_start")}>${PP.icon_svg("play")} Quick start</button>
+      </div>
     </div>
   </div>`;
 };
@@ -301,62 +358,115 @@ const snippet_build = (text, words) => {
     .map((p) => (p.startsWith("\u0001") ? html`<mark>${p.slice(1, -1)}</mark>` : p));
 };
 
+// Your last picks in Find, kept on this device (a convenience: it can be empty).
+const recent_get = () => {
+  try {
+    return JSON.parse(localStorage.getItem("pp:find_recent") || "[]");
+  } catch {
+    return [];
+  }
+};
+const recent_add = (entry) => {
+  try {
+    const list = [
+      { id: entry.id, label: entry.label },
+      ...recent_get().filter((r) => r.id !== entry.id),
+    ];
+    localStorage.setItem("pp:find_recent", JSON.stringify(list.slice(0, 4)));
+  } catch {}
+};
+
+// Everything Find knows: chats, functions (the commands) and settings, each with where it lives.
+const find_entries = (state) => [
+  ...state.chats.map((c) => ({ id: c.id, label: c.name, place: "Chat", chat: c })),
+  ...[...PP.COMMANDS, ...(PP.plugin_commands || [])],
+  ...(state.schemas.settings || [])
+    .filter((d) => d.section && !d.hidden)
+    .map((d) => ({
+      id: `setting:${d.key}`,
+      label: d.label,
+      place: `Settings › ${d.section}`,
+      setting: d,
+    })),
+];
+
+// A pick: a chat opens; a setting opens its section with the row lit up; a function runs.
+const find_run = (state, entry) => {
+  recent_add(entry);
+  if (entry.chat) return PP.ui_set(() => ({ sheets: [] })), PP.chat_open(entry.chat.id);
+  if (entry.setting)
+    return PP.ui_set(() => ({
+      sheets: [
+        { name: "settings", data: {} },
+        { name: "section", data: { name: entry.setting.section } },
+      ],
+      lit: entry.label,
+    }));
+  PP.ui_set(() => ({ sheets: [] }));
+  PP.command_run(entry.id);
+};
+
+const find_row = (state, e) =>
+  PP.item_render({
+    key: e.id,
+    label: e.label,
+    sub: e.place,
+    right: e.key ? html`<kbd>${e.key}</kbd>` : null,
+    onClick: () => find_run(state, e),
+  });
+
 const find_render = (state) => {
   const text = state.ui.query;
   const query = PP.query_parse(text);
   const words = query.words;
-  const functions = [...PP.COMMANDS, ...(PP.plugin_commands || [])].map((c) => ({
-    ...c,
-    label: c.label,
-  }));
-  const chats = state.chats.map((c) => ({ id: c.id, label: c.name, place: "Chat", chat: c }));
+  const entries = find_entries(state);
   const matches = (e) =>
     words.length && words.every((w) => `${e.label} ${e.place || ""}`.toLowerCase().includes(w));
-  const found = [...functions, ...chats].filter(matches).sort(result_compare(words));
+  const found = entries.filter(matches).sort(result_compare(words));
+  const group = (title, list, n) =>
+    list.length
+      ? html`<div class="label">${title}</div>${list.slice(0, n).map((e) => find_row(state, e))}`
+      : null;
   const messages = state.ui.find_results || [];
-  const run = (e) => (PP.sheet_close(), e.chat ? PP.chat_open(e.chat.id) : PP.command_run(e.id));
-  return html` <input
-      class="field"
-      type="search"
-      autofocus
-      placeholder="Find chats and functions"
-      aria-label="Find chats and functions"
-      value=${text}
-      onInput=${(e) => PP.find_search(e.target.value)}
-    />
-    <small>Also "phrase", #tag, in:folder, is:you</small>
+  const recent = recent_get()
+    .map((r) => entries.find((e) => e.id === r.id))
+    .filter(Boolean);
+  return html`<div class="search">
+      ${PP.icon_svg("search")}
+      <input type="search" ref=${PP.focus_ref} placeholder="Find chats and functions" aria-label="Find chats and functions"
+        value=${text} onInput=${(e) => PP.find_search(e.target.value)} />
+    </div>
     ${
       !text
-        ? html`<div class="label">Try</div>
+        ? html`${
+            recent.length
+              ? html`<div class="label">Recent</div>
+            <div class="chips">${recent.map((e) => html`<button class="pill" key=${e.id} onClick=${() => find_run(state, e)}>${e.label}</button>`)}</div>`
+              : null
+          }
+          <div class="label">Try</div>
           <div class="chips">
-            ${["model", "profile", "plugin", "prompt", "export", "folder"].map(
-              (w) =>
-                html`<button class="pill" key=${w} onClick=${() => PP.find_search(w)}>
-                  ${w}
-                </button>`,
-            )}
-          </div>`
+            ${["model", "profile", "plugin", "prompt", "export", "folder"].map((w) => html`<button class="pill" key=${w} onClick=${() => PP.find_search(w)}>${w}</button>`)}
+          </div>
+          <small>In messages too: "phrase", #tag, in:folder, is:you</small>`
         : null
     }
-    ${found
-      .filter((e) => e.chat)
-      .slice(0, 8)
-      .map((e) =>
-        PP.item_render({ key: e.id, label: e.label, sub: e.place, onClick: () => run(e) }),
-      )}
-    ${found
-      .filter((e) => !e.chat)
-      .slice(0, 25)
-      .map((e) =>
-        PP.item_render({
-          key: e.id,
-          label: e.label,
-          sub: e.place,
-          right: e.key ? html`<small>${e.key}</small>` : null,
-          onClick: () => run(e),
-        }),
-      )}
-    ${text.length >= 2 ? html`<div class="label">Messages (${messages.length})</div>` : null}
+    ${group(
+      "Chats",
+      found.filter((e) => e.chat),
+      8,
+    )}
+    ${group(
+      "Functions",
+      found.filter((e) => !e.chat && !e.setting),
+      25,
+    )}
+    ${group(
+      "Settings",
+      found.filter((e) => e.setting),
+      15,
+    )}
+    ${text.length >= 2 && messages.length ? html`<div class="label">Messages (${messages.length})</div>` : null}
     ${messages.slice(0, 200).map((m) => {
       const chat = state.chats.find((c) => c.id === m.chat) || { name: "?" };
       const all = [...words, ...query.phrases];
@@ -364,7 +474,7 @@ const find_render = (state) => {
         key: `${m.chat}/${m.turn.id}`,
         label: `${chat.name} · ${(m.turn.at || "").slice(0, 16).replace("T", " ")}`,
         sub: snippet_build(`${m.turn.message} ⟶ ${m.turn.reply}`, all),
-        onClick: () => (PP.sheet_close(), PP.chat_open(m.chat)),
+        onClick: () => (PP.ui_set(() => ({ sheets: [] })), PP.chat_open(m.chat)),
       });
     })}`;
 };
@@ -383,6 +493,8 @@ const find_search = (text) => {
 PP.plugin_set({
   functions: {
     folder_list,
+    folder_order_move,
+    order_fill,
     drawer_render,
     site_bar_render,
     find_render,
