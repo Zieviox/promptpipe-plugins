@@ -56,19 +56,39 @@ const files_walk = async (folder, hidden = true) => {
   return out;
 };
 
-// A folder marked .nomedia and zipped whole; returns the zip's path in the app folder.
-const folder_back_up = async (base) => {
-  await device("file_write", { path: `${base}/.nomedia`, data: "" }).catch(() => null);
-  const files = {};
-  for (const path of await files_walk(base)) {
-    const [file] = await device("file_read", { path, encoding: "base64" });
-    files[path.slice(base.length + 1)] = PP.base64_decode(file.data);
-  }
-  const name = `.promptpipe/backups/old-app-${base.includes("/Android/") ? "own" : "shared"}-${PP.time_get().slice(0, 10)}.zip`; // legacy
-  const data = PP.base64_encode(globalThis.fflate.zipSync(files, { level: 1 }));
-  await PP.call_send("file_write", { root: "app", path: name, data, encoding: "base64" });
-  return name;
+// A folder's size, from its listing (nothing is read).
+const folder_size = async (folder) => {
+  let total = 0;
+  for (const e of await device("file_list", { folder, hidden: true }))
+    total += e.folder ? await folder_size(`${folder}/${e.name}`) : e.size || 0;
+  return total;
 };
+
+const MB = 1024 * 1024;
+
+// A folder marked .nomedia and copied whole by the core (file by file, in pieces) into
+// .promptpipe/backups/, when the phone has room for it (and 500 MB to spare); a copy cut short
+// goes on where it stopped next time. Without room: no backup, and the report says why. The
+// import never changes the old folders apart from the marker, so it goes ahead either way.
+const folder_back_up = async (state, base) => {
+  await device("file_write", { path: `${base}/.nomedia`, data: "" }).catch(() => null);
+  const size = await folder_size(base);
+  const free = state.app.free_bytes;
+  if (free !== undefined && size + 500 * MB > free) {
+    const why = `not enough space: it needs ${Math.ceil(size / MB)} MB and ${Math.floor(free / MB)} MB are free`;
+    return { path: base, size, backup: null, why };
+  }
+  const to = `.promptpipe/backups/old-app-${base.includes("/Android/") ? "own" : "shared"}`;
+  await device("file_move", { from: base, to_root: "app", to, copy: true, overwrite: false });
+  return { path: base, size, backup: to };
+};
+
+// What the import did, on screen (not only in a toast).
+const report_open = (lines) =>
+  PP.sheet_open("text", {
+    title: "The old app's content",
+    text: lines.filter(Boolean).join("\n\n"),
+  });
 
 // ---------- settings and profiles ----------
 
@@ -350,6 +370,7 @@ const chat_import = async (state, root, path, chunk, profiles) => {
       notes: t.info.notes || [],
       profile: t.info.profile || "",
       page_url: url,
+      model: meta.model || "",
       ...(t.info.error && { error: t.info.error }),
     };
   });
@@ -371,7 +392,7 @@ const old_import = async () => {
   if (!bases.length && !chats.length) return;
   PP.toast("Bringing in the old app's content…");
   const backups = [];
-  for (const base of bases) backups.push({ path: base, backup: await folder_back_up(base) });
+  for (const base of bases) backups.push(await folder_back_up(state, base));
   const old = bases.length ? await json_read(`${bases[0]}/config.json`) : null;
   const chunk =
     Number(((old && (old.profiles || [])[0]) || {}).pluginSettings?.memory?.chunk) || 10;
@@ -419,7 +440,16 @@ const old_import = async () => {
     fields: { [DONE]: { at: PP.time_get(), folders: backups, chats } },
   }).state;
   await PP.record_apply(() => ({ state: next, targets }), `import: the old app (${count} chats)`);
-  PP.toast(`Brought in ${count} chats from the old app; its folders are backed up`);
+  const profiles = Object.keys(imported.profiles).length;
+  report_open([
+    `**Brought in:** ${count} chats, ${profiles} profiles, ${prompts.length} prompts${old ? ", your settings" : ""}.`,
+    `**Chats from:** ${chats.join(", ") || "no chats folder found"}.`,
+    ...backups.map((b) =>
+      b.backup
+        ? `**Backed up:** ${b.path} (${Math.ceil(b.size / MB)} MB) to \`${b.backup}\` in the app folder.`
+        : `**Not backed up:** ${b.path}, ${b.why}. It's unchanged apart from a .nomedia marker, so nothing is lost; free some space and use Settings › Chats and storage › Import the old app's content again for a backup.`,
+    ),
+  ]);
 };
 
 // Delete the old app's folders, after you say so (only folders named PromptPipe can go).
@@ -442,7 +472,10 @@ PP.plugin_set({
   hooks: {
     app_start: () =>
       old_import().catch((e) =>
-        PP.toast(`The old app's import stopped: ${e.message}. It goes on at the next start.`, true),
+        report_open([
+          `**The import stopped:** ${e.message}.`,
+          "Nothing in the old folders changed. It goes on at the next start, keeping the chats it already brought in.",
+        ]),
       ),
   },
   commands: [

@@ -76,7 +76,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "a400dafc13af1d1754d842c6ba544f482efce29849c1a45f8d0f2f8695151ab0",
-        "import.js": "6741b9ce56e17fbc1f83d5c41c7dcb25ed36f2155a30c7727f630ea0b8c3b5ad"
+        "import.js": "5e5c336e2fd9a15959bbde66cad6306c15a8ce0d99195cc8f6f5c87e6265f144"
       }
     },
     {
@@ -229,7 +229,7 @@
         "commands.js": "a863e7ad6529f8b91e01b08c709e14c0e6f6726dab660f39efd50a1ad9dc5b39",
         "chat.js": "77baf624c16555bb1e22e98c93cf81ab40155cb255b007dfe253b7ef751b429f",
         "lists.js": "9332756822d0224eff821150da971538327010a9c080d775c23bd2d522417a33",
-        "actions.js": "dd17b49bf82e73193c64418e29368c5d900167bde44d5057dea1c700f84bce1a",
+        "actions.js": "b307f7398eab7fd3e9111534e019ac2920c2ee89d7b2e86723e9d8e8115f082b",
         "sheets.js": "5ede50ea8be7cd24cbea858e2d544afaa1f36ea752560b06ca6ea8ee39c8ab0d",
         "screen.js": "14ca07e1396bdc8ab8dc8a9bbbf77d64c69806b79a022817b33666e2bddc0738"
       }
@@ -247,7 +247,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "9b6436de5ba8bf82b576f1d84d6ef894efdec2a349718352595ae84929323b3c",
-        "send.js": "0ffe8b4f6a5b5002536b6a4d92bab2abea071f9aba337ed44792b7115f351297"
+        "send.js": "52b511f02b0b6482bea357803bbbb43e7d5785d985e232759f12af4494c0e4dd"
       }
     },
     {
