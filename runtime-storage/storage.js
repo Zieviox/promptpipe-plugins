@@ -12,18 +12,17 @@ const change_resolve = async (state, { change, choice }) => {
     await PP.call_send("file_move", { root, from: path, to: copy, copy: true, overwrite: false });
   }
   if (choice === "ours" || choice === "both") {
-    const written = await PP.store_save(
-      { ...state, revisions: { ...state.revisions, [`${root}/${path}`]: change.theirs } },
-      [change.target],
-    );
+    PP.revision_known_set(`${root}/${path}`, change.theirs); // overwrite what's there now
+    const written = await PP.store_save(PP.state_get(), [change.target]);
     PP.state_set((s) => ({
       ...s,
-      revisions: written.revisions,
-      changes: s.changes.filter((c) => c !== change),
+      revisions: { ...s.revisions, ...written.revisions },
+      changes: [...s.changes.filter((c) => c !== change), ...written.changes],
     }));
     return written;
   }
   const [file] = await PP.call_send("file_read", { root, path });
+  PP.revision_known_set(`${root}/${path}`, file.revision);
   const chat = state.chats.find((c) => c.file === path);
   let sections = {};
   PP.state_set((s) => {

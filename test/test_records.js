@@ -152,5 +152,29 @@ test("saving writes each file once, with the revision it expects", async () => {
   assert.equal(written.length, 2);
   assert.equal(written[0].expected, "r1");
   assert.equal(r.revisions["app/config.json"], "r2");
-  assert.deepEqual(r.changes, [{ path: ".promptpipe/prompts.json" }]);
+  assert.deepEqual(r.changes, [
+    { path: ".promptpipe/prompts.json", root: "chats", target: { file: "prompts" } },
+  ]);
+});
+
+test("saves of one file that overlap aren't taken for an outside change (drafts while sending)", async () => {
+  // A stand-in core that checks revisions like the real one, answering a moment later.
+  let disk = "r0";
+  let n = 0;
+  const pp2 = plugins_load(["runtime-records"], {
+    file_write: async (d) => {
+      await new Promise((r) => setTimeout(r, 5));
+      if (d.expected !== disk) return { outside_change: { path: d.path } };
+      disk = `r${(n += 1)}`;
+      return { revision: disk };
+    },
+  });
+  const s = { ...state_build(), drafts: [], revisions: { "app/drafts.json": "r0" } };
+  const saves = await Promise.all([1, 2, 3].map(() => pp2.store_save(s, [{ file: "drafts" }])));
+  assert.deepEqual(
+    saves.flatMap((r) => r.changes),
+    [],
+    "each save started from the revision the one before wrote",
+  );
+  assert.equal(disk, "r3");
 });

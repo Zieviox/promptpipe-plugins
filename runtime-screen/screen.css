@@ -176,6 +176,7 @@ textarea.field { resize: vertical; min-height: 6em; }
 .pdot { position: absolute; top: -2px; right: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
 .pill { position: relative; }
 .chips .pill { background: var(--raise); }
+.chips .pill.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .thin { display: flex; align-items: center; gap: 4px; color: var(--muted); font-size: 12px; padding: 4px 0; margin-top: 2px; }
 .thin .svg svg { width: 14px; height: 14px; }
 .thinbox { border-left: 2px solid var(--line); padding-left: 10px; margin-top: 2px; }

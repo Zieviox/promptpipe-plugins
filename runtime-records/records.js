@@ -229,10 +229,25 @@ const writes_build = async (state, target) => {
   return [{ root: "chats", path: `.promptpipe/${target.file}.json`, data: state[target.file] }];
 };
 
+// The revision the app last wrote, per file ("root/path"), kept as each write finishes, and one
+// write per file at a time: saves that overlap (the draft saved while typing, then cleared by a
+// send) each start from the revision the one before them wrote, never from the same old one,
+// which would look like an outside change.
+const known = {};
+const queues = {};
+const revision_known_set = (key, revision) => (known[key] = revision);
+
+const write_queued = (key, run) => {
+  const next = (queues[key] || Promise.resolve()).then(run, run);
+  queues[key] = next.catch(() => null);
+  return next;
+};
+
 // Write each target's files with the revision the app last wrote (D7); an outside change comes
-// back for the shared dialog instead of being overwritten.
+// back for the shared dialog (with its root and target, which the dialog's answers need) instead
+// of being overwritten.
 const store_save = async (state, targets) => {
-  const revisions = { ...(state.revisions || {}) };
+  const revisions = {};
   const changes = [];
   const seen = new Set();
   const written = [];
@@ -242,9 +257,12 @@ const store_save = async (state, targets) => {
       if (seen.has(key)) continue;
       seen.add(key);
       const data = typeof w.data === "string" ? w.data : JSON.stringify(w.data, null, 2) + "\n";
-      const r = await PP.call_send("file_write", { ...w, data, expected: revisions[key] });
-      if (r.outside_change) changes.push(r.outside_change);
-      else (revisions[key] = r.revision), written.push(w);
+      await write_queued(key, async () => {
+        const expected = key in known ? known[key] : (state.revisions || {})[key];
+        const r = await PP.call_send("file_write", { ...w, data, expected });
+        if (r.outside_change) changes.push({ ...r.outside_change, root: w.root, target });
+        else ((known[key] = revisions[key] = r.revision), written.push(w));
+      });
     }
   }
   return { revisions, changes, written };
@@ -273,7 +291,7 @@ const record_apply = async (operation, message) => {
   const saved = await store_save(PP.state_get(), result.targets);
   PP.state_set((state) => ({
     ...state,
-    revisions: saved.revisions,
+    revisions: { ...state.revisions, ...saved.revisions },
     changes: [...(state.changes || []), ...saved.changes],
   }));
   const paths = saved.written.filter((w) => w.root === "chats").map((w) => w.path);
@@ -298,6 +316,7 @@ PP.plugin_set({
     block_on_get,
     plugin_setting_get,
     record_validate,
+    revision_known_set,
     record_list,
     record_get,
     record_create,
