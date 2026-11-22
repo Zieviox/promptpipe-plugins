@@ -74,6 +74,30 @@ test(
       await page.click(".dialog .pill:has-text('Delete')");
       await page.waitForFunction(() => !PP.state_get().chats.some((c) => c.id === "c4"));
 
+      // A profile picked in a chat is the chat's own, and new chats start with it.
+      await page.evaluate(() =>
+        PP.apply_try((s) =>
+          PP.record_create(s, {
+            collection: "profiles",
+            id: "p2",
+            fields: { name: "Feedback", plugin_settings: {} },
+          }),
+        ),
+      );
+      await page.evaluate(() =>
+        PP.profile_pick(
+          PP.state_get().chats.find((c) => c.id === "c1"),
+          "p2",
+        ),
+      );
+      await page.waitForFunction(
+        () => PP.state_get().chats.find((c) => c.id === "c1").own.profile === "p2",
+      );
+      assert.equal(
+        await page.evaluate(() => PP.setting_get(PP.state_get(), "chats.profile")),
+        "p2",
+      );
+
       assert.deepEqual(
         errors.filter((e) => !/not supported on this platform|unimplemented/.test(e)),
         [],
