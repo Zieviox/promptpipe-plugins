@@ -198,10 +198,17 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
     if (busy || th !== thinking || now !== text) active = Date.now();
     if (th !== thinking || now !== text) changed = Date.now();
     if (busy && now && now === text && Date.now() - changed > stuck) break;
-    if (th !== thinking && !now)
-      progress({ progress: `thinking… ${th.length} chars`, thinking: th });
+    // Thinking can keep growing after the reply starts (or show up at the same moment): it goes
+    // to the app whenever it changes, not only before the reply.
+    const thought = th !== thinking;
     thinking = th;
-    if (now && now === text && !busy) {
+    if (thought && now === text)
+      progress({
+        progress: now ? `writing… ${now.length} chars` : `thinking… ${th.length} chars`,
+        thinking: th,
+        ...(now && { reply: now }),
+      });
+    if (now && now === text && !busy && !thought) {
       if (Date.now() - stable > settle)
         return { reply: text, thinking, diagnostics: diagnostics() };
     } else {
@@ -538,6 +545,13 @@ const site_report_build = (data, provider) => {
   const reply = reply_last(provider);
   lines.push("== around the newest reply ==");
   walk(around(reply || document.body, 4), 0);
+  // While a reply is on its way the newest reply found may be the one before; what follows your
+  // newest message is where the new thinking and reply are.
+  const yours = all_find(selectors_get(provider, "user").join(",") || "x-none").pop();
+  if (yours) {
+    lines.push("", "== around your newest message (a reply on its way is here) ==");
+    walk(around(yours, 5), 0);
+  }
   const box = element_find(selectors_get(provider, "input"));
   lines.push(
     "",
