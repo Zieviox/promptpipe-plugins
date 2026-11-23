@@ -108,3 +108,32 @@ test(
     }
   },
 );
+
+// However many chats there are, Settings and Quick start stay at the bottom of the drawer and
+// only the chats scroll (the spec's Settings pill, bottom left).
+test("the drawer keeps Settings in reach with many chats (UC16)", { timeout: 60000 }, async () => {
+  const core = core_build(pick);
+  const server = await server_start(core);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 400, height: 800 } });
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.waitForSelector("#message", { timeout: 15000 });
+    await page.click("text=Skip");
+    await page.evaluate(async () => {
+      for (let i = 0; i < 40; i++)
+        await PP.apply_try((s) =>
+          PP.chat_create(s, { id: PP.id_create(), message: `Chat ${i}`, folder: "", own: {} }),
+        );
+    });
+    await page.click("[aria-label='Chats']");
+    await page.waitForSelector(".drawer");
+    const bottom = await page.$eval(".drawerfoot", (e) => e.getBoundingClientRect().bottom);
+    assert.ok(bottom <= 800, `the foot is on screen (bottom at ${bottom})`);
+    await page.click(".drawerfoot >> text=Settings");
+    await page.waitForSelector("text=Prompt library", { timeout: 3000 });
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
