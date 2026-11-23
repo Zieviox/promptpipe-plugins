@@ -287,3 +287,5 @@ details .item { margin-top: 6px; }
 .queued .chips.choices { justify-content: flex-end; }
 .row .status.failed { color: var(--error); }
 .dimmed { opacity: .45; }
+.toast.act-toast { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
+.toast .ta { color: var(--accent); font-weight: 600; padding: 2px 4px; flex: none; }

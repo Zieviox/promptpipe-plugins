@@ -198,3 +198,84 @@ test("the outbox comes back after the app closed: a message on its way then is f
   assert.match(loaded.sends[0].error.message, /closed before the reply came/);
   assert.deepEqual(loaded.held, { c: "paused" });
 });
+
+test("undo and redo your actions: only what the action changed, saved again", async () => {
+  const written = [];
+  const pp2 = plugins_load(["runtime-records", "runtime-chats"], {
+    file_write: (d) => (written.push(d.path), { revision: "r" }),
+    file_read: () => [],
+    file_delete: () => ({}),
+    repo_commit: () => ({}),
+  });
+  pp2.state = {
+    ...state_build(),
+    schemas: JSON.parse(
+      require("node:fs").readFileSync(
+        require("node:path").join(__dirname, "..", "runtime-records", "schemas.json"),
+        "utf8",
+      ),
+    ),
+    chats: [{ id: "c1", name: "Old name", file: "Old name.md", tags: [] }],
+    turns: [
+      { id: "t1", chat: "c1", message: "one", reply: "a" },
+      { id: "t2", chat: "c1", message: "two", reply: "b" },
+    ],
+    loaded: ["c1"],
+    revisions: {},
+  };
+  pp2.state.config = {
+    ...pp2.state.config,
+    settings: {},
+    profiles: [{ id: "p", name: "Plain", plugin_settings: {} }],
+    blocks: [],
+  };
+  // A rename (yours), then a reply's save changes another field (not yours).
+  await pp2.record_apply(
+    (s) => pp2.record_set(s, { collection: "chats", id: "c1", fields: { name: "New name" } }),
+    "renamed",
+    "renamed",
+  );
+  pp2.state = {
+    ...pp2.state,
+    chats: pp2.state.chats.map((c) => ({ ...c, site_url: "https://x/c/1" })),
+  };
+  assert.equal(await pp2.record_undo(), "renamed");
+  assert.equal(pp2.state.chats[0].name, "Old name");
+  assert.equal(pp2.state.chats[0].site_url, "https://x/c/1", "what came in meanwhile stays");
+  assert.ok(
+    written.some((p) => p.endsWith("c1/meta.json")),
+    "saved again",
+  );
+  assert.equal(await pp2.record_redo(), "renamed");
+  assert.equal(pp2.state.chats[0].name, "New name");
+
+  // A deleted message comes back where it was.
+  await pp2.record_apply(
+    (s) => pp2.record_delete(s, { collection: "turns", id: "t1" }),
+    "deleted",
+    "deleted",
+  );
+  assert.deepEqual(
+    pp2.state.turns.map((t) => t.id),
+    ["t2"],
+  );
+  await pp2.record_undo();
+  assert.deepEqual(
+    pp2.state.turns.map((t) => t.id),
+    ["t1", "t2"],
+  );
+  assert.equal(await pp2.record_redo(), "deleted");
+  assert.deepEqual(
+    pp2.state.turns.map((t) => t.id),
+    ["t2"],
+  );
+
+  // A new action clears what could be redone.
+  await pp2.record_undo();
+  await pp2.record_apply(
+    (s) => pp2.record_set(s, { collection: "chats", id: "c1", fields: { tags: ["x"] } }),
+    "tag",
+    "tag",
+  );
+  assert.equal(await pp2.record_redo(), null);
+});

@@ -350,6 +350,12 @@ addEventListener("keydown", (e) => {
   if (e.key === "F3") return (e.preventDefault(), PP.command_run("find"));
   const name = key_name(e);
   if (["ArrowUp", "Enter"].includes(name)) return; // the message box's own keys
+  // In a text box, undo and redo are the text's own.
+  if (
+    ["Ctrl+Z", "Ctrl+Shift+Z", "Ctrl+Y"].includes(name) &&
+    e.target.closest("input, textarea, [contenteditable]")
+  )
+    return;
   const command = [...PP.COMMANDS, ...(PP.plugin_commands || [])].find((c) => c.key === name);
   if (command) (e.preventDefault(), PP.command_run(command.id));
 });
@@ -473,9 +479,14 @@ const screen_render = (state) => {
     ${ui.help || ui.help_card ? help_render(state) : null} ${hover_render(ui)}
     <div class="toasts" aria-live="polite">
       ${ui.toasts.map((t) =>
-        t.open
-          ? html`<button class=${`toast tap${t.error ? " error" : ""}`} key=${t.id} onClick=${() => PP.chat_open(t.open)}>${t.text}</button>`
-          : html`<div class=${`toast${t.error ? " error" : ""}`} key=${t.id}>${t.text}</div>`,
+        t.action
+          ? html`<div class=${`toast act-toast${t.error ? " error" : ""}`} key=${t.id}>
+              <span>${t.text}</span>
+              <button class="ta" onClick=${() => (PP.ui_set((ui) => ({ toasts: ui.toasts.filter((x) => x.id !== t.id) })), PP.command_run(t.action.command))}>${t.action.label}</button>
+            </div>`
+          : t.open
+            ? html`<button class=${`toast tap${t.error ? " error" : ""}`} key=${t.id} onClick=${() => PP.chat_open(t.open)}>${t.text}</button>`
+            : html`<div class=${`toast${t.error ? " error" : ""}`} key=${t.id}>${t.text}</div>`,
       )}
     </div>`;
 };

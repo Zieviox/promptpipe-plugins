@@ -131,8 +131,10 @@ const old_files_delete = async (result, message) => {
 // Chats moved into a folder (at a place in it) or into or out of Pinned (UC17).
 const chats_move = async (ids, place, message) => {
   const fill = (s) => (place.folder !== undefined ? PP.order_fill(s, place.folder, ids) : s);
+  const what =
+    place.pinned !== undefined ? "Pinned" : message.includes("unpinned") ? "Unpinned" : "Moved";
   return old_files_delete(
-    await PP.apply_try((s) => PP.folder_move(fill(s), ids, place), message),
+    await PP.apply_try((s) => PP.folder_move(fill(s), ids, place), message, what),
     message,
   );
 };
@@ -194,10 +196,15 @@ const chat_tag_remove = (state, tag) => {
   const chat = PP.chat_get(state);
   return (
     chat &&
-    chat_set(
-      chat,
-      { tags: (chat.tags || []).filter((t) => t !== tag) },
+    PP.apply_try(
+      (s) =>
+        PP.record_set(s, {
+          collection: "chats",
+          id: chat.id,
+          fields: { tags: (chat.tags || []).filter((t) => t !== tag) },
+        }),
       `tag removed: ${chat.name}`,
+      `Tag ${tag} removed`,
     )
   );
 };
@@ -226,16 +233,27 @@ const chat_rename = (state, name) => {
   );
 };
 
-// Deleted chats leave the State and the folder; they stay in the history (UC17).
+// Deleted chats leave the State and the folder; they stay in the history (UC17). Their messages
+// are loaded first, so Undo brings the whole chat back.
 const chats_delete = async (ids) => {
+  for (const id of ids) await PP.chat_load(id);
   const state = PP.state_get();
   const gone = state.chats.filter((c) => ids.includes(c.id));
-  PP.state_set((s) => ({
-    ...s,
-    chats: s.chats.filter((c) => !ids.includes(c.id)),
-    turns: s.turns.filter((t) => !ids.includes(t.chat)),
-    ui: { ...s.ui, chat: ids.includes(s.ui.chat) ? null : s.ui.chat, sheets: [] },
-  }));
+  if (!gone.length) return;
+  const label = gone.length === 1 ? `deleted: ${gone[0].name}` : `deleted: ${gone.length} chats`;
+  await PP.apply_try(
+    (s) => ({
+      state: {
+        ...s,
+        chats: s.chats.filter((c) => !ids.includes(c.id)),
+        turns: s.turns.filter((t) => !ids.includes(t.chat)),
+      },
+      targets: [],
+    }),
+    label,
+    gone.length === 1 ? "Chat deleted" : `${gone.length} chats deleted`,
+  );
+  PP.ui_set((ui) => ({ chat: ids.includes(ui.chat) ? null : ui.chat, sheets: [] }));
   const paths = gone.flatMap((c) => [
     `.promptpipe/chats/${c.id}/meta.json`,
     `.promptpipe/chats/${c.id}/turns.json`,
@@ -247,10 +265,7 @@ const chats_delete = async (ids) => {
       path,
       expected: (state.revisions || {})[`chats/${path}`],
     }).catch(() => null);
-  await PP.repo_commit(paths, `deleted: ${gone.map((c) => c.name).join(", ")}`).catch((e) =>
-    PP.toast(e.message, true),
-  );
-  PP.toast(gone.length === 1 ? "Chat deleted" : `${gone.length} chats deleted`);
+  await PP.repo_commit(paths, label).catch((e) => PP.toast(e.message, true));
 };
 
 // Another page of the shown page's provider (the site view's ＋), through the pool's page_add.

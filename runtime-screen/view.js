@@ -45,12 +45,13 @@ const error_words = (error, site) => {
 // A short notice; errors stay longer and say what to do (an `Error` with a page offers Open the
 // site and Copy page report where the screen shows them).
 // `open`: a chat a tap on the toast opens ("Reply ready").
-const toast = (text, error, open) => {
+// `action`: a button on the toast, { label, command } (Undo, Redo).
+const toast = (text, error, open, action) => {
   const id = PP.id_create();
-  ui_set((ui) => ({ toasts: [...ui.toasts, { id, text, error, open }] }));
+  ui_set((ui) => ({ toasts: [...ui.toasts, { id, text, error, open, action }] }));
   setTimeout(
     () => ui_set((ui) => ({ toasts: ui.toasts.filter((t) => t.id !== id) })),
-    error ? 8000 : 3500,
+    error || action ? 7000 : 3500,
   );
 };
 
@@ -67,9 +68,12 @@ const call_try = async (name, data, done) => {
 };
 
 // A record operation applied and saved; a failure becomes an error toast.
-const apply_try = async (operation, message) => {
+// Your actions: each can be undone (its commit message is its label); `undo_toast` also shows
+// what was done with an Undo button (deleting, moving).
+const apply_try = async (operation, message, undo_toast) => {
   try {
-    const result = await PP.record_apply(operation, message);
+    const result = await PP.record_apply(operation, message, message || undefined);
+    if (undo_toast) toast(undo_toast, false, null, { label: "Undo", command: "undo" });
     const failed = result && result.commit_error;
     if (failed && failed.code !== "unimplemented")
       toast(`Saved, but not added to the history: ${failed.message}`, true);

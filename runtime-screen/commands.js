@@ -47,6 +47,20 @@ const chat_step = (state, by) => {
 const draft_get = (state) =>
   state.drafts.find((d) => d.id === (state.ui.chat || "new")) || { text: "", attachments: [] };
 
+// Undo and Redo your actions (the newest first), said in a toast that offers the other.
+const undo_run = async () => {
+  const label = await PP.record_undo().catch((e) => (PP.toast(PP.error_words(e), true), undefined));
+  if (label === undefined) return;
+  if (!label) return PP.toast("Nothing to undo");
+  PP.toast(`Undone: ${label}`, false, null, { label: "Redo", command: "redo" });
+};
+const redo_run = async () => {
+  const label = await PP.record_redo().catch((e) => (PP.toast(PP.error_words(e), true), undefined));
+  if (label === undefined) return;
+  if (!label) return PP.toast("Nothing to redo");
+  PP.toast(`Redone: ${label}`, false, null, { label: "Undo", command: "undo" });
+};
+
 // Whether the profile is off for the open chat (or the chat about to start): your message goes
 // alone, as typed. Kept with the chat (own.raw), or with the new chat's draft until it starts.
 const raw_get = (state) => {
@@ -214,6 +228,8 @@ const HELP = {
   help_mode: "Tap anything to see what it does, instead of doing it.",
   quick_start: "Short guides to the app; each can be shown again.",
   find: "Finds chats, messages, functions and settings by name.",
+  undo: "Undoes your last action (deleting, moving, renaming, a change to a profile…); again for the one before.",
+  redo: "Does again what Undo undid.",
   send: "Sends your message. Sending more while a reply comes queues them in order.",
   stop: "Stops waiting for the reply that's coming.",
   plugin_install: "Installs a plugin.",
@@ -322,6 +338,8 @@ const COMMANDS = [
   ),
   C("quick_start", "Quick start", "Help", "", () => sheet_open("quick_start")),
   C("find", "Find", "everywhere", "Ctrl+K", () => sheet_open("find")),
+  C("undo", "Undo", "everywhere", "Ctrl+Z", undo_run),
+  C("redo", "Redo", "everywhere", "Ctrl+Shift+Z", redo_run),
   C("send", "Send", "Message box", "Ctrl+Enter", message_send),
   C("stop", "Stop waiting", "Message box", "", send_stop),
 ];
@@ -335,7 +353,8 @@ const RUNS = {
     PP.apply_try(
       (st) => PP.record_delete(st, { collection: "turns", id: d.id }),
       "message deleted",
-    ).then((done) => done && PP.toast("Deleted. It's still in the chat's history.")),
+      "Message deleted",
+    ),
   // Its text back into the box, or discarded (the dialog's choice).
   send_dismiss: (s, d) => d.choice && PP.send_dismiss(d.send, d.choice),
   // Confirmed in the dialog first (choice "yes").

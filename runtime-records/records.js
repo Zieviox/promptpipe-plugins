@@ -299,15 +299,182 @@ const repo_commit = async (paths, message) => {
   return PP.call_send("repo_commit", { paths, message, ...author, ...where });
 };
 
+// ---------- undo and redo (app actions) ----------
+
+// The records an action can change: lists of records with ids, and maps of keys.
+const LISTS = [
+  ["chats"],
+  ["turns"],
+  ["prompts"],
+  ["folders"],
+  ["chat_data"],
+  ["config", "profiles"],
+  ["config", "blocks"],
+  ["config", "groups"],
+];
+const MAPS = [["config", "settings"], ["config", "provider_choices"], ["counters"]];
+const path_at = (s, path) => path.reduce((o, k) => (o ? o[k] : undefined), s);
+const path_put = (s, path, value) =>
+  path.length === 1
+    ? { ...s, [path[0]]: value }
+    : { ...s, [path[0]]: path_put(s[path[0]] || {}, path.slice(1), value) };
+
+// What an action changed, record by record: added, removed, or which fields of a record changed
+// (so undoing one action never touches what else changed in the meantime, a reply that came in).
+const changes_get = (before, after) => {
+  const out = [];
+  for (const path of LISTS) {
+    const a = path_at(before, path) || [];
+    const b = path_at(after, path) || [];
+    if (a === b) continue;
+    for (const id of new Set([...a.map((r) => r.id), ...b.map((r) => r.id)])) {
+      const x = a.find((r) => r.id === id);
+      const y = b.find((r) => r.id === id);
+      if (x === y) continue;
+      const keys =
+        x && y
+          ? [...new Set([...Object.keys(x), ...Object.keys(y)])].filter(
+              (k) => JSON.stringify(x[k]) !== JSON.stringify(y[k]),
+            )
+          : null;
+      if (keys && !keys.length) continue;
+      out.push({
+        path,
+        id,
+        before: x,
+        after: y,
+        keys,
+        index: a.indexOf(x),
+        index_after: b.indexOf(y),
+      });
+    }
+  }
+  for (const path of MAPS) {
+    const a = path_at(before, path) || {};
+    const b = path_at(after, path) || {};
+    if (a === b) continue;
+    for (const key of new Set([...Object.keys(a), ...Object.keys(b)]))
+      if (JSON.stringify(a[key]) !== JSON.stringify(b[key]))
+        out.push({ path, key, before: a[key], after: b[key] });
+  }
+  return out;
+};
+
+// The State with one side of the changes put back ("before" undoes, "after" redoes).
+const changes_put = (state, changes, side) => {
+  let s = state;
+  for (const c of changes) {
+    const value = c[side];
+    if ("key" in c) {
+      const map = { ...(path_at(s, c.path) || {}) };
+      if (value === undefined) delete map[c.key];
+      else map[c.key] = value;
+      s = path_put(s, c.path, map);
+      continue;
+    }
+    const list = [...(path_at(s, c.path) || [])];
+    const at = list.findIndex((r) => r.id === c.id);
+    if (c.keys && at >= 0) {
+      const record = { ...list[at] };
+      for (const k of c.keys)
+        if (value[k] === undefined) delete record[k];
+        else record[k] = value[k];
+      list[at] = record;
+    } else {
+      if (at >= 0) list.splice(at, 1);
+      if (value !== undefined) {
+        const i = side === "before" ? c.index : c.index_after;
+        list.splice(i < 0 || i > list.length ? list.length : i, 0, value);
+      }
+    }
+    s = path_put(s, c.path, list);
+  }
+  return s;
+};
+
+// The files the changes touch, as save targets.
+const changes_targets = (changes, state) =>
+  changes
+    .map((c) => {
+      const p = c.path.join(".");
+      if (p === "chats") return { chat: c.id };
+      if (p === "turns") return { chat: (c.before || c.after).chat };
+      if (p === "chat_data") return { file: "chat_data", id: c.id };
+      if (p.startsWith("config")) return { file: "config" };
+      return { file: p };
+    })
+    .filter((t) => !t.chat || state.chats.some((c) => c.id === t.chat));
+
+const undos = [];
+const redos = [];
+
+// One side of an action's changes put back, saved and committed; a chat no longer there has its
+// files deleted, one whose readable file moved has the other one deleted.
+const changes_apply = async (entry, side, message) => {
+  PP.state_set((s) => changes_put(s, entry.changes, side));
+  const state = PP.state_get();
+  const saved = await store_save(state, changes_targets(entry.changes, state));
+  PP.state_set((s) => ({
+    ...s,
+    revisions: { ...s.revisions, ...saved.revisions },
+    changes: [...(s.changes || []), ...saved.changes],
+  }));
+  const gone = [];
+  for (const c of entry.changes.filter((x) => x.path[0] === "chats")) {
+    const now = c[side];
+    const other = c[side === "before" ? "after" : "before"];
+    if (!now && other)
+      gone.push(
+        `.promptpipe/chats/${c.id}/meta.json`,
+        `.promptpipe/chats/${c.id}/turns.json`,
+        other.file,
+      );
+    else if (now && other && now.file && other.file && now.file !== other.file)
+      gone.push(other.file);
+  }
+  for (const path of gone.filter(Boolean))
+    await PP.call_send("file_delete", { root: "chats", path }).catch(() => null);
+  const paths = [...saved.written.filter((w) => w.root === "chats").map((w) => w.path), ...gone];
+  if (paths.length) await repo_commit(paths, message).catch(() => null);
+};
+
+// Undo the newest action (its label back, or null when there's nothing to undo); Redo the newest
+// undone one. A new action clears what could be redone.
+const record_undo = async () => {
+  const entry = undos.pop();
+  if (!entry) return null;
+  await changes_apply(entry, "before", `undo: ${entry.label}`);
+  redos.push(entry);
+  return entry.label;
+};
+const record_redo = async () => {
+  const entry = redos.pop();
+  if (!entry) return null;
+  await changes_apply(entry, "after", `redo: ${entry.label}`);
+  undos.push(entry);
+  return entry.label;
+};
+
 // Apply a record operation to the State as it is now, save what it touched, and commit the
 // chats folder's files to the history with `message` (D2, unless "Commit on every save" is off).
-const record_apply = async (operation, message) => {
+// `undo`: a label, and the action can be undone (your actions; not what arrives by itself).
+const record_apply = async (operation, message, undo) => {
   let result;
+  let before;
   PP.state_set((state) => {
+    before = state;
     result = operation(state);
     return result.error ? state : result.state;
   });
   if (result.error) throw result.error;
+  if (undo) {
+    const changes = changes_get(before, result.state);
+    if (changes.length) {
+      undos.push({ label: undo, changes });
+      if (undos.length > 50) undos.shift();
+      redos.length = 0;
+    }
+  }
   const saved = await store_save(PP.state_get(), result.targets);
   PP.state_set((state) => ({
     ...state,
@@ -346,6 +513,10 @@ PP.plugin_set({
     record_delete,
     store_save,
     record_apply,
+    record_undo,
+    record_redo,
+    changes_get,
+    changes_put,
     repo_commit,
   },
 });
