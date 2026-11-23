@@ -47,8 +47,46 @@ const thinking_open = async () => {
 
 // While a reply comes, the newest card is kept open so its thinking is on the page and can be
 // read as it grows (opened once: a second click would fold it again).
-// On a phone-sized page Qwen shows an open card full screen, over the chat: one this opened is
-// folded again once the reply is read, so the site view shows the chat.
+// On a phone-sized page Qwen shows the open thinking as a panel over the whole chat, and a second
+// click on the card doesn't reach it. So the panel is closed the way panels close: the close button
+// of the overlay holding the thinking, else Escape; then checked.
+const OVERLAY =
+  "[role=dialog], [class*='drawer' i], [class*='modal' i], [class*='popup' i], [class*='sheet' i], [class*='mask' i]";
+const CLOSE = /close|关闭|back|返回|done/i;
+const overlay_close = async () => {
+  for (let i = 0; i < 3; i += 1) {
+    const thought = [...document.querySelectorAll(provider.selectors.thinking.join(","))].find(
+      shown,
+    );
+    const overlay = thought && thought.closest(OVERLAY);
+    if (!overlay) return true;
+    const button = [...overlay.querySelectorAll("button, [role=button], [class*='close' i]")].find(
+      (b) =>
+        shown(b) &&
+        CLOSE.test(
+          [b.getAttribute("aria-label"), b.getAttribute("title"), b.className, b.textContent].join(
+            " ",
+          ),
+        ),
+    );
+    if (button) button.click();
+    else
+      for (const target of [document.activeElement || document.body, document])
+        target.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "Escape",
+            code: "Escape",
+            keyCode: 27,
+            bubbles: true,
+          }),
+        );
+    await PP.pause(400);
+  }
+  return false;
+};
+
+// One this opened is folded again once the reply is read (or its panel closed), so the site view
+// shows the chat.
 const thinking_keep_open = () => {
   let seen = null;
   let clicked = null;
@@ -58,9 +96,14 @@ const thinking_keep_open = () => {
     if (!thinking_visible(card).length) (card.click(), (clicked = card));
     seen = card;
   }, 400);
-  return () => {
+  return async () => {
     clearInterval(timer);
-    if (clicked && clicked.isConnected && thinking_visible(clicked).length) clicked.click();
+    if (!clicked) return;
+    const thought = [...document.querySelectorAll(provider.selectors.thinking.join(","))].find(
+      shown,
+    );
+    if (thought && thought.closest(OVERLAY)) return overlay_close();
+    if (clicked.isConnected && thinking_visible(clicked).length) clicked.click();
   };
 };
 
@@ -71,8 +114,11 @@ const site_send = async (data, def) => {
     const result = await PP.defaults.site_send(data, def);
     return result.thinking ? result : { ...result, thinking: await thinking_open() };
   } finally {
-    stop();
+    await stop();
   }
 };
 
-return { error_find, site_send };
+// The site view opening: a thinking panel left over the chat is closed first.
+const site_view_prepare = () => overlay_close().then((closed) => ({ closed }));
+
+return { error_find, site_send, site_view_prepare };

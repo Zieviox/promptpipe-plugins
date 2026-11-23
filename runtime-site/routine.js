@@ -584,6 +584,8 @@ return {
   site_model_set,
   site_chat_list,
   site_report_build,
+  // The site view opening: a provider closes what it left over the chat (Qwen's thinking panel).
+  site_view_prepare: () => ({}),
   ready_get,
   reply_read,
   reply_format,

@@ -328,7 +328,14 @@ const back_run = () => {
   if (ui.sheets.length) return (PP.sheet_close(), true);
   if (ui.selection.on) return close({ selection: { on: false, ids: [] } });
   if (ui.drawer) return close({ drawer: false });
-  if (ui.site_view.open) return (PP.command_run("site_view"), true);
+  // The site view works like a browser: back inside the site first (a site's panel often closes
+  // that way), the chat once there's nowhere to go back to.
+  if (ui.site_view.open) {
+    const page = PP.state_get().pages.find((p) => p.id === ui.site_view.page);
+    if (page && page.can_back)
+      return (PP.call_try("page_navigate", { page: page.id, to: "back" }), true);
+    return (PP.command_run("site_view"), true);
+  }
   if (ui.composer.big) return close({ composer: { big: false } });
   return false;
 };
@@ -519,6 +526,8 @@ const after_draw = (state) => {
   }
   if (state.ui.site_view.open !== view_open) {
     view_open = state.ui.site_view.open;
+    if (view_open && state.ui.site_view.page)
+      PP.call_send("site_view_prepare", { page: state.ui.site_view.page }).catch(() => null);
     PP.call_send(
       "view_set",
       view_open ? { page: state.ui.site_view.page, region: PP.region_get() } : { page: null },
