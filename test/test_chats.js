@@ -189,3 +189,47 @@ test("a chat loaded without its messages is never saved over them", async () => 
     ["t1", "t2"],
   );
 });
+
+test("adding the site's messages skips what's here, unwraps PromptPipe's, and runs reply plugins", async () => {
+  const site = [
+    { message: "BLOCK TEXT\n\nhello", reply: "aGk=", thinking: "" }, // sent by PromptPipe, base64 reply
+    { message: "already here", reply: "yes", thinking: "" },
+    { message: "new one", reply: "bmV3", thinking: "" },
+  ];
+  const pp = plugins_load(["runtime-records", "runtime-chats"], { site_read: () => site });
+  pp.hook_run = async (name, reply, context) => {
+    assert.ok(context.chat && context.chat.id === "c1" && Array.isArray(context.notes));
+    return Buffer.from(reply, "base64").toString();
+  };
+  const state = {
+    schemas: JSON.parse(
+      require("node:fs").readFileSync(
+        require("node:path").join(__dirname, "..", "runtime-records", "schemas.json"),
+        "utf8",
+      ),
+    ),
+    config: {
+      settings: { "chats.profile": "p" },
+      profiles: [{ id: "p", name: "Plain", plugin_settings: {} }],
+      blocks: [{ id: "b", profile: "p", type: "prompt", text: "BLOCK TEXT" }],
+    },
+    chats: [{ id: "c1", name: "Chat", file: "Chat.md", tags: [] }],
+    turns: [{ id: "t0", chat: "c1", message: "already here", reply: "yes" }],
+  };
+  const out = await pp.site_chat_import(state, {
+    chat: "c1",
+    page: "p1",
+    which: "all",
+    save: true,
+  });
+  assert.equal(out.added, 2);
+  assert.equal(out.skipped, 1);
+  const added = out.state.turns.filter((t) => t.id !== "t0");
+  assert.deepEqual(
+    added.map((t) => [t.message, t.reply]),
+    [
+      ["hello", "hi"],
+      ["new one", "new"],
+    ],
+  );
+});

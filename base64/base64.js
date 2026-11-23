@@ -119,15 +119,25 @@ const reply_after = (reply, context) => {
   }
 };
 
-// Under every reply, whether or not the plugin is on: the decoded text in a sheet.
-const reply_show = (state, { turn }) => {
+// Under every reply, whether or not the plugin is on: the reply replaced with its decoded text
+// (what came back stays as it was, under the reply's More: What went out and what came back).
+const reply_show = async (state, { turn }) => {
+  let out;
   try {
-    const out = reply_decode(turn.received || turn.reply, false);
-    const fixed = out.fixes.length ? `\n\n*Repaired: ${out.fixes.join(", ")}*` : "";
-    PP.sheet_open("text", { title: "Decoded", text: out.text + fixed });
+    out = reply_decode(turn.received || turn.reply, false);
   } catch (error) {
-    PP.toast(error.message, true);
+    return PP.toast(`Not base64: ${error.message}`, true);
   }
+  const done = await PP.apply_try(
+    (s) =>
+      PP.record_set(s, {
+        collection: "turns",
+        id: turn.id,
+        fields: { reply: out.text, received: turn.received || turn.reply },
+      }),
+    "reply decoded from base64",
+  );
+  if (done) PP.toast(out.fixes.length ? `Decoded (repaired: ${out.fixes.join(", ")})` : "Decoded");
 };
 
 PP.plugin_set({

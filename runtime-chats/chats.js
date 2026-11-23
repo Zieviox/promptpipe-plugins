@@ -231,21 +231,76 @@ const site_chat_open = (state, { provider, url, name, id, at }) => {
 
 // The page's messages into the chat (all of them, or the newest); with save off, the newest
 // reply decoded by the after-reply hooks, as a preview.
+const words = (text) =>
+  String(text || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// A message as the site shows it, without what PromptPipe sent around it: the texts of the chat's
+// profile's System prompts are taken off, leaving yours.
+const message_unwrap = (state, chat, text) => {
+  const record = state.chats.find((c) => c.id === chat);
+  const profile = record && PP.profile_get(state, record);
+  const texts = ((state.config && state.config.blocks) || [])
+    .filter((b) => profile && b.profile === profile.id && b.type === "prompt" && b.text)
+    .map((b) => b.text.trim())
+    .sort((a, b) => b.length - a.length);
+  let out = String(text || "");
+  for (const t of texts) out = out.split(t).join("");
+  return out.replace(/\n{3,}/g, "\n\n").trim() || String(text || "").trim();
+};
+
+// The page's messages into the chat (all, or the newest), or the newest reply decoded as a
+// preview (UC13). A message already in the chat (by what was sent, or your text) is skipped; one
+// PromptPipe sent shows as your text; replies go through the profile's reply plugins (Base64
+// decoding, say), as live ones do. Answers how many were added and how many were already here.
 const site_chat_import = async (state, { chat, page, which, save }) => {
   const turns = await PP.call_send("site_read", { page, which, wait: false });
+  const record = state.chats.find((c) => c.id === chat);
+  const after = (reply) =>
+    PP.hook_run
+      ? PP.hook_run("reply_after", reply || "", { chat: record, notes: [] })
+      : reply || "";
   if (!save) {
     const last = turns[turns.length - 1] || {};
-    return { preview: await PP.hook_run("reply_after", last.reply || "", { chat }) };
+    return { preview: await after(last.reply) };
   }
+  const here = state.turns.filter((t) => t.chat === chat);
   let result = { state, targets: [] };
+  let added = 0;
+  let skipped = 0;
   for (const turn of turns) {
-    const fields = { ...turn, chat, at: PP.time_get(), tags: [] };
-    const create = { collection: "turns", fields, id: PP.id_create() };
-    const made = PP.record_create(result.state, create);
+    const known = here.some(
+      (t) =>
+        (turn.message &&
+          (words(t.sent) === words(turn.message) || words(t.message) === words(turn.message))) ||
+        (!turn.message && turn.reply && words(t.received || t.reply) === words(turn.reply)),
+    );
+    if (known) {
+      skipped += 1;
+      continue;
+    }
+    const fields = {
+      chat,
+      at: PP.time_get(),
+      tags: [],
+      message: message_unwrap(state, chat, turn.message),
+      sent: turn.message || "",
+      received: turn.reply || "",
+      reply: await after(turn.reply),
+      thinking: turn.thinking || "",
+      notes: ["added from the site"],
+    };
+    const made = PP.record_create(result.state, {
+      collection: "turns",
+      fields,
+      id: PP.id_create(),
+    });
     if (made.error) return made;
     result = { state: made.state, targets: [{ chat }] };
+    added += 1;
   }
-  return result;
+  return { ...result, added, skipped };
 };
 
 // ---------- attachments (UC48) ----------

@@ -529,8 +529,9 @@ const turn_check = async (id) => {
     const found = by_text[by_text.length - 1] || site[site.length - 1 - from_end];
     if (!found || !found.reply)
       return { status: "missing", why: "That message wasn't found in the site chat." };
-    if (words_same(found.reply, turn.received || turn.reply)) return { status: "same" };
     const reply = await PP.hook_run("reply_after", found.reply, { chat, notes: [] });
+    if (words_same(found.reply, turn.received || turn.reply) && words_same(reply, turn.reply))
+      return { status: "same" };
     await PP.record_apply(
       (s) =>
         PP.record_set(s, {
@@ -557,6 +558,23 @@ const turn_check = async (id) => {
     queue_run();
     pool_add();
   }
+};
+
+// A saved reply through the chat's reply plugins again, from what came back (an imported Base64
+// reply decoded, say); no site needed.
+const turn_redo = async (id) => {
+  const state = PP.state_get();
+  const turn = state.turns.find((t) => t.id === id);
+  const chat = turn && state.chats.find((c) => c.id === turn.chat);
+  if (!chat) return { status: "missing", why: "That message isn't here any more." };
+  const received = turn.received || turn.reply;
+  const reply = await PP.hook_run("reply_after", received, { chat, notes: [] });
+  if (words_same(reply, turn.reply)) return { status: "same" };
+  await PP.record_apply(
+    (s) => PP.record_set(s, { collection: "turns", id, fields: { reply, received } }),
+    `reply plugins run again: ${chat.name}`,
+  );
+  return { status: "updated" };
 };
 
 // ---------- other apps' requests (UC41) ----------
@@ -632,6 +650,7 @@ PP.plugin_set({
     queue_pause,
     hold_get,
     turn_check,
+    turn_redo,
     job_run,
     provider_build,
   },
@@ -640,6 +659,7 @@ PP.plugin_set({
     send_stop: (d) => send_stop(d.send),
     failure_resolve: (d) => failure_resolve(d.send, d.choice),
     turn_check: (d) => turn_check(d.turn),
+    turn_redo: (d) => turn_redo(d.turn),
     job_run: (job) => job_run(job),
   },
   events: { reply_changed, page_changed, job_received: job_run },

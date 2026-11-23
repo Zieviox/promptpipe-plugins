@@ -41,13 +41,18 @@ const site_import = async (state, which, save) => {
     chat = made.id;
   }
   if (chat) await PP.chat_open(chat);
-  const answer = await PP.call_try(
-    "site_chat_import",
-    { chat, page: page.id, which, save },
-    save ? "Imported" : null,
-  );
+  const answer = await PP.call_try("site_chat_import", { chat, page: page.id, which, save });
   if (answer && !save)
     PP.sheet_open("text", { title: "The newest reply, decoded", text: answer.preview });
+  if (answer && save) {
+    const n = (k) => answer[k] || 0;
+    const added = n("added") === 1 ? "1 message" : `${n("added")} messages`;
+    PP.toast(
+      n("added")
+        ? `Added ${added}${n("skipped") ? `; ${n("skipped")} were already here` : ""}`
+        : "Nothing new: every message on the page is already here",
+    );
+  }
 };
 
 // The record_export call, with the result said: copied, shared, or the file it saved.

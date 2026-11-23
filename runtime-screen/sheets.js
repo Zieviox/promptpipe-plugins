@@ -1450,6 +1450,19 @@ ${p.text}</textarea
           onClick: () => (PP.draft_set(turn.message, { replaces: turn.id }), PP.sheet_close()),
         }),
         item({
+          label: "Run the reply plugins again",
+          sub: "From what came back, with this chat's profile (decodes a Base64 reply, say)",
+          onClick: async () => {
+            PP.sheet_close();
+            const r = await PP.call_try("turn_redo", { turn: turn.id });
+            if (r)
+              PP.toast(
+                r.status === "updated" ? "Done" : r.status === "same" ? "Nothing changed" : r.why,
+                r.status === "missing",
+              );
+          },
+        }),
+        item({
           label: "Check against the site",
           sub: "Takes the site's version of this reply if it's different (one cut short, say)",
           onClick: () => (PP.sheet_close(), PP.turn_check_run(turn.id)),
