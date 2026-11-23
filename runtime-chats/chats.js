@@ -285,6 +285,7 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
     // aside (the site shows text a little differently from what was sent).
     const known = here.some(
       (t) =>
+        (turn.site_ref && t.site_ref === turn.site_ref) ||
         (turn.message &&
           (loose(t.sent) === loose(turn.message) ||
             loose(t.message) === loose(turn.message) ||
@@ -320,6 +321,7 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
       received: turn.reply || "",
       reply: await after(turn.reply),
       thinking: turn.thinking || "",
+      site_ref: turn.site_ref || "",
       notes: ["added from the site"],
     };
     const made = PP.record_create(result.state, {

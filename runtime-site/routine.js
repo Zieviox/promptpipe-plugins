@@ -112,6 +112,21 @@ const reply_last = (provider) => {
   return null;
 };
 
+// Whether an address is one of the site's own chats (the provider's `chat_urls`, "*" for any part).
+const chat_url_is = (provider, url) =>
+  (provider.chat_urls || []).some((pattern) =>
+    new RegExp(`^${pattern.replace(/[.?+^$()[\]{}|\\]/g, "\\$&").replace(/\*/g, "[^?#]*")}`).test(
+      url || "",
+    ),
+  );
+
+// A reply's reference on the page: the id of the nearest element around it that has one (Qwen:
+// chat-response-message-<id>), so a message here can be matched with its message there.
+const site_ref_get = (el) => {
+  for (let at = el; at && at !== document.body; at = at.parentElement) if (at.id) return at.id;
+  return "";
+};
+
 const snapshot_take = (provider) =>
   Object.fromEntries(
     selectors_get(provider, "reply").map((s) => {
@@ -338,12 +353,20 @@ const site_send = async ({ text, limits }, provider) => {
     }
   }
   const result = await reply_read(provider, before, limits, old);
-  await PP.pause(300); // the address of a new site chat
+  // A new site chat gets its own address a moment after the reply: wait for it (up to 3 s), so the
+  // chat is linked to its conversation, not to the site's start (which would start a new one).
+  if (provider.chat_urls && provider.chat_urls.length)
+    await wait_for(() => chat_url_is(provider, location.href) || null, 3000);
+  else await PP.pause(300);
   const el = reply_last(provider);
   return {
     ...result,
     reply: reply_format(provider, el) || result.reply,
-    url: location.href,
+    site_ref: el ? site_ref_get(el) : "",
+    url:
+      chat_url_is(provider, location.href) || !(provider.chat_urls || []).length
+        ? location.href
+        : "",
     model: text_get(element_find(selectors_get(provider, "model"))),
   };
 };
@@ -403,6 +426,7 @@ const site_read = async ({ which, wait, limits }, provider) => {
         if (!turns.length || turns[turns.length - 1].reply)
           turns.push({ message: "", reply: "", thinking: "" });
         Object.assign(turns[turns.length - 1], {
+          site_ref: site_ref_get(m.el),
           reply: reply_format(provider, m.el),
           thinking: thinking_format(provider, thinking_near(provider, m.el)),
         });
@@ -416,6 +440,7 @@ const site_read = async ({ which, wait, limits }, provider) => {
   return [
     {
       message: text_get(users[users.length - 1]),
+      site_ref: el ? site_ref_get(el) : "",
       reply: reply_format(provider, el),
       thinking: el ? thinking_format(provider, thinking_near(provider, el)) : "",
     },

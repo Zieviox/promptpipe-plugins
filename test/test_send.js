@@ -451,3 +451,39 @@ test("with the profile off, a message goes exactly as typed and its reply as it 
   assert.equal(hooked, 0, "no reply plugins");
   assert.equal(pp.state.turns.find((t) => t.message === "just this").reply, "raw reply");
 });
+
+test("a chat is linked only to a site chat's address, even when the site gives it late", async () => {
+  const { pp, pending } = world_build();
+  pp.state = {
+    ...pp.state,
+    plugins: [
+      {
+        id: "deepseek",
+        manifest: {
+          name: "DeepSeek",
+          tags: ["provider", "web"],
+          provider: { url: "https://ds/", chat_urls: ["https://ds/c/*"] },
+        },
+      },
+    ],
+  };
+  pp.record_apply = async (op) => {
+    const r = op(pp.state);
+    pp.state = r.state;
+    return r;
+  };
+  pp.message_send({ chat: "c1", message: "first" });
+  await tick();
+  // The reply came while the page was still on the site's start.
+  pending[0].resolve({ reply: "r", url: "https://ds/", site_ref: "msg-1" });
+  await tick();
+  await tick();
+  const chat = () => pp.state.chats.find((c) => c.id === "c1");
+  assert.ok(!chat().site_url, "not linked to the start page");
+  assert.equal(pp.state.turns.find((t) => t.message === "first").site_ref, "msg-1");
+  // Then the page moves to the new site chat's own address.
+  const page = pp.state.pages[0];
+  pp.events.page_changed.forEach((f) => f({ page: page.id, url: "https://ds/c/42" }));
+  await tick();
+  assert.equal(chat().site_url, "https://ds/c/42");
+});

@@ -271,13 +271,14 @@ const send_run = async (id) => {
         );
         return void (waiting = true);
       }
-      PP.state_set((s) =>
-        send_set(s, id, {
+      PP.state_set((s) => ({
+        ...send_set(s, id, {
           status: "sending",
           page,
           progress: `Sending to ${plugin.manifest.name}…`,
         }),
-      );
+        pages: s.pages.map((p) => (p.id === page ? { ...p, chat: chat ? chat.id : null } : p)),
+      }));
       // The page shows this chat's conversation before anything is typed: a chat's own site
       // chat, or the site's start (a new site chat) for a new chat or a side request. A free page
       // may still show another chat's conversation.
@@ -353,6 +354,29 @@ const send_done = (id, answer) => {
   return answer;
 };
 
+// Whether an address is one of a provider's own chats (its `chat_urls`, "*" for any part).
+const chat_url_is = (state, provider_id, url) => {
+  const plugin = state.plugins.find((p) => p.id === provider_id);
+  const patterns = ((plugin && plugin.manifest.provider) || {}).chat_urls || [];
+  return patterns.some((pattern) =>
+    new RegExp(`^${pattern.replace(/[.?+^$()[\]{}|\\]/g, "\\$&").replace(/\*/g, "[^?#]*")}`).test(
+      url || "",
+    ),
+  );
+};
+
+// The site chat a chat is linked to after a reply: the page's address only when it's one of the
+// site's chats (the start page would make the next message start a new conversation there), and
+// never a non-chat address over a chat's own one.
+const chat_link_get = (state, chat, url) => {
+  const provider = PP.provider_get(state, chat);
+  const patterns = ((state.plugins.find((p) => p.id === provider) || {}).manifest || {}).provider;
+  const known = patterns && (patterns.chat_urls || []).length;
+  if (!url) return chat.site_url;
+  if (!known || chat_url_is(state, provider, url)) return url;
+  return chat.site_url;
+};
+
 // The finished turn, saved with the chat (D1, D2): the chat's tags (counters numbered), the
 // chat's name from the first line when it has none, its site chat's address, a short tick.
 const turn_save = async (id, answer) => {
@@ -376,6 +400,7 @@ const turn_save = async (id, answer) => {
     profile: answer.profile || "",
     model: answer.model || "",
     page_url: answer.url || "",
+    site_ref: answer.site_ref || "",
     blocks: answer.blocks || [],
     notes: answer.notes || [],
     diagnostics: { ...(answer.diagnostics || {}), got: send.updates_got || 0 },
@@ -388,7 +413,7 @@ const turn_save = async (id, answer) => {
     const kept = s.turns.filter((t) => t.id !== send.replaces);
     const chats = s.chats.map((c) =>
       c.id === chat.id
-        ? { ...c, name, site_url: answer.url || c.site_url, updated: PP.time_get() }
+        ? { ...c, name, site_url: chat_link_get(s, c, answer.url), updated: PP.time_get() }
         : c,
     );
     const next = {
@@ -531,7 +556,8 @@ const turn_check = async (id) => {
       (t) => words_same(t.message, turn.sent) || words_same(t.message, turn.message),
     );
     const from_end = mine.length - 1 - mine.findIndex((t) => t.id === id);
-    const found = by_text[by_text.length - 1] || site[site.length - 1 - from_end];
+    const by_ref = turn.site_ref && site.find((t) => t.site_ref === turn.site_ref);
+    const found = by_ref || by_text[by_text.length - 1] || site[site.length - 1 - from_end];
     if (!found || !found.reply)
       return { status: "missing", why: "That message wasn't found in the site chat." };
     const reply = await PP.hook_run("reply_after", found.reply, { chat, notes: [] });
@@ -619,7 +645,7 @@ const job_run = async (job) => {
 
 // What the platform reports about a page (its address, title, state, a sign-in pop-up, an error)
 // kept in the pool; a closed page leaves it.
-const page_changed = (event) =>
+const page_changed = (event) => {
   PP.state_set((s) => {
     if (event.status === "closed")
       return { ...s, pages: s.pages.filter((p) => p.id !== event.page) };
@@ -627,6 +653,18 @@ const page_changed = (event) =>
     const update = (p) => ({ ...p, ...Object.fromEntries(fields.map((k) => [k, event[k]])) });
     return { ...s, pages: s.pages.map((p) => (p.id === event.page ? update(p) : p)) };
   });
+  // The page moved to a site chat's address after its chat's reply was saved (a new site chat gets
+  // its address late): that chat is linked to it now, if it isn't linked to a site chat yet.
+  const state = PP.state_get();
+  const page = state.pages.find((p) => p.id === event.page);
+  const chat = page && page.chat && state.chats.find((c) => c.id === page.chat);
+  if (!chat || !event.url || !chat_url_is(state, page.provider, event.url)) return;
+  if (chat.site_url && chat_url_is(state, page.provider, chat.site_url)) return;
+  PP.record_apply(
+    (s) => PP.record_set(s, { collection: "chats", id: chat.id, fields: { site_url: event.url } }),
+    `linked: ${chat.name}`,
+  ).catch(() => null);
+};
 
 const reply_changed = (event) => {
   const send = PP.state_get().sends.find((s) => s.page === event.page && s.status === "sending");
