@@ -425,12 +425,42 @@ const new_reply_render = (state) => {
   return html`<button class="jump" onClick=${() => box() && (box().scrollTop = box().scrollHeight)}>Jump to latest</button>`;
 };
 
-// The message box grows with what's in it (typed, or put there by Edit or a quote).
+// The message box is the browser engine's own: what you type is never written back into it (that
+// breaks word choice on the keyboard and the selection); only a change from elsewhere (Edit, a
+// quote, a send emptying it, another chat) is put in. Its height follows its lines, measured on an
+// off-screen copy, so the box itself never collapses or jumps while you select in it.
+let box_copy = null;
+const COPIED = [
+  "width", "font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing",
+  "word-spacing", "padding-left", "padding-right", "padding-top", "padding-bottom", "border-left-width",
+  "border-right-width", "box-sizing", "white-space", "overflow-wrap", "word-break", "tab-size",
+];
 const box_size = (el) => {
   if (!el) return;
-  el.style.height = "auto";
-  el.style.height = `${Math.min(el.scrollHeight, innerHeight * 0.4)}px`;
+  if (el.closest(".composer.big")) return void (box_known = null); // sized again once it's small
+  if (!box_copy) {
+    box_copy = document.createElement("textarea");
+    box_copy.setAttribute("aria-hidden", "true");
+    box_copy.tabIndex = -1;
+    box_copy.style.cssText =
+      "position:fixed;left:-9999px;top:0;visibility:hidden;height:0;min-height:0;overflow:hidden;border:0;";
+    document.body.append(box_copy);
+  }
+  const style = getComputedStyle(el);
+  COPIED.forEach((name) => box_copy.style.setProperty(name, style.getPropertyValue(name)));
+  box_copy.value = el.value || " ";
+  const height = `${box_copy.scrollHeight}px`;
+  if (el.style.height !== height) el.style.height = height;
 };
+let box_known = null; // the text the box was last sized for
+const box_sync = (el, text) => {
+  if (el.value !== text) el.value = text;
+  if (el.value !== box_known) ((box_known = el.value), box_size(el));
+};
+addEventListener("resize", () => {
+  const el = document.getElementById("message");
+  if (el) box_size(el);
+});
 
 const composer_render = (state) => {
   const draft = PP.draft_get(state);
@@ -455,16 +485,20 @@ const composer_render = (state) => {
         ${PP.icon_render("close", "Not a version: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
       </div>`
     : null;
-  return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>
+  // A tap on the box's edge (around the text) puts the cursor in the text.
+  const edge = (e) => {
+    if (e.target !== e.currentTarget) return;
+    const el = e.currentTarget.querySelector("textarea");
+    if (el && document.activeElement !== el) (e.preventDefault(), el.focus());
+  };
+  return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`} onMouseDown=${edge}>
     ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"), false, "icon", "quick_edit")}
     <textarea
-      ref=${box_size}
       id="message"
       rows="1"
       placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
       aria-label="Message"
-      value=${draft.text}
-      onInput=${(e) => (box_size(e.target), PP.draft_set(e.target.value))}
+      onInput=${(e) => ((box_known = e.target.value), box_size(e.target), PP.draft_type(e.target.value))}
       onKeyDown=${key}
     ></textarea>
     ${draft.attachments.length ? html`<small>${draft.attachments.length} attached</small>` : null}
@@ -491,6 +525,7 @@ PP.plugin_set({
   functions: {
     turn_check_run,
     box_size,
+    box_sync,
     header_render,
     provider_menu_render,
     chat_render,

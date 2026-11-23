@@ -77,7 +77,7 @@ const raw_set = (state, on) => {
 
 // The draft is kept per chat on this device (UC7): in the State at once, in its file shortly after.
 let draft_timer = 0;
-const draft_set = (text, fields = {}) => {
+const draft_set = (text, fields = {}, quiet = false) => {
   PP.state_set((s) => {
     const id = s.ui.chat || "new";
     const old = s.drafts.find((d) => d.id === id) || { id, attachments: [] };
@@ -85,12 +85,19 @@ const draft_set = (text, fields = {}) => {
     // Emptying the box ends an edit: what's typed next is a new message, not a replacement.
     if (!String(text || "").trim() && !("replaces" in fields)) delete next.replaces;
     return { ...s, drafts: [...s.drafts.filter((d) => d.id !== id), next] };
-  });
+  }, quiet);
   clearTimeout(draft_timer);
   draft_timer = setTimeout(
     () => PP.apply_try((s) => ({ state: s, targets: [{ file: "drafts" }] })),
     600,
   );
+};
+
+// Typed in the message box: the box shows it itself, so the screen is redrawn only when the box
+// goes empty or stops being empty (the send button and the edit bar change then).
+const draft_type = (text) => {
+  const before = draft_get(PP.state_get());
+  draft_set(text, {}, !!before.text.trim() === !!String(text).trim());
 };
 
 // Send what's in the box: a new chat is made with its first message (named after its first line).
@@ -479,6 +486,7 @@ PP.plugin_set({
     raw_get,
     raw_set,
     draft_set,
+    draft_type,
     message_send_run: message_send,
   },
 });

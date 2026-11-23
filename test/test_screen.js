@@ -94,3 +94,78 @@ test(
     }
   },
 );
+
+// The message box is the browser engine's own (selection, the keyboard's word choice): typing
+// isn't written back and redraws the screen only when the box goes empty or not; a redraw leaves
+// the selection alone; tapping it doesn't resize it; it grows with its lines without ever being
+// collapsed to measure; a change from elsewhere (Edit, a quote) goes in.
+test("the message box keeps what you type and select (UC7)", { timeout: 60000 }, async () => {
+  const core = core_build();
+  const server = await server_start(core);
+  const browser = await chromium.launch();
+  const errors = [];
+  try {
+    const page = await browser.newPage({ viewport: { width: 400, height: 800 } });
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.waitForSelector("#message", { timeout: 15000 });
+    await page.click("text=Skip");
+    const height = () => page.$eval("#message", (el) => el.getBoundingClientRect().height);
+    const empty = await height();
+    await page.click("#message");
+    await page.waitForTimeout(300);
+    assert.equal(await height(), empty, "tapping the box doesn't resize it");
+
+    await page.evaluate(() => {
+      window.loud = 0;
+      window.heights = [];
+      const real = PP.state_set;
+      PP.state_set = (change, quiet) => (quiet || window.loud++, real(change, quiet));
+      const box = document.getElementById("message");
+      new MutationObserver(() => window.heights.push(box.style.height)).observe(box, {
+        attributes: true,
+        attributeFilter: ["style"],
+      });
+    });
+    await page.keyboard.type("hello world");
+    await page.waitForTimeout(100);
+    assert.equal(await page.evaluate(() => window.loud), 1, "only going non-empty redrew");
+    assert.equal(
+      await page.evaluate(() => PP.draft_get(PP.state_get()).text),
+      "hello world",
+      "the draft has what was typed",
+    );
+
+    await page.$eval("#message", (el) => el.setSelectionRange(6, 11));
+    await page.evaluate(() => PP.ui_set(() => ({})));
+    await page.waitForTimeout(100);
+    assert.deepEqual(
+      await page.$eval("#message", (el) => [el.selectionStart, el.selectionEnd]),
+      [6, 11],
+      "a redraw left the selection alone",
+    );
+    await page.keyboard.type("there");
+    assert.equal(await page.inputValue("#message"), "hello there", "typing replaced the selection");
+
+    for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+Enter"), await page.keyboard.type("x");
+    const grown = await height();
+    assert.ok(grown > empty * 2, `the box grew with its lines (${empty} → ${grown})`);
+    assert.ok(
+      !(await page.evaluate(() => window.heights)).some((h) => h === "auto" || h === "0px"),
+      "the box was never collapsed to measure",
+    );
+
+    await page.evaluate(() => PP.draft_set("from elsewhere"));
+    await page.waitForFunction(
+      () => document.getElementById("message").value === "from elsewhere",
+      null,
+      { timeout: 3000 },
+    );
+    await page.waitForTimeout(100);
+    assert.equal(await height(), empty, "a one-line draft put in sizes the box back down");
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});

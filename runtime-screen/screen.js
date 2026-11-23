@@ -524,13 +524,10 @@ const theme_set = (state) => {
 
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
 let view_page = null; // the site page the site view shows (or null)
-// The message box is sized only when its text changed (typing sizes it at once), never on every
-// redraw, so the conversation above doesn't move.
-let box_text = null;
 const after_draw = (state) => {
+  // A change to the draft from elsewhere goes into the box (typing is already there).
   const box = document.getElementById("message");
-  if (box && !state.ui.composer.big && box.value !== box_text)
-    ((box_text = box.value), PP.box_size(box));
+  if (box) PP.box_sync(box, PP.draft_get(state).text);
   const chat = document.getElementById("chat");
   // A chat just opened shows its newest message; then it follows only when you're at the bottom.
   if (chat && state.ui.bottom) {
