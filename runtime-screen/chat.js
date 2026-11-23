@@ -438,6 +438,16 @@ const COPIED = [
   "word-spacing", "padding-left", "padding-right", "padding-top", "padding-bottom", "border-left-width",
   "border-right-width", "box-sizing", "white-space", "overflow-wrap", "word-break", "tab-size",
 ];
+// The buttons sit beside the text while it fits on one line and go to a row under it once it
+// needs a second (data-stacked), decided by what's typed, never by a tap, so nothing moves under
+// the finger. The text is always measured as if the buttons were beside it, so the wider stacked
+// text fitting on one line again doesn't flip it back.
+const side_width = (composer) => {
+  const style = getComputedStyle(composer);
+  const others = [...composer.children].filter((c) => !c.classList.contains("boxscroll"));
+  const used = others.reduce((w, c) => w + c.offsetWidth, 0) + (parseFloat(style.columnGap) || 0) * others.length;
+  return composer.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - used;
+};
 const box_size = (el) => {
   if (!el) return;
   if (!box_copy) {
@@ -448,22 +458,46 @@ const box_size = (el) => {
       "position:fixed;left:-9999px;top:0;visibility:hidden;height:0;min-height:0;overflow:hidden;border:0;";
     document.body.append(box_copy);
   }
-  const style = getComputedStyle(el);
-  COPIED.forEach((name) => box_copy.style.setProperty(name, style.getPropertyValue(name)));
-  box_copy.value = el.value || " ";
+  const copy = () => {
+    const style = getComputedStyle(el);
+    COPIED.forEach((name) => box_copy.style.setProperty(name, style.getPropertyValue(name)));
+    box_copy.value = el.value || " ";
+    return style;
+  };
+  const composer = el.closest(".composer");
+  if (composer && !composer.classList.contains("big")) {
+    const style = copy();
+    box_copy.style.width = `${side_width(composer)}px`;
+    const stacked = box_copy.scrollHeight > (parseFloat(style.lineHeight) || 20) * 1.5;
+    if (stacked !== "stacked" in composer.dataset)
+      stacked ? (composer.dataset.stacked = "") : delete composer.dataset.stacked;
+    box_watch(composer);
+  }
+  copy();
   const height = `${box_copy.scrollHeight}px`;
   if (el.style.height !== height) el.style.height = height;
 };
-let box_known = null; // the text and width the box was last sized for
+// Measured again when the box's width changes (turning the phone, an attachment note, full screen).
+const box_widths = new WeakMap();
+const box_observer =
+  typeof ResizeObserver === "function" &&
+  new ResizeObserver((entries) =>
+    entries.forEach((entry) => {
+      const width = entry.contentRect.width;
+      if (box_widths.get(entry.target) === width) return;
+      box_widths.set(entry.target, width);
+      box_size(entry.target.querySelector("#message"));
+    }),
+  );
+const box_watch = (composer) => {
+  if (box_observer && !box_widths.has(composer))
+    (box_widths.set(composer, composer.getBoundingClientRect().width), box_observer.observe(composer));
+};
+let box_known = null; // the text the box was last sized for
 const box_sync = (el, text) => {
   if (el.value !== text) el.value = text;
-  const known = `${el.clientWidth} ${el.value}`;
-  if (known !== box_known) ((box_known = known), box_size(el));
+  if (el.value !== box_known) ((box_known = el.value), box_size(el));
 };
-addEventListener("resize", () => {
-  const el = document.getElementById("message");
-  if (el) box_size(el);
-});
 
 const composer_render = (state) => {
   const draft = PP.draft_get(state);
@@ -488,9 +522,8 @@ const composer_render = (state) => {
         ${PP.icon_render("close", "Not a version: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
       </div>`
     : null;
-  // A tap on the box's edge (around the text) puts the cursor in the text. A tap on its buttons
-  // leaves the cursor (and the keyboard) in the box: otherwise the buttons would move back beside
-  // the text under the finger, and the tap would miss.
+  // A tap on the box's edge (around the text) puts the cursor in the text. A tap on Send or the
+  // expand button leaves the cursor (and the keyboard) in the box, as chat apps do.
   const edge = (e) => {
     const el = e.currentTarget.querySelector("textarea");
     if (!el || e.target === el) return;
@@ -506,9 +539,7 @@ const composer_render = (state) => {
         rows="1"
         placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
         aria-label="Message"
-        onInput=${(e) => ((box_known = `${e.target.clientWidth} ${e.target.value}`), box_size(e.target), PP.draft_type(e.target.value))}
-        onFocus=${(e) => box_size(e.target)}
-        onBlur=${(e) => box_size(e.target)}
+        onInput=${(e) => ((box_known = e.target.value), box_size(e.target), PP.draft_type(e.target.value))}
         onKeyDown=${key}
       ></textarea>
     </div>
@@ -537,6 +568,7 @@ PP.plugin_set({
     turn_check_run,
     box_size,
     box_sync,
+    box_side_width: side_width,
     header_render,
     provider_menu_render,
     chat_render,

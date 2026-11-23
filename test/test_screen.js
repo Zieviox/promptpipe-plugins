@@ -117,9 +117,28 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     await page.click("#message");
     await page.waitForTimeout(300);
     assert.equal(await height(), empty, "tapping the box doesn't change its height");
-    const [left_typing, width_typing] = await place();
-    assert.equal(left_typing, left, "the text keeps its left edge");
-    assert.ok(width_typing > width + 60, `the buttons went under the text (${width} → ${width_typing})`);
+    assert.deepEqual(await place(), [left, width], "tapping the box doesn't move or widen it");
+
+    // One line: the buttons beside it. A second line: the buttons under it, the text the whole
+    // width with its left edge kept; measured beside the buttons, so it doesn't flip back.
+    const stacked = () => page.$eval(".composer", (el) => "stacked" in el.dataset);
+    await page.keyboard.type("short");
+    assert.equal(await stacked(), false, "one line keeps the buttons beside it");
+    assert.equal(
+      await page.$eval(".composer", (c) => Math.round(PP.box_side_width(c)) === Math.round(c.querySelector(".boxscroll").offsetWidth)),
+      true,
+      "the width measured beside the buttons is the real one",
+    );
+    await page.keyboard.type(" and then a good deal more text, enough to need a second line");
+    await page.waitForFunction(() => "stacked" in document.querySelector(".composer").dataset, null, { timeout: 3000 });
+    const [left_long, width_long] = await place();
+    assert.equal(left_long, left, "the text keeps its left edge");
+    assert.ok(width_long > width + 60, `the buttons went under the text (${width} → ${width_long})`);
+    await page.$eval("#message", (el) => el.setSelectionRange(0, el.value.length));
+    await page.keyboard.press("Backspace");
+    await page.waitForTimeout(100);
+    assert.equal(await stacked(), false, "emptied, the buttons are beside the text again");
+    assert.deepEqual(await place(), [left, width], "and the box is as it was");
 
     await page.evaluate(() => {
       window.loud = 0;

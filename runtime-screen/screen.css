@@ -109,13 +109,13 @@ textarea.field { resize: vertical; min-height: 6em; }
 /* The box is as tall as its text; the container around it scrolls, up to 40% of the screen. */
 .composer .boxscroll { flex: 1; min-width: 0; max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; margin: 0 0 4px; }
 .composer textarea { display: block; width: 100%; background: none; border: 0; outline: 0; resize: none; line-height: 1.4; min-height: 1.4em; padding: 0; margin: 0; overflow: hidden; }
-/* The text comes first, its buttons beside it on the right. Typing (the keyboard opens, so the
-   screen moves anyway), the buttons go to a row under the text, which takes the whole width: its
-   left edge stays put, it only gets wider. */
+/* The text comes first, its buttons beside it on the right. Once it needs a second line
+   (data-stacked, set from what's typed, never on a tap) the buttons go to a row under it and the
+   text takes the whole width: its left edge stays put, it only gets wider. */
 .composer:not(.big) .boxscroll { order: -1; }
-.composer:not(.big):focus-within { flex-wrap: wrap; row-gap: 8px; }
-.composer:not(.big):focus-within .boxscroll { flex-basis: 100%; }
-.composer:not(.big):focus-within > :nth-last-child(2) { margin-left: auto; }
+.composer[data-stacked]:not(.big) { flex-wrap: wrap; row-gap: 8px; }
+.composer[data-stacked]:not(.big) .boxscroll { flex-basis: 100%; }
+.composer[data-stacked]:not(.big) > :nth-last-child(2) { margin-left: auto; }
 /* Expanded: the whole screen is the message box (the keyboard still fits: the screen resizes for
    it); the buttons stay at the bottom. */
 .composer.big { position: absolute; inset: 0; z-index: 30; margin: 0; border-radius: 0; padding: 18px 16px 14px; background: var(--bg); display: grid; grid-template-columns: auto 1fr auto auto; grid-template-rows: 1fr auto; gap: 10px; align-items: center; }
