@@ -295,7 +295,13 @@ const chat_load = async (id) => {
       .split("/")
       .pop()
       .replace(/\.json$/, "");
-  const turns_file = files.find((f) => name(f) === "turns");
+  // By its own path too, if the pattern didn't bring it: a chat must never look empty (and then be
+  // saved empty) because a listing missed its messages.
+  const turns_file =
+    files.find((f) => name(f) === "turns") ||
+    (
+      await PP.call_send("file_read", { root: "chats", path: `${dir}/turns.json` }).catch(() => [])
+    )[0];
   const turns = turns_file ? JSON.parse(turns_file.data) : [];
   const data = files
     .filter((f) => !["turns", "meta"].includes(name(f)))
@@ -329,12 +335,13 @@ const chat_files_build = async (state, id) => {
   const loaded = (state.loaded || []).includes(id);
   const dir = `.promptpipe/chats/${id}`;
   const read = () => PP.call_send("file_read", { root: "chats", path: `${dir}/turns.json` });
-  const [file] = loaded ? [] : await read();
-  const turns = loaded
-    ? state.turns.filter((t) => t.chat === id)
-    : file
-      ? JSON.parse(file.data)
-      : [];
+  const [file] = await read().catch(() => []);
+  const disk = file ? JSON.parse(file.data) : [];
+  const mine = state.turns.filter((t) => t.chat === id);
+  // A chat that was loaded without its messages (a listing that missed them) would be saved with
+  // only the new ones: when the State shares none of the saved messages, they're kept first.
+  const missed = loaded && disk.length && !disk.some((d) => mine.some((t) => t.id === d.id));
+  const turns = !loaded ? disk : missed ? [...disk, ...mine] : mine;
   const chat = { ...meta, turns };
   const info = {
     provider: PP.provider_get(state, chat),
