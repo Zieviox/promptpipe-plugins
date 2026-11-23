@@ -47,9 +47,14 @@ const site_import = async (state, which, save) => {
   if (answer && save) {
     const n = (k) => answer[k] || 0;
     const added = n("added") === 1 ? "1 message" : `${n("added")} messages`;
+    const parts = [
+      n("added") ? `Added ${added}` : "",
+      n("fixed") ? `filled in your text in ${n("fixed")}` : "",
+      n("skipped") ? `${n("skipped")} were already here` : "",
+    ].filter(Boolean);
     PP.toast(
-      n("added")
-        ? `Added ${added}${n("skipped") ? `; ${n("skipped")} were already here` : ""}`
+      n("added") || n("fixed")
+        ? parts.join("; ").replace(/^./, (c) => c.toUpperCase())
         : "Nothing new: every message on the page is already here",
     );
   }

@@ -278,6 +278,7 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
   let result = { state, targets: [] };
   let added = 0;
   let skipped = 0;
+  let fixed = 0;
   for (const turn of turns) {
     const mine = turn.message ? await message_unwrap(state, chat, turn.message) : "";
     // Already here: by what was sent, your text, or (a message without one) its reply; formatting
@@ -292,6 +293,22 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
     );
     if (known) {
       skipped += 1;
+      continue;
+    }
+    // Brought in before without your text (an earlier import that missed it): filled in, not added.
+    const blank =
+      turn.message &&
+      here.find((t) => !loose(t.message) && loose(t.received || t.reply) === loose(turn.reply));
+    if (blank) {
+      const set = PP.record_set(result.state, {
+        collection: "turns",
+        id: blank.id,
+        fields: { message: mine, sent: turn.message },
+      });
+      if (set.error) return set;
+      result = { state: set.state, targets: [{ chat }] };
+      here.splice(here.indexOf(blank), 1, { ...blank, message: mine, sent: turn.message });
+      fixed += 1;
       continue;
     }
     const fields = {
@@ -315,7 +332,7 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
     here.push(made.record); // the next ones are checked against it too
     added += 1;
   }
-  return { ...result, added, skipped };
+  return { ...result, added, skipped, fixed };
 };
 
 // A chat's repeated messages (the same message and reply again, as an import that read every

@@ -325,3 +325,34 @@ test("Base64 and Memory take their own parts off a message as the site shows it"
     "one long word isn't base64",
   );
 });
+
+test("an import fills in your text in messages an earlier import brought in without it", async () => {
+  const pp = plugins_load(["runtime-records", "runtime-chats"], {
+    site_read: () => [{ message: "what's the lamp?", reply: "A light.", thinking: "" }],
+  });
+  pp.hook_run = async (name, value) => value;
+  const state = {
+    schemas: JSON.parse(
+      require("node:fs").readFileSync(
+        require("node:path").join(__dirname, "..", "runtime-records", "schemas.json"),
+        "utf8",
+      ),
+    ),
+    config: {
+      settings: {},
+      profiles: [{ id: "p", name: "Plain", plugin_settings: {} }],
+      blocks: [],
+    },
+    chats: [{ id: "c1", name: "Chat", file: "Chat.md", tags: [] }],
+    turns: [{ id: "t1", chat: "c1", message: "", reply: "A light.", received: "A light." }],
+  };
+  const out = await pp.site_chat_import(state, {
+    chat: "c1",
+    page: "p1",
+    which: "all",
+    save: true,
+  });
+  assert.equal(out.added, 0);
+  assert.equal(out.fixed, 1);
+  assert.equal(out.state.turns.find((t) => t.id === "t1").message, "what's the lamp?");
+});
