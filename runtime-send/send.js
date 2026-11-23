@@ -304,10 +304,22 @@ const send_run = async (id) => {
         idle_min: PP.setting_get(state, "sites.idle_min"),
         total_min: PP.setting_get(state, "sites.total_min"),
       };
+      // The attachments' contents, read from the chat's folder, for the page to hand the site.
+      const files = [];
+      for (const a of send.attachments || []) {
+        const [file] = await PP.call_send("file_read", {
+          root: "chats",
+          path: a.path,
+          encoding: "base64",
+        });
+        if (!file)
+          throw { code: "not_found", message: `The attached file ${a.name} isn't there any more` };
+        files.push({ name: a.name, mime_type: a.mime_type, data: file.data });
+      }
       answer = await PP.call_send("site_send", {
         page,
         text: built.text,
-        attachments: send.attachments,
+        attachments: files,
         limits,
       });
     }

@@ -151,3 +151,54 @@ test(
     }
   },
 );
+
+test(
+  "attached files go into the site's upload input before the message is sent",
+  { timeout: 30000 },
+  async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(`<input type="file" id="up" multiple style="display:none">
+      <textarea id="in"></textarea><button id="send" disabled>Send</button><div id="log"></div>
+      <script>
+        window.got = [];
+        document.getElementById("up").addEventListener("change", async (e) => {
+          for (const f of e.target.files) got.push({ name: f.name, type: f.type, text: await f.text() });
+          setTimeout(() => (document.getElementById("send").disabled = false), 400); // "uploaded"
+        });
+        document.getElementById("send").onclick = () => {
+          const a = document.createElement("div"); a.className = "answer"; a.textContent = "Got your file."; log.append(a);
+        };
+      </script>`);
+      const out = await page.evaluate(async (code) => {
+        const PP = {
+          event_send: () => {},
+          pause: (ms) => new Promise((r) => setTimeout(r, ms)),
+          cancelled: () => false,
+          stages: {},
+          defaults: {},
+        };
+        const provider = {
+          id: "x",
+          settle_ms: 500,
+          selectors: { input: ["#in"], send: ["#send"], reply: [".answer"], upload: ["#up"] },
+        };
+        const stages = new Function("PP", "provider", code)(PP, provider);
+        const result = await stages.site_send(
+          {
+            text: "see the file",
+            limits: {},
+            attachments: [{ name: "note.txt", mime_type: "text/plain", data: btoa("hello file") }],
+          },
+          provider,
+        );
+        return { got: window.got, reply: result.reply };
+      }, CODE);
+      assert.deepEqual(out.got, [{ name: "note.txt", type: "text/plain", text: "hello file" }]);
+      assert.equal(out.reply, "Got your file.");
+    } finally {
+      await browser.close();
+    }
+  },
+);

@@ -285,7 +285,31 @@ const send_near = (box) => {
   return null;
 };
 
-const site_send = async ({ text, limits }, provider) => {
+// Files into the site's own upload input (the provider's "upload" selectors), as a file picked
+// there would arrive; then a moment for the site to take them (and its "uploading" selectors, if
+// it names any, gone: up to 2 minutes).
+const files_put = async (provider, files) => {
+  const input = selectors_get(provider, "upload")
+    .flatMap(all_find)
+    .find((e) => e.type === "file");
+  if (!input)
+    throw fail("unimplemented", "This site's page has no place for files that its plugin knows of");
+  const transfer = new DataTransfer();
+  for (const f of files) {
+    const bytes = Uint8Array.from(atob(f.data), (c) => c.charCodeAt(0));
+    transfer.items.add(
+      new File([bytes], f.name, { type: f.mime_type || "application/octet-stream" }),
+    );
+  }
+  input.files = transfer.files;
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  await PP.pause(1500);
+  const uploading = selectors_get(provider, "uploading");
+  if (uploading.length) await wait_for(() => (element_find(uploading) ? null : true), 120000);
+};
+
+const site_send = async ({ text, limits, attachments = [] }, provider) => {
   const box = await wait_for(() => element_find(selectors_get(provider, "input")), 15000);
   if (!box) {
     const hint = logged_out() ? "; it shows a Log in button" : "";
@@ -298,6 +322,7 @@ const site_send = async ({ text, limits }, provider) => {
   const first_error = error_find(provider, null);
   if (first_error && !first_error.el) throw fail("failed_precondition", first_error.text);
   const old = new Set(first_error ? [first_error.el] : []);
+  if (attachments.length) await files_put(provider, attachments);
   const users_before = all_find(selectors_get(provider, "user").join(",") || "x-none").length;
   text_write(box, text);
   const button =
@@ -306,7 +331,7 @@ const site_send = async ({ text, limits }, provider) => {
         enabled(element_find(selectors_get(provider, "send")))
           ? element_find(selectors_get(provider, "send"))
           : null,
-      1500,
+      attachments.length ? 120000 : 1500, // files: until the site has taken them
     )) || (await wait_for(() => send_near(box), 2500));
   const box_text = () => (box.isContentEditable ? box.innerText : box.value || "").trim();
   const press = () => {
