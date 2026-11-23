@@ -44,11 +44,13 @@ const state_build = () => ({
 // Stand-ins: each site_send waits for the test to finish it.
 const world_build = () => {
   const pending = [];
+  const navigations = [];
   const files = {};
   let opened = 0;
   const pp = plugins_load(IDS, {
     page_open: (d) => ({ id: `page${(opened += 1)}`, provider: d.provider.id, url: d.url }),
     site_model_set: () => ({}),
+    page_navigate: (d) => (navigations.push(d), null),
     site_send: (d) => new Promise((resolve, reject) => pending.push({ d, resolve, reject })),
     site_stop: () => ({}),
     site_read: () => [{ message: "x", reply: "from the page", thinking: "" }],
@@ -60,7 +62,7 @@ const world_build = () => {
   pp.hook_run = async (hook, input) => input;
   pp.hook_get = () => null;
   pp.state = state_build();
-  return { pp, pending, files };
+  return { pp, pending, files, navigations };
 };
 
 const tick = async () => {
@@ -255,4 +257,41 @@ test("attachments a provider's plugin can't send are reported, never dropped (UC
     pp.attachments_check(takes({ types: ["image/*"], max: 1 }), [file, file]),
     /at most 1/,
   );
+});
+
+test("a page shows the chat's own conversation before sending: a new chat starts a new site chat", async () => {
+  const { pp, pending, navigations } = world_build();
+  // A free page still showing another chat's conversation.
+  pp.state = {
+    ...pp.state,
+    pages: [{ id: "p1", provider: "deepseek", url: "https://ds/c/other" }],
+    chats: [
+      ...pp.state.chats,
+      { id: "c3", name: "Linked", file: "c3.md", tags: [], site_url: "https://ds/c/3" },
+    ],
+    loaded: [...pp.state.loaded, "c3"],
+  };
+  pp.message_send({ chat: "c1", message: "fresh" });
+  await tick();
+  assert.deepEqual(navigations, [{ page: "p1", to: "https://ds", wait: true }], "the site's start");
+  pending[0].resolve({ reply: "r", url: "https://ds/c/new" });
+  await tick();
+  await tick();
+
+  navigations.length = 0;
+  pp.state = {
+    ...pp.state,
+    pages: pp.state.pages.map((p) => ({ ...p, url: "https://ds/c/new" })),
+  };
+  pp.message_send({ chat: "c3", message: "again" });
+  await tick();
+  assert.deepEqual(navigations, [{ page: "p1", to: "https://ds/c/3", wait: true }], "its own chat");
+  pending[1].resolve({ reply: "r2", url: "https://ds/c/3" });
+  await tick();
+  await tick();
+
+  navigations.length = 0;
+  pp.message_send({ chat: "c3", message: "once more" });
+  await tick();
+  assert.deepEqual(navigations, [], "already there: not reloaded");
 });

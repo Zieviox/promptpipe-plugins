@@ -95,7 +95,7 @@ const page_busy = (state, page) =>
 const pool_remove = async (send, provider, url) => {
   const state = PP.state_get();
   const free = state.pages.filter((p) => p.provider === provider.id && !page_busy(state, p));
-  const same = free.find((p) => p.url === url);
+  const same = free.find((p) => PP.url_same(p.url, url));
   if (same || free[0]) return (same || free[0]).id;
   const page = await page_add(provider, url);
   return page ? page.id : null;
@@ -182,10 +182,10 @@ const send_run = async (id) => {
         }));
       answer = await PP.hook_get(plugin.id, "chat_send")(built.text, { ...context, progress });
     } else {
-      let page = await pool_remove(send, provider, url);
+      let page = await pool_remove(send, provider, url || provider.url);
       // A chat's send waits for `pool_add`; a side request's caller waits for its answer here.
       while (!page && !chat)
-        page = await PP.pause(500).then(() => pool_remove(send, provider, url));
+        page = await PP.pause(500).then(() => pool_remove(send, provider, url || provider.url));
       if (!page) {
         PP.state_set((s) =>
           send_set(s, id, { status: "waiting", progress: "Waiting for a free site page…" }),
@@ -199,6 +199,23 @@ const send_run = async (id) => {
           progress: `Sending to ${plugin.manifest.name}…`,
         }),
       );
+      // The page shows this chat's conversation before anything is typed: a chat's own site
+      // chat, or the site's start (a new site chat) for a new chat or a side request. A free page
+      // may still show another chat's conversation.
+      const target = url || provider.url;
+      const shown = PP.state_get().pages.find((p) => p.id === page);
+      if (!shown || !PP.url_same(shown.url, target)) {
+        PP.state_set((s) =>
+          send_set(s, id, {
+            progress: `Opening ${first ? "a new chat on" : "this chat on"} ${plugin.manifest.name}…`,
+          }),
+        );
+        await PP.call_send("page_navigate", { page, to: target, wait: true });
+        PP.state_set((s) => ({
+          ...s,
+          pages: s.pages.map((p) => (p.id === page ? { ...p, url: target } : p)),
+        }));
+      }
       const model = PP.model_get(state, view);
       const options = PP.options_get(state, view);
       if (model || Object.keys(options).length)
