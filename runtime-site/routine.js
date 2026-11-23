@@ -135,13 +135,21 @@ const snapshot_take = (provider) =>
     }),
   );
 
-const thinking_last = (provider) => {
-  for (const s of selectors_get(provider, "thinking")) {
-    const els = all_find(s);
-    if (els.length) return els[els.length - 1];
+// The newest thinking on the page: a shown one first, from the selectors in order (a site can keep
+// an earlier reply's thinking in a closed panel; Qwen keeps its drawer's, so the live step title
+// in the reply was never reached); only when none is shown, a folded one (DeepSeek folds its
+// thinking in place). `from` says which selector (and "h" for hidden), for the reply's log.
+const thinking_pick = (provider) => {
+  const lists = selectors_get(provider, "thinking").map(all_find);
+  for (let i = 0; i < lists.length; i += 1) {
+    const shown = lists[i].filter(visible);
+    if (shown.length) return { el: shown[shown.length - 1], from: String(i) };
   }
-  return null;
+  for (let i = 0; i < lists.length; i += 1)
+    if (lists[i].length) return { el: lists[i][lists[i].length - 1], from: `${i}h` };
+  return { el: null, from: "" };
 };
+const thinking_last = (provider) => thinking_pick(provider).el;
 
 // Watch the reply: new text, new thinking, or Stop showing is activity. Finished when it holds
 // still with no Stop for the settle time; Stop showing over an unchanged reply for the stuck time
@@ -189,7 +197,8 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
       }
     }
     const busy = !!element_find(selectors_get(provider, "stop"));
-    const th = thinking_format(provider, thinking_last(provider));
+    const picked = thinking_pick(provider);
+    const th = thinking_format(provider, picked.el);
     const next = [
       busy,
       now.length,
@@ -207,6 +216,7 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
         stop: busy,
         reply_length: now.length,
         thinking_length: th.length,
+        thinking_from: picked.from,
         replies_shown: shown,
         view_width: innerWidth,
         view_height: innerHeight,

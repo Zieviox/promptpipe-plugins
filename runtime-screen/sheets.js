@@ -1636,7 +1636,7 @@ const live_render = (turn) => {
   if (!d.log) return null;
   const rows = d.log.map(
     (e) =>
-      `${String(e.at_s).padStart(4)} s  reply ${String(e.reply_length).padStart(5)}  thinking ${String(e.thinking_length).padStart(5)}  stop ${e.stop ? "yes" : "no "}  hidden ${e.hidden ? "yes" : "no"}`,
+      `${String(e.at_s).padStart(4)} s  reply ${String(e.reply_length).padStart(5)}  thinking ${String(e.thinking_length).padStart(5)}${e.thinking_from ? ` (from ${e.thinking_from})` : ""}  stop ${e.stop ? "yes" : "no "}  hidden ${e.hidden ? "yes" : "no"}`,
   );
   const drawn = PP.draws_get(turn.id);
   const head = `Updates: the page sent ${d.sent}, the app got ${d.got}${drawn === undefined ? "" : `, the screen drew ${drawn} times`}`;
