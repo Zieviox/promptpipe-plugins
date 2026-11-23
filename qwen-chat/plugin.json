@@ -1,7 +1,7 @@
 {
   "id": "qwen-chat",
   "name": "Qwen Chat",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
   "tags": ["provider", "web"],
   "pp": 1,
@@ -15,7 +15,7 @@
     "selectors": {
       "input": ["textarea.message-input-textarea", "textarea#chat-input"],
       "send": ["button.send-button:not(.disabled)", "#send-message-button"],
-      "stop": ["#stop-message-button"],
+      "stop": ["button.stop-button", "#stop-message-button"],
       "reply": [
         ".response-message-content.phase-answer",
         ".chat-response-message .custom-qwen-markdown",
@@ -25,7 +25,8 @@
       "thinking": [
         ".qwen-chat-thinking-and-sources-content-thinking-container",
         ".response-message-content.phase-think",
-        ".response-message-content.phase-thinking"
+        ".response-message-content.phase-thinking",
+        ".chat-response-message .qwen-chat-thinking-status-card-title-text"
       ],
       "chat_links": ["a[href*='/c/']"],
       "model": [".mms-trigger__name"]

@@ -523,7 +523,7 @@ const theme_set = (state) => {
 };
 
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
-let view_open = false;
+let view_page = null; // the site page the site view shows (or null)
 // The message box is sized only when its text changed (typing sizes it at once), never on every
 // redraw, so the conversation above doesn't move.
 let box_text = null;
@@ -556,12 +556,24 @@ const after_draw = (state) => {
     }
     PP.ui_set(() => ({ lit: null }));
   }
-  if (state.ui.site_view.open !== view_open) {
-    view_open = state.ui.site_view.open;
-    PP.call_send(
-      "view_set",
-      view_open ? { page: state.ui.site_view.page, region: PP.region_get() } : { page: null },
-    ).catch(() => null);
+  // The page shown changed (opened, closed, another tab): the page that was shown is told it's
+  // hidden, and the one to show is told first, so it can close what it opened over the chat
+  // (Qwen's thinking drawer) before you see it.
+  const want = state.ui.site_view.open ? state.ui.site_view.page || null : null;
+  if (want !== view_page) {
+    const was = view_page;
+    view_page = want;
+    if (was) PP.call_send("site_shown", { page: was, shown: false }).catch(() => null);
+    const show = () =>
+      PP.call_send(
+        "view_set",
+        want ? { page: want, region: PP.region_get() } : { page: null },
+      ).catch(() => null);
+    if (want)
+      PP.call_send("site_shown", { page: want, shown: true })
+        .catch(() => null)
+        .finally(show);
+    else show();
   }
 };
 

@@ -277,10 +277,8 @@ const drawer_render = (state) => {
 // (not overwritten while you type, #240), and which chat the page is linked to (UC12).
 const site_bar_render = (state) => {
   const shown = state.pages.find((p) => p.id === state.ui.site_view.page) || state.pages[0];
-  const show = (page) => {
-    PP.ui_set(() => ({ site_view: { open: true, page: page.id } }));
-    PP.call_try("view_set", { page: page.id, region: PP.region_get() });
-  };
+  // Another tab: the screen tells the pages and shows it (after_draw), as when the view opens.
+  const show = (page) => PP.ui_set(() => ({ site_view: { open: true, page: page.id } }));
   const linked = state.chats.find((c) => shown && c.site_url && shown.url.startsWith(c.site_url));
   const go = (e) =>
     e.key === "Enter" && PP.call_try("page_navigate", { page: shown.id, to: e.target.value });
