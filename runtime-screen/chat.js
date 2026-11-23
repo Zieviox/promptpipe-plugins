@@ -425,6 +425,9 @@ const new_reply_render = (state) => {
   return html`<button class="jump" onClick=${() => box() && (box().scrollTop = box().scrollHeight)}>Jump to latest</button>`;
 };
 
+// The box is as tall as its text and the container around it (.boxscroll) scrolls: GeckoView
+// hides a selection handle scrolled out of a scrolling container, but not one scrolled out of a
+// text box that scrolls itself (it was drawn over the chat above).
 // The message box is the browser engine's own: what you type is never written back into it (that
 // breaks word choice on the keyboard and the selection); only a change from elsewhere (Edit, a
 // quote, a send emptying it, another chat) is put in. Its height follows its lines, measured on an
@@ -437,7 +440,6 @@ const COPIED = [
 ];
 const box_size = (el) => {
   if (!el) return;
-  if (el.closest(".composer.big")) return void (box_known = null); // sized again once it's small
   if (!box_copy) {
     box_copy = document.createElement("textarea");
     box_copy.setAttribute("aria-hidden", "true");
@@ -452,10 +454,11 @@ const box_size = (el) => {
   const height = `${box_copy.scrollHeight}px`;
   if (el.style.height !== height) el.style.height = height;
 };
-let box_known = null; // the text the box was last sized for
+let box_known = null; // the text and width the box was last sized for
 const box_sync = (el, text) => {
   if (el.value !== text) el.value = text;
-  if (el.value !== box_known) ((box_known = el.value), box_size(el));
+  const known = `${el.clientWidth} ${el.value}`;
+  if (known !== box_known) ((box_known = known), box_size(el));
 };
 addEventListener("resize", () => {
   const el = document.getElementById("message");
@@ -491,22 +494,24 @@ const composer_render = (state) => {
   const edge = (e) => {
     const el = e.currentTarget.querySelector("textarea");
     if (!el || e.target === el) return;
-    if (e.target === e.currentTarget && document.activeElement !== el)
+    if ((e.target === e.currentTarget || e.target.classList.contains("boxscroll")) && document.activeElement !== el)
       return (e.preventDefault(), el.focus());
     if (document.activeElement === el && e.target.closest("button")) e.preventDefault();
   };
   return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`} onMouseDown=${edge}>
     ${PP.icon_render("stackadd", "Quick edit and add", () => (document.activeElement?.blur(), PP.command_run("quick_edit")), false, "icon", "quick_edit")}
-    <textarea
-      id="message"
-      rows="1"
-      placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
-      aria-label="Message"
-      onInput=${(e) => ((box_known = e.target.value), box_size(e.target), PP.draft_type(e.target.value))}
-      onFocus=${(e) => box_size(e.target)}
-      onBlur=${(e) => box_size(e.target)}
-      onKeyDown=${key}
-    ></textarea>
+    <div class="boxscroll">
+      <textarea
+        id="message"
+        rows="1"
+        placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
+        aria-label="Message"
+        onInput=${(e) => ((box_known = `${e.target.clientWidth} ${e.target.value}`), box_size(e.target), PP.draft_type(e.target.value))}
+        onFocus=${(e) => box_size(e.target)}
+        onBlur=${(e) => box_size(e.target)}
+        onKeyDown=${key}
+      ></textarea>
+    </div>
     ${draft.attachments.length ? html`<small>${draft.attachments.length} attached</small>` : null}
     ${PP.icon_render(
       state.ui.composer.big ? "shrink" : "expand",

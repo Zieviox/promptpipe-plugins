@@ -160,6 +160,23 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
       "the box was never collapsed to measure",
     );
 
+    // Many lines: the box is as tall as its text and the container around it scrolls (GeckoView
+    // hides selection handles scrolled out of a container, not out of a self-scrolling text box),
+    // keeping the line you type on in view.
+    for (let i = 0; i < 30; i++) await page.keyboard.press("Shift+Enter");
+    await page.keyboard.type("last line");
+    await page.waitForTimeout(100);
+    const scroll = await page.$eval(".boxscroll", (el) => ({
+      box: document.getElementById("message").offsetHeight,
+      shown: el.clientHeight,
+      bottom: el.scrollTop + el.clientHeight,
+      all: el.scrollHeight,
+      self: document.getElementById("message").scrollHeight - document.getElementById("message").clientHeight,
+    }));
+    assert.ok(scroll.box > scroll.shown, "the box is taller than the part shown");
+    assert.ok(scroll.self <= 1, "the box doesn't scroll itself");
+    assert.ok(scroll.bottom >= scroll.all - 2, "the line being typed is in view");
+
     await page.evaluate(() => PP.draft_set("from elsewhere"));
     await page.waitForFunction(
       () => document.getElementById("message").value === "from elsewhere",

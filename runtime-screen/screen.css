@@ -106,18 +106,21 @@ textarea.field { resize: vertical; min-height: 6em; }
 /* All of the box is text: no padding or empty band inside it (a long press there doesn't select in
    GeckoView before 162). It is as tall as its lines, up to 40% of the screen, and doesn't change
    when tapped; the expand button makes it the whole screen. */
-.composer textarea { flex: 1; min-width: 0; background: none; border: 0; outline: 0; resize: none; line-height: 1.4; min-height: 1.4em; max-height: 40vh; padding: 0; margin: 0 0 4px; overflow-y: auto; }
+/* The box is as tall as its text; the container around it scrolls, up to 40% of the screen. */
+.composer .boxscroll { flex: 1; min-width: 0; max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; margin: 0 0 4px; }
+.composer textarea { display: block; width: 100%; background: none; border: 0; outline: 0; resize: none; line-height: 1.4; min-height: 1.4em; padding: 0; margin: 0; overflow: hidden; }
 /* The text comes first, its buttons beside it on the right. Typing (the keyboard opens, so the
    screen moves anyway), the buttons go to a row under the text, which takes the whole width: its
    left edge stays put, it only gets wider. */
-.composer:not(.big) textarea { order: -1; }
+.composer:not(.big) .boxscroll { order: -1; }
 .composer:not(.big):focus-within { flex-wrap: wrap; row-gap: 8px; }
-.composer:not(.big):focus-within textarea { flex-basis: 100%; }
+.composer:not(.big):focus-within .boxscroll { flex-basis: 100%; }
 .composer:not(.big):focus-within > :nth-last-child(2) { margin-left: auto; }
 /* Expanded: the whole screen is the message box (the keyboard still fits: the screen resizes for
    it); the buttons stay at the bottom. */
 .composer.big { position: absolute; inset: 0; z-index: 30; margin: 0; border-radius: 0; padding: 18px 16px 14px; background: var(--bg); display: grid; grid-template-columns: auto 1fr auto auto; grid-template-rows: 1fr auto; gap: 10px; align-items: center; }
-.composer.big textarea { grid-column: 1 / -1; grid-row: 1; align-self: stretch; height: auto !important; max-height: none; min-height: 0; font-size: 15px; line-height: 1.5; }
+.composer.big .boxscroll { grid-column: 1 / -1; grid-row: 1; align-self: stretch; max-height: none; min-height: 0; margin: 0; }
+.composer.big textarea { min-height: 100%; font-size: 15px; line-height: 1.5; }
 .composer.big > :first-child { grid-column: 1; grid-row: 2; }
 .composer.big > small { grid-column: 2; grid-row: 2; }
 .composer.big > :nth-last-child(2) { grid-column: 3; grid-row: 2; }
