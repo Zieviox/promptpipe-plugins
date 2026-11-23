@@ -144,18 +144,6 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
       [6, 11],
       "a redraw left the selection alone",
     );
-    // Selected bottom to top: turned to run forwards (keyboards that read end minus start).
-    await page.$eval("#message", (el) => el.setSelectionRange(6, 11, "backward"));
-    await page.waitForFunction(
-      () => document.getElementById("message").selectionDirection === "forward",
-      null,
-      { timeout: 3000 },
-    );
-    assert.deepEqual(
-      await page.$eval("#message", (el) => [el.selectionStart, el.selectionEnd]),
-      [6, 11],
-      "the same text is still selected",
-    );
     await page.keyboard.type("there");
     assert.equal(await page.inputValue("#message"), "hello there", "typing replaced the selection");
 

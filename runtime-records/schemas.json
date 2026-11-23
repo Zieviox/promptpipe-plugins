@@ -138,6 +138,14 @@
       "description": "Shift+Enter makes a new line"
     },
     {
+      "key": "look.selection_ordered",
+      "type": "toggle",
+      "label": "Selections reach the keyboard in order",
+      "default": true,
+      "section": "Look",
+      "description": "Text selected bottom to top is told to the keyboard start first, as other apps do. Without it, HeliBoard and other keyboards built on Android's own don't delete such a selection on Backspace. Turn off if your keyboard acts oddly with selections."
+    },
+    {
       "key": "sites.pages",
       "type": "number",
       "label": "Pages at once",

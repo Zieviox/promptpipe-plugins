@@ -457,23 +457,6 @@ const box_sync = (el, text) => {
   if (el.value !== text) el.value = text;
   if (el.value !== box_known) ((box_known = el.value), box_size(el));
 };
-// A selection made bottom to top is told to the keyboard as start after end (GeckoView sends the
-// anchor and the focus; other engines send them in order), and keyboards that work out the length
-// as end minus start (HeliBoard and other AOSP keyboards) then delete nothing on Backspace and just
-// drop the selection. Once the handles stop moving, the same selection is turned to run forwards.
-let box_turn = 0;
-document.addEventListener(
-  "selectionchange",
-  () => {
-    clearTimeout(box_turn);
-    box_turn = setTimeout(() => {
-      const el = document.getElementById("message");
-      if (el && document.activeElement === el && el.selectionDirection === "backward")
-        el.setSelectionRange(el.selectionStart, el.selectionEnd, "forward");
-    }, 400);
-  },
-  true,
-);
 addEventListener("resize", () => {
   const el = document.getElementById("message");
   if (el) box_size(el);

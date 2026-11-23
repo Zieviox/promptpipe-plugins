@@ -506,6 +506,7 @@ const screen_render = (state) => {
 // The theme: light or dark (or the system's), the accent, a theme plugin, the scale and text size;
 // the system bars follow.
 let bars = "";
+let keyboard = null; // what the platform was last told about selections (look.selection_ordered)
 const theme_set = (state) => {
   const root = document.documentElement;
   const mode = PP.setting_get(state, "look.mode");
@@ -520,6 +521,9 @@ const theme_set = (state) => {
   if (`${background}${dark}` !== bars)
     ((bars = `${background}${dark}`),
       PP.call_send("bars_set", { background, dark }).catch(() => null));
+  const ordered = PP.setting_get(state, "look.selection_ordered");
+  if (ordered !== keyboard)
+    ((keyboard = ordered), PP.call_send("keyboard_set", { ordered }).catch(() => null));
 };
 
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
