@@ -1450,6 +1450,11 @@ ${p.text}</textarea
           onClick: () => (PP.draft_set(turn.message, { replaces: turn.id }), PP.sheet_close()),
         }),
         item({
+          label: "Check against the site",
+          sub: "Takes the site's version of this reply if it's different (one cut short, say)",
+          onClick: () => (PP.sheet_close(), PP.turn_check_run(turn.id)),
+        }),
+        item({
           label: "Copy the thinking",
           onClick: () => PP.call_try("clipboard_write", { text: turn.thinking }, "Copied"),
         }),

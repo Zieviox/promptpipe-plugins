@@ -178,3 +178,23 @@ test("saves of one file that overlap aren't taken for an outside change (drafts 
   );
   assert.equal(disk, "r3");
 });
+
+test("the outbox comes back after the app closed: a message on its way then is failed, not lost", () => {
+  const pp2 = plugins_load(["runtime-records", "runtime-storage"]);
+  const loaded = pp2.outbox_load({
+    sends: [
+      { id: "a", chat: "c", message: "was on its way", status: "sending" },
+      { id: "b", chat: "c", message: "was waiting", status: "queued" },
+    ],
+    held: { c: "paused" },
+  });
+  assert.deepEqual(
+    loaded.sends.map((s) => [s.message, s.status]),
+    [
+      ["was on its way", "failed"],
+      ["was waiting", "queued"],
+    ],
+  );
+  assert.match(loaded.sends[0].error.message, /closed before the reply came/);
+  assert.deepEqual(loaded.held, { c: "paused" });
+});

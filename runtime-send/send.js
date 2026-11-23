@@ -4,7 +4,7 @@
 // of its provider, up to the pages-at-once setting (UC1.4). Sends live in the State (`sends`):
 // the queue and the failed list are views of it.
 
-const ACTIVE = ["waiting", "sending"];
+const ACTIVE = ["waiting", "sending", "checking"];
 
 // ---------- the State's sends (pure) ----------
 
@@ -50,6 +50,80 @@ const attachments_check = (plugin, attachments = []) => {
     : null;
 };
 
+// ---------- the outbox and holds ----------
+
+// A chat's messages not answered yet (queued, failed) are kept in the app's outbox.json, so text
+// you typed is never lost to a closed app or an error; one on its way when the app closed comes
+// back as failed (storage's state_load).
+const outbox_save = async () => {
+  try {
+    const saved = await PP.store_save(PP.state_get(), [{ file: "outbox" }]);
+    PP.state_set((s) => ({ ...s, revisions: { ...s.revisions, ...saved.revisions } }));
+  } catch (error) {
+    // kept in memory; the next change saves it again
+  }
+};
+
+// Why a chat's queue holds, or null: one of its messages failed, the reply before was cut short
+// or its message removed, or you paused it. Only a reply that comes back, Resume, or a message's
+// Send now lets the queue go on (Send now sends that one message, even past a hold).
+const hold_get = (state, chat) =>
+  state.sends.some((s) => s.chat === chat && s.status === "failed")
+    ? "failed"
+    : (state.held || {})[chat] || null;
+
+const hold_set = (chat, why) => {
+  PP.state_set((s) => {
+    const held = { ...(s.held || {}) };
+    if (why) held[chat] = why;
+    else delete held[chat];
+    return { ...s, held };
+  });
+  outbox_save();
+  if (!why) queue_run();
+};
+
+// Pause or resume a chat's queue (the bar over its waiting messages).
+const queue_pause = (chat, on) => hold_set(chat, on ? "paused" : null);
+
+// Send this waiting message now, past any hold (it still waits for the chat's message on its way).
+const send_now = (id) => {
+  PP.state_set((s) => send_set(s, id, { force: true }));
+  queue_run();
+};
+
+// Remove a failed or waiting message: its text back into the box, or discarded (you choose; the
+// screen asks). Messages waiting behind it then hold until you resume.
+const send_dismiss = async (id, choice) => {
+  const send = send_get(id);
+  if (!send) return;
+  if (choice === "back") {
+    await PP.record_apply((s) => {
+      const old = s.drafts.find((d) => d.id === send.chat) || {
+        id: send.chat,
+        text: "",
+        attachments: [],
+      };
+      const text = old.text ? `${old.text}\n\n${send.message}` : send.message;
+      const draft = {
+        ...old,
+        text,
+        attachments: [...old.attachments, ...(send.attachments || [])],
+      };
+      return {
+        state: { ...s, drafts: [...s.drafts.filter((d) => d.id !== send.chat), draft] },
+        targets: [{ file: "drafts" }],
+      };
+    });
+  }
+  const behind = PP.state_get().sends.some(
+    (s) => s.chat === send.chat && s.id !== id && s.status === "queued",
+  );
+  PP.state_set((s) => send_remove(s, id));
+  if (behind && send.status === "failed") hold_set(send.chat, "removed");
+  else outbox_save();
+};
+
 // ---------- the queue and the page pool ----------
 
 const message_send = (draft) => {
@@ -68,19 +142,24 @@ const message_send = (draft) => {
     progress: "",
   };
   PP.state_set((state) => ({ ...state, sends: [...state.sends, send] }));
-  if (send.chat) return (queue_run(), send);
+  if (send.chat) return (outbox_save(), queue_run(), send);
   // A side request runs at once; its answer is what the call returns (UC42.3).
   PP.state_set((state) => send_set(state, send.id, { status: "sending" }));
   return send_run(send.id);
 };
 
-// Start each chat's first queued send when the chat has none on its way.
+// Start each chat's first queued send when the chat has none on its way and its queue doesn't
+// hold (a message marked Send now goes past the hold).
 const queue_run = () => {
-  const sends = PP.state_get().sends;
+  const state = PP.state_get();
+  const sends = state.sends;
   const busy = new Set(sends.filter((s) => ACTIVE.includes(s.status)).map((s) => s.chat));
   const next = new Map();
   for (const s of sends.filter((x) => x.status === "queued" && x.chat)) {
-    if (!busy.has(s.chat) && !next.has(s.chat)) next.set(s.chat, s);
+    if (busy.has(s.chat) || next.has(s.chat)) continue;
+    const forced = sends.find((x) => x.chat === s.chat && x.status === "queued" && x.force);
+    if (forced) next.set(s.chat, forced);
+    else if (!hold_get(state, s.chat)) next.set(s.chat, s);
   }
   for (const s of next.values()) {
     PP.state_set((state) => send_set(state, s.id, { status: "sending" }));
@@ -245,14 +324,18 @@ const send_run = async (id) => {
     });
   } catch (error) {
     const part = (send_get(id) || {}).reply;
-    if (part && chat)
+    if (part && chat) {
       await turn_save(id, {
         reply: part,
         received: part,
         error,
         notes: [`cut short: ${error.message}`],
       });
-    else PP.state_set((s) => send_set(s, id, { status: "failed", error, progress: "" }));
+      hold_set(chat.id, "cut short");
+    } else {
+      PP.state_set((s) => send_set(s, id, { status: "failed", error, progress: "", force: false }));
+      outbox_save();
+    }
   } finally {
     if (!waiting) (queue_run(), pool_add());
   }
@@ -310,6 +393,10 @@ const turn_save = async (id, answer) => {
     };
     return { state: next, targets: [{ chat: chat.id }, { file: "counters" }] };
   }, `chat: ${name} (#${count})`);
+  outbox_save();
+  // A reply that came back whole lets a queue held by the one before go on (a pause stays).
+  const why = (PP.state_get().held || {})[chat.id];
+  if (!answer.error && why && why !== "paused") hold_set(chat.id, null);
   PP.call_send("vibration_start", {}).catch(() => {});
   if (send.job) {
     const done = {
@@ -336,16 +423,19 @@ const send_stop = async (id) => {
 const failure_resolve = async (id, choice) => {
   const send = send_get(id);
   if (choice === "retry") {
-    PP.state_set((s) => send_set(s, id, { status: "queued", error: null }));
+    PP.state_set((s) => send_set(s, id, { status: "queued", error: null, force: true }));
+    outbox_save();
     return queue_run();
   }
   // Check: the page's newest reply, waited for while it's still being written (never for long),
   // saved as this message's reply; nothing there puts the message back with the reason.
   if (choice === "check") {
-    const failed = (message) =>
+    const failed = (message) => (
       PP.state_set((s) =>
         send_set(s, id, { status: "failed", progress: "", error: { code: "not_found", message } }),
-      );
+      ),
+      outbox_save()
+    );
     if (!send.page || !PP.state_get().pages.some((p) => p.id === send.page))
       return failed(
         "This message never reached a site page, so there's nothing to check. Tap Retry.",
@@ -383,9 +473,89 @@ const failure_resolve = async (id, choice) => {
       },
       targets: [{ file: "drafts" }],
     }));
-    return;
+    const behind = PP.state_get().sends.some((x) => x.chat === send.chat && x.status === "queued");
+    return behind ? hold_set(send.chat, "removed") : outbox_save();
   }
-  PP.state_set((s) => send_remove(s, id));
+  return send_dismiss(id, choice === "back" ? "back" : "discard");
+};
+
+// ---------- a saved reply against the site's ----------
+
+const words_same = (a, b) =>
+  String(a || "")
+    .replace(/\s+/g, " ")
+    .trim() ===
+  String(b || "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+// The site's own version of a saved reply (one cut short, or any you doubt): the chat's site chat
+// opened on a free page, the message found there (by what was sent, else by its place from the
+// end), and its reply taken when it differs. Answers "updated", "same" or why it couldn't.
+const turn_check = async (id) => {
+  const state = PP.state_get();
+  const turn = state.turns.find((t) => t.id === id);
+  const chat = turn && state.chats.find((c) => c.id === turn.chat);
+  if (!chat) return { status: "missing", why: "That message isn't here any more." };
+  if (!chat.site_url)
+    return {
+      status: "missing",
+      why: "This chat isn't linked to a site chat yet, so there's nothing to compare with.",
+    };
+  const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, chat));
+  if (!plugin || !plugin.manifest.tags.includes("web"))
+    return { status: "missing", why: "Only chats on a site can be checked against it." };
+  const provider = provider_build(state, plugin);
+  const check = { id: PP.id_create(), chat: null, status: "checking", message: "" };
+  PP.state_set((s) => ({ ...s, sends: [...s.sends, check] })); // holds the page while it reads
+  try {
+    const page = await pool_remove(check, provider, chat.site_url);
+    if (!page)
+      return {
+        status: "missing",
+        why: "Every site page is busy. Try again when the replies are in.",
+      };
+    PP.state_set((s) => send_set(s, check.id, { page }));
+    const shown = PP.state_get().pages.find((p) => p.id === page);
+    if (!shown || !PP.url_same(shown.url, chat.site_url))
+      await PP.call_send("page_navigate", { page, to: chat.site_url, wait: true });
+    const site = await PP.call_send("site_read", { page, which: "all" });
+    const mine = PP.state_get().turns.filter((t) => t.chat === chat.id);
+    const by_text = site.filter(
+      (t) => words_same(t.message, turn.sent) || words_same(t.message, turn.message),
+    );
+    const from_end = mine.length - 1 - mine.findIndex((t) => t.id === id);
+    const found = by_text[by_text.length - 1] || site[site.length - 1 - from_end];
+    if (!found || !found.reply)
+      return { status: "missing", why: "That message wasn't found in the site chat." };
+    if (words_same(found.reply, turn.received || turn.reply)) return { status: "same" };
+    const reply = await PP.hook_run("reply_after", found.reply, { chat, notes: [] });
+    await PP.record_apply(
+      (s) =>
+        PP.record_set(s, {
+          collection: "turns",
+          id,
+          fields: {
+            received: found.reply,
+            reply,
+            thinking: found.thinking || turn.thinking,
+            error: null,
+            notes: [
+              ...(turn.notes || []).filter((n) => !/^cut short/.test(n)),
+              "updated from the site",
+            ],
+          },
+        }),
+      `reply updated from the site: ${chat.name}`,
+    );
+    const why = (PP.state_get().held || {})[chat.id];
+    if (why === "cut short") hold_set(chat.id, null);
+    return { status: "updated" };
+  } finally {
+    PP.state_set((s) => send_remove(s, check.id));
+    queue_run();
+    pool_add();
+  }
 };
 
 // ---------- other apps' requests (UC41) ----------
@@ -455,6 +625,11 @@ PP.plugin_set({
     send_set,
     send_stop,
     failure_resolve,
+    send_dismiss,
+    send_now,
+    queue_pause,
+    hold_get,
+    turn_check,
     job_run,
     provider_build,
   },
@@ -462,7 +637,10 @@ PP.plugin_set({
     message_send: (draft) => message_send(draft),
     send_stop: (d) => send_stop(d.send),
     failure_resolve: (d) => failure_resolve(d.send, d.choice),
+    turn_check: (d) => turn_check(d.turn),
     job_run: (job) => job_run(job),
   },
   events: { reply_changed, page_changed, job_received: job_run },
+  // Messages kept from before the app closed: the queues go on where they don't hold.
+  hooks: { app_start: () => queue_run() },
 });

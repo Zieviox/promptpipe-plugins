@@ -221,6 +221,26 @@ const writes_build = async (state, target) => {
   if (target.chat) return PP.chat_files_build(state, target.chat);
   if (target.file === "config") return [{ root: "app", path: "config.json", data: state.config }];
   if (target.file === "drafts") return [{ root: "app", path: "drafts.json", data: state.drafts }];
+  // A chat's messages not answered yet, and which queues hold (runtime-send's outbox).
+  if (target.file === "outbox") {
+    const keep = [
+      "id",
+      "turn",
+      "chat",
+      "message",
+      "attachments",
+      "replaces",
+      "profile",
+      "status",
+      "at",
+      "error",
+      "force",
+    ];
+    const sends = state.sends
+      .filter((x) => x.chat && !x.job)
+      .map((x) => Object.fromEntries(keep.filter((k) => k in x).map((k) => [k, x[k]])));
+    return [{ root: "app", path: "outbox.json", data: { sends, held: state.held || {} } }];
+  }
   if (target.file === "chat_data") {
     const item = state.chat_data.find((d) => d.id === target.id);
     const path = `.promptpipe/chats/${item.chat}/${item.plugin}.json`;

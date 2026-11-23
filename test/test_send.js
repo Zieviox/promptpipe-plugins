@@ -13,7 +13,10 @@ const state_build = () => ({
       { key: "sites.pages", default: 2 },
       { key: "git.commit", default: true },
     ],
-    collections: { chats: { collection: "chats", file: "chat" } },
+    collections: {
+      chats: { collection: "chats", file: "chat" },
+      turns: { collection: "turns", file: "chat", parent: "chat", owner: "chats", fields: [] },
+    },
   },
   config: {
     settings: {},
@@ -331,4 +334,96 @@ test("Check takes the page's newest reply, says why when there's none, and never
   };
   await pp.failure_resolve(second.id, "check");
   assert.match(pp.state.sends[0].error.message, /never reached a site page/);
+});
+
+test("a chat's queue holds after a failure, goes on after a good reply, and Send now goes past it", async () => {
+  const { pp, pending, files } = world_build();
+  pp.message_send({ chat: "c1", message: "one" });
+  pp.message_send({ chat: "c1", message: "two" });
+  pp.message_send({ chat: "c1", message: "three" });
+  await tick();
+  pending[0].reject({ code: "unavailable", message: "no connection" });
+  await tick();
+  await tick();
+  assert.equal(pending.length, 1, "two and three wait while one failed");
+  assert.equal(pp.hold_get(pp.state, "c1"), "failed");
+  const outbox = JSON.parse(files["outbox.json"]);
+  assert.deepEqual(
+    outbox.sends.map((s) => [s.message, s.status]),
+    [
+      ["one", "failed"],
+      ["two", "queued"],
+      ["three", "queued"],
+    ],
+    "kept on disk: nothing typed is lost to a closed app",
+  );
+
+  // Send now: "three" goes past the hold (the failed one stays).
+  pp.send_now(pp.state.sends.find((s) => s.message === "three").id);
+  await tick();
+  assert.equal(pending[1].d.text, "three");
+  pending[1].resolve({ reply: "r3", url: "https://ds/c/1" });
+  await tick();
+  await tick();
+  assert.equal(pending.length, 2, "two still waits: one hasn't been answered");
+
+  // Retry one; its good reply lets two go.
+  await pp.failure_resolve(pp.state.sends.find((s) => s.message === "one").id, "retry");
+  await tick();
+  assert.equal(pending[2].d.text, "one");
+  pending[2].resolve({ reply: "r1", url: "https://ds/c/1" });
+  await tick();
+  await tick();
+  await tick();
+  assert.equal(pending[3].d.text, "two");
+});
+
+test("Pause holds a chat's queue until Resume; a reply cut short holds it too", async () => {
+  const { pp, pending } = world_build();
+  pp.queue_pause("c2", true);
+  pp.message_send({ chat: "c2", message: "held" });
+  await tick();
+  assert.equal(pending.length, 0);
+  pp.queue_pause("c2", false);
+  await tick();
+  assert.equal(pending[0].d.text, "held");
+  pp.message_send({ chat: "c2", message: "next" });
+  // The reply comes in part way, then the page fails: the part is saved, the queue holds.
+  pp.events.reply_changed.forEach((f) => f({ page: pp.state.sends[0].page, reply: "half a re" }));
+  pending[0].reject({ code: "unavailable", message: "the AI page reloaded" });
+  await tick();
+  await tick();
+  await tick();
+  assert.equal(pp.state.turns.find((t) => t.message === "held").reply, "half a re");
+  assert.equal(pp.hold_get(pp.state, "c2"), "cut short");
+  assert.equal(pending.length, 1, "next waits");
+});
+
+test("removing a failed message asks where its text goes: back in the box keeps it", async () => {
+  const { pp, pending } = world_build();
+  pp.message_send({ chat: "c2", message: "a long message I typed" });
+  await tick();
+  pending[0].reject({ code: "unavailable", message: "no connection" });
+  await tick();
+  await tick();
+  await pp.send_dismiss(pp.state.sends[0].id, "back");
+  assert.equal(pp.state.sends.length, 0);
+  assert.equal(pp.state.drafts.find((d) => d.id === "c2").text, "a long message I typed");
+});
+
+test("a saved reply is checked against the site's version and updated when it differs", async () => {
+  const { pp, pending } = world_build();
+  pp.state = { ...pp.state, pages: [{ id: "p1", provider: "deepseek", url: "https://ds/c/2" }] };
+  pp.message_send({ chat: "c2", message: "tell me" });
+  await tick();
+  pending[0].resolve({ reply: "the start", url: "https://ds/c/2" });
+  await tick();
+  await tick();
+  const turn = pp.state.turns.find((t) => t.message === "tell me");
+  pp.page_shows = [{ message: "tell me", reply: "the start and the whole rest", thinking: "" }];
+  const updated = await pp.turn_check(turn.id);
+  assert.equal(updated.status, "updated");
+  assert.equal(pp.state.turns.find((t) => t.id === turn.id).reply, "the start and the whole rest");
+  assert.equal((await pp.turn_check(turn.id)).status, "same");
+  assert.equal(pp.state.sends.length, 0, "the check let its page go");
 });

@@ -308,6 +308,8 @@ const COMMANDS = [
 // What a dialog's OK or a sheet's item runs with its data (the dialog adds the text typed as `value` and
 // the button pressed as `choice`); not listed in Find.
 const RUNS = {
+  // Its text back into the box, or discarded (the dialog's choice).
+  send_dismiss: (s, d) => d.choice && PP.send_dismiss(d.send, d.choice),
   // Confirmed in the dialog first (choice "yes").
   chats_delete: (s, d) => d.choice === "yes" && PP.chats_delete(d.ids),
   folder_delete: (s, d) =>

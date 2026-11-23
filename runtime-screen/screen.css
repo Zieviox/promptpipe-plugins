@@ -280,3 +280,8 @@ details summary { cursor: pointer; color: var(--muted); }
 details .item { margin-top: 6px; }
 
 .notice details { background: none; padding: 0; border-radius: 0; }
+.queuebar { display: flex; align-items: center; gap: 8px; margin: 14px 0 2px; padding: 8px 10px 8px 14px; background: var(--raise); border-radius: 12px; font-size: 13px; color: var(--muted); }
+.queuebar .pill { padding: 5px 12px; }
+.queuebar .pill .svg svg { width: 14px; height: 14px; }
+.ai .notice + .chips.choices { margin-bottom: 4px; }
+.queued .chips.choices { justify-content: flex-end; }

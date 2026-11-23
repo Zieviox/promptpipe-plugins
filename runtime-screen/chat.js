@@ -222,6 +222,51 @@ const thin_render = (state, turn) => {
     }`;
 };
 
+// A saved reply against the site's version (cut short, or doubted), said in a toast.
+const turn_check_run = async (id) => {
+  PP.toast("Checking the site…");
+  const result = await PP.call_try("turn_check", { turn: id });
+  if (!result) return;
+  if (result.status === "updated") PP.toast("Updated with the site's version");
+  else if (result.status === "same") PP.toast("It matches the site");
+  else PP.toast(result.why, true);
+};
+
+// Removing a failed or waiting message asks where its text goes: nothing you typed goes silently.
+const send_dismiss_ask = (send) =>
+  PP.dialog_open({
+    title: "Remove this message? Its text can go back in the message box.",
+    choices: [
+      ["back", "Put it back in the box"],
+      ["discard", "Discard it"],
+    ],
+    command: "send_dismiss",
+    data: { send: send.id },
+  });
+
+// Over a chat's waiting messages: how many, why they hold, and Pause or Resume.
+const HOLDS = {
+  failed: "a message above didn't go",
+  "cut short": "the reply above was cut short",
+  removed: "the message before was removed",
+  paused: "paused",
+};
+const queue_bar_render = (state, chat, waiting) => {
+  const why = PP.hold_get(state, chat);
+  const n = waiting.length;
+  const count = `${n} message${n === 1 ? "" : "s"} waiting`;
+  return html`<div class="queuebar" key="queuebar">
+    <span class="grow">${why ? `${count} · ${HOLDS[why] || "held"}` : count}</span>
+    ${
+      why && why !== "failed"
+        ? html`<button class="pill on" onClick=${() => PP.queue_pause(chat, false)}>${PP.icon_svg("play")} Resume</button>`
+        : why
+          ? null
+          : html`<button class="pill" onClick=${() => PP.queue_pause(chat, true)}>Pause</button>`
+    }
+  </div>`;
+};
+
 const turn_render = (state, turn, last) =>
   html`<div class="turn" key=${turn.id} id=${`turn-${turn.id}`}>
     ${message_render(state, turn)}
@@ -229,17 +274,30 @@ const turn_render = (state, turn, last) =>
       <small>${provider_name_get(state, turn)}${turn.model ? ` · ${turn.model}` : ""}</small>
       <div ...${swipe_handlers(turn, state)}>${PP.markdown_render(turn.reply)}</div>
       ${thin_render(state, turn)}
-      ${turn.error ? html`<div class="error">${turn.error.message}</div>` : null}
+      ${
+        turn.error
+          ? html`<div class="notice">
+              <span class="ni">${PP.icon_svg("alert")}</span>
+              <div class="grow">
+                <div>This reply was cut short. The site may have the rest.</div>
+                <details><summary>Details</summary><small>${turn.error.message}</small></details>
+              </div>
+            </div>
+            <div class="chips choices">
+              <button class="pill on" onClick=${() => turn_check_run(turn.id)}>Check against the site</button>
+            </div>`
+          : null
+      }
       ${reply_foot(state, turn, last)}
     </div>
   </div>`;
 
-// A send on its way: the thinking's newest line and the reply so far; queued: under the chat,
-// with Move up, Edit and Remove (UC2); failed: its reason and what can be done (UC4).
+// A send on its way: the thinking and the reply so far; waiting: Send now, Edit and Remove (UC2);
+// failed: what happened and what can be done (UC4). Removing asks where the text goes.
 const send_render = (state, send) => {
-  const page = state.pages.find((p) => p.id === send.page);
-  const plugin = page && state.plugins.find((p) => p.id === page.provider);
-  const site = plugin ? plugin.manifest.name : "The site";
+  const chat = state.chats.find((c) => c.id === send.chat);
+  const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, chat));
+  const site = plugin ? plugin.manifest.name : null;
   const you = message_render(state, { id: send.id, message: send.message, saved: false });
   // Failed: what happened in plain words (the technical text under Details), Retry first.
   if (send.status === "failed") {
@@ -273,23 +331,19 @@ const send_render = (state, send) => {
               </button>`
             : null
         }
-        <button class="pill quiet" onClick=${resolve("dismiss")}>Dismiss</button>
+        <button class="pill quiet" onClick=${() => send_dismiss_ask(send)}>Dismiss</button>
       </div>
     </div>`;
   }
   if (send.status === "queued") {
-    const remove = () =>
-      PP.apply_try((s) => PP.record_delete(s, { collection: "sends", id: send.id }));
-    const edit = () => (PP.draft_set(send.message), remove());
-    const up = () =>
-      PP.apply_try((s) => PP.record_move(s, { collection: "sends", id: send.id, index: 0 }));
+    const edit = () => (PP.draft_set(send.message), PP.send_dismiss(send.id, "discard"));
     return html`<div class="turn queued" key=${send.id}>
       ${you}
       <div class="chips choices">
-        <span class="status">Waiting its turn</span>
-        <button class="pill" onClick=${up}>Send next</button>
+        ${send.force ? html`<span class="status">Sending next</span>` : null}
+        ${send.force ? null : html`<button class="pill" onClick=${() => PP.send_now(send.id)}>Send now</button>`}
         <button class="pill" onClick=${edit}>Edit</button>
-        <button class="pill quiet" onClick=${remove}>Remove</button>
+        <button class="pill quiet" onClick=${() => send_dismiss_ask(send)}>Remove</button>
       </div>
     </div>`;
   }
@@ -303,7 +357,7 @@ const send_render = (state, send) => {
       ? "Writing…"
       : /chars$/.test(send.progress || "")
         ? "Thinking…"
-        : send.progress || `Waiting for ${site}…`;
+        : send.progress || `Waiting for ${site || "the site"}…`;
   return html`<div class="turn" key=${send.id}>
     ${you}
     <div class="live"><span class="pulse"></span>${status}</div>
@@ -331,7 +385,18 @@ const chat_render = (state) => {
               ...parts.map((p) => p.after),
             ];
           }),
-          ...sends.map((s) => send_render(state, s)),
+          ...sends.flatMap((s, i) =>
+            s.status === "queued" && !sends.slice(0, i).some((x) => x.status === "queued")
+              ? [
+                  queue_bar_render(
+                    state,
+                    id,
+                    sends.filter((x) => x.status === "queued"),
+                  ),
+                  send_render(state, s),
+                ]
+              : [send_render(state, s)],
+          ),
         ]
       : html`<div class="empty">Say hello: type a message and send.</div>`;
   return html`<div
@@ -417,6 +482,7 @@ const composer_render = (state) => {
 
 PP.plugin_set({
   functions: {
+    turn_check_run,
     box_size,
     header_render,
     provider_menu_render,

@@ -21,16 +21,24 @@ const ui_set = (change) => PP.state_set((s) => ({ ...s, ui: { ...s.ui, ...change
 
 // What went wrong, in plain words: the code says what kind, and the technical text is kept apart
 // (the failed message's Details) for whoever fixes a plugin. `site`: the provider's name.
-const error_words = (error, site = "The site") => {
+const error_words = (error, site) => {
   const code = (error && error.code) || "";
   const text = String((error && error.message) || error || "");
-  if (/isn't in this page's scripts|not connected|reloaded|did not finish loading|isn't ready again/.test(text))
-    return `${site} wasn't ready. Try again in a moment.`;
+  const name = site || "the site";
+  const Name = site || "The site";
+  if (
+    /isn't in this page's scripts|not connected|reloaded|did not finish loading|isn't ready again/.test(
+      text,
+    )
+  )
+    return `${Name} wasn't ready. Try again in a moment.`;
   if (/not supported on this platform/.test(text)) return "That only works in the phone app.";
-  if (code === "unavailable") return `Couldn't reach ${site}. Check the connection, then try again.`;
-  if (code === "deadline_exceeded") return `${site} took too long to answer.`;
+  if (code === "unavailable")
+    return `Couldn't reach ${name}. Check the connection, then try again.`;
+  if (code === "deadline_exceeded") return `${Name} took too long to answer.`;
   if (code === "cancelled") return "Stopped.";
-  if (code === "internal" || code === "unknown") return "Something went wrong in the app. Try again.";
+  if (code === "internal" || code === "unknown")
+    return "Something went wrong in the app. Try again.";
   return text;
 };
 

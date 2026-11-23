@@ -149,6 +149,24 @@ const CONFIG_NEW = {
   sources: [],
 };
 
+// The outbox as it was when the app closed: a message that was on its way then comes back as
+// failed (its reply may be on the site: Check the page), so nothing typed is lost.
+const outbox_load = (outbox) => ({
+  sends: (outbox.sends || []).map((x) =>
+    ["sending", "waiting", "checking"].includes(x.status)
+      ? {
+          ...x,
+          status: "failed",
+          error: {
+            code: "unavailable",
+            message: "The app closed before the reply came. Check the page, or Retry.",
+          },
+        }
+      : x,
+  ),
+  held: outbox.held || {},
+});
+
 // Everything the app keeps, read into the State once: settings, the prompt library, folders,
 // counters, drafts, every chat's meta (not its turns), the credentials' listing. A first start
 // makes the profile you have from Plain.
@@ -181,6 +199,7 @@ const state_load = async (state) => {
     folders: await read("chats", ".promptpipe/folders.json", []),
     counters: await read("chats", ".promptpipe/counters.json", {}),
     drafts: await read("app", "drafts.json", []),
+    ...outbox_load(await read("app", "outbox.json", { sends: [], held: {} })),
     chats: metas.map((f) => JSON.parse(f.data)),
     chat_data: [],
     credentials: await PP.call_send("credential_list", {}).catch(() => []),
@@ -198,6 +217,7 @@ const state_load = async (state) => {
 
 PP.plugin_set({
   functions: {
+    outbox_load,
     change_resolve,
     api_token_create,
     connection_verify,
