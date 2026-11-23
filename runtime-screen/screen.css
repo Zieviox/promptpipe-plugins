@@ -285,3 +285,4 @@ details .item { margin-top: 6px; }
 .queuebar .pill .svg svg { width: 14px; height: 14px; }
 .ai .notice + .chips.choices { margin-bottom: 4px; }
 .queued .chips.choices { justify-content: flex-end; }
+.row .status.failed { color: var(--error); }

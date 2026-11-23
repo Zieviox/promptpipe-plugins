@@ -372,6 +372,15 @@ const reply_changed = (data) => {
   }, 300);
 };
 
+// A message that didn't send in a chat you aren't reading: said at once, and a tap opens it (it's
+// kept there, and the chat list marks it "Didn't send").
+const send_failed = ({ chat }) => {
+  const state = PP.state_get();
+  const record = chat && state.chats.find((c) => c.id === chat);
+  if (record && chat !== state.ui.chat)
+    PP.toast(`A message in “${record.name}” didn't send. Tap to open it.`, true, chat);
+};
+
 // ---------- drawing ----------
 
 let at_bottom = true;
@@ -453,7 +462,7 @@ const screen_render = (state) => {
     <div class="toasts" aria-live="polite">
       ${ui.toasts.map((t) =>
         t.open
-          ? html`<button class="toast tap" key=${t.id} onClick=${() => PP.chat_open(t.open)}>${t.text}</button>`
+          ? html`<button class=${`toast tap${t.error ? " error" : ""}`} key=${t.id} onClick=${() => PP.chat_open(t.open)}>${t.text}</button>`
           : html`<div class=${`toast${t.error ? " error" : ""}`} key=${t.id}>${t.text}</div>`,
       )}
     </div>`;
@@ -558,5 +567,5 @@ PP.plugin_set({
       handled: data && data.key === "Alt+S" ? (PP.command_run("site_view"), true) : back_run(),
     }),
   },
-  events: { share_received, reply_changed },
+  events: { share_received, reply_changed, send_failed },
 });

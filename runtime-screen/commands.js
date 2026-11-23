@@ -75,16 +75,19 @@ const message_send = async (state) => {
     if (!made) return;
     PP.state_set((s) => ({ ...s, loaded: [...s.loaded, chat], ui: { ...s.ui, chat } }));
   }
-  await PP.apply_try((s) => ({
-    state: { ...s, drafts: s.drafts.filter((d) => d.id !== (state.ui.chat || "new")) },
-    targets: [{ file: "drafts" }],
-  }));
+  // The message is saved in the outbox before the box is cleared, so the text is always kept
+  // somewhere, whatever happens next.
   PP.message_send({
     chat,
     message: text,
     attachments: draft.attachments,
     replaces: draft.replaces || null,
   });
+  await PP.outbox_save();
+  await PP.apply_try((s) => ({
+    state: { ...s, drafts: s.drafts.filter((d) => d.id !== (state.ui.chat || "new")) },
+    targets: [{ file: "drafts" }],
+  }));
 };
 
 const send_stop = (state) => {

@@ -78,6 +78,10 @@ test(
         Object.keys(core.files).some((k) => k.endsWith("/meta.json")),
         "the new chat's meta was saved",
       );
+      assert.ok(
+        core.files["app/outbox.json"],
+        "the message was kept in the outbox before the box cleared",
+      );
       await page.waitForTimeout(500);
       if (SHOT) await page.screenshot({ path: SHOT });
       const unexpected = errors.filter(

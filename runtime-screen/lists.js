@@ -107,12 +107,13 @@ const hold_handlers = (ids) => {
   };
 };
 
-// A chat row: name, its tags (muted), "Replying…" or "Reply ready", the pin, the grip.
+// A chat row: name, its tags (muted), "Didn't send", "Replying…" or "Reply ready", the pin, the grip.
 const chat_row = (state, chat, pinned) => {
   const selecting = state.ui.selection.on;
   const picked = state.ui.selection.ids.includes(chat.id);
   const busy = state.sends.some((s) => s.chat === chat.id && s.status === "sending");
   const ready = !!state.ui.unseen[chat.id];
+  const failed = state.sends.some((s) => s.chat === chat.id && s.status === "failed");
   const pin = () =>
     PP.chats_move(
       picked_ids(state, chat.id),
@@ -128,7 +129,7 @@ const chat_row = (state, chat, pinned) => {
   >
     ${selecting ? html`<span class=${`cb${picked ? " on" : ""}`}>${picked ? PP.icon_svg("check") : null}</span>` : null}
     <button class="grow ct" onClick=${open} ...${hold_handlers([chat.id])}>${chat.name}</button>
-    ${busy ? html`<small class="status">Replying…</small>` : ready ? html`<small class="status"><span class="dot"></span>Reply ready</small>` : (chat.tags || []).length ? html`<small class="ctag">${chat.tags.join(" ")}</small>` : null}
+    ${failed ? html`<small class="status failed"><span class="dot none"></span>Didn't send</small>` : busy ? html`<small class="status">Replying…</small>` : ready ? html`<small class="status"><span class="dot"></span>Reply ready</small>` : (chat.tags || []).length ? html`<small class="ctag">${chat.tags.join(" ")}</small>` : null}
     <button class=${`pb${pinned ? " on" : ""}`} aria-label=${pinned ? "Unpin" : "Pin"} onClick=${pin}>${PP.icon_svg("pin")}</button>
     <span class="grip" aria-label="Drag to move">${PP.icon_svg("grip")}</span>
   </div>`;
