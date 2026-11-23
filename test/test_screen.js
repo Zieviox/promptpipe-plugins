@@ -118,17 +118,24 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     await page.waitForTimeout(300);
     assert.equal(await height(), empty, "tapping the box doesn't change its height");
     assert.deepEqual(await place(), [left, width], "tapping the box doesn't move or widen it");
+    // Presses inside the message area (its edge, a button) keep the cursor, so the keyboard stays.
+    const focused = () => page.evaluate(() => document.activeElement.id);
+    const composer = await page.$eval(".composer", (el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, h: r.height }; });
+    await page.mouse.click(composer.x + 4, composer.y + composer.h / 2);
+    assert.equal(await focused(), "message", "a press on the area's edge keeps the cursor");
+    await page.click("[aria-label='Bigger message box']");
+    assert.equal(await focused(), "message", "the expand button keeps the cursor");
+    await page.click("[aria-label='Smaller message box']");
+    await page.waitForFunction(() => !document.querySelector(".composer.big"));
+    assert.equal(await focused(), "message", "and back");
 
     // One line: the buttons beside it. A second line: the buttons under it, the text the whole
     // width with its left edge kept; measured beside the buttons, so it doesn't flip back.
     const stacked = () => page.$eval(".composer", (el) => "stacked" in el.dataset);
     await page.keyboard.type("short");
     assert.equal(await stacked(), false, "one line keeps the buttons beside it");
-    assert.equal(
-      await page.$eval(".composer", (c) => Math.round(PP.box_side_width(c)) === Math.round(c.querySelector(".boxscroll").offsetWidth)),
-      true,
-      "the width measured beside the buttons is the real one",
-    );
+    const [measured, real] = await page.$eval(".composer", (c) => [Math.round(PP.box_side_width(c)), Math.round(c.querySelector(".boxscroll").offsetWidth)]);
+    assert.equal(measured, real, "the width measured beside the buttons is the real one");
     await page.keyboard.type(" and then a good deal more text, enough to need a second line");
     await page.waitForFunction(() => "stacked" in document.querySelector(".composer").dataset, null, { timeout: 3000 });
     const [left_long, width_long] = await place();
@@ -205,6 +212,44 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     await page.waitForTimeout(100);
     assert.equal(await height(), empty, "a one-line draft put in sizes the box back down");
     assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    server.close();
+  }
+});
+
+// Typing trace (a plugin): off, it records nothing; with Record on, touches, focus, selection and
+// typing around the box go into one log entry two seconds after the last event.
+test("the typing trace writes what happens around the box to the log", { timeout: 60000 }, async () => {
+  const core = core_build((id) => id.startsWith("runtime-") || id === "typing-trace");
+  const server = await server_start(core);
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 400, height: 800 } });
+    await page.goto(`http://127.0.0.1:${server.address().port}/`);
+    await page.waitForSelector("#message", { timeout: 15000 });
+    await page.click("text=Skip");
+    const traces = () =>
+      page.evaluate(() => (PP.state_get().log?.entries || []).filter((e) => e.text.startsWith("Typing trace")));
+    await page.click("#message");
+    await page.keyboard.type("ab");
+    await page.waitForTimeout(2300);
+    assert.equal((await traces()).length, 0, "off, nothing is recorded");
+
+    await page.evaluate(() => {
+      const real = PP.plugin_setting_get;
+      PP.plugin_setting_get = (s, c, id, key) => (id === "typing-trace" && key === "record") || real(s, c, id, key);
+    });
+    await page.click("[aria-label='Chats']");
+    await page.keyboard.press("Escape");
+    await page.click("#message");
+    await page.keyboard.type("cd");
+    await page.keyboard.press("Backspace");
+    await page.waitForTimeout(2300);
+    const [trace] = await traces();
+    assert.ok(trace, "a trace was written");
+    for (const want of ["focusin textarea#message", "mousedown textarea#message", "beforeinput insertText", "deleteContentBackward", "selection |"])
+      assert.ok(trace.detail.includes(want), `the trace has ${want}:\n${trace.detail}`);
   } finally {
     await browser.close();
     server.close();

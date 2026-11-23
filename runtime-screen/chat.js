@@ -522,14 +522,16 @@ const composer_render = (state) => {
         ${PP.icon_render("close", "Not a version: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
       </div>`
     : null;
-  // A tap on the box's edge (around the text) puts the cursor in the text. A tap on Send or the
-  // expand button leaves the cursor (and the keyboard) in the box, as chat apps do.
+  // The message area is one field, as in chat apps: while the box has the cursor, no press inside
+  // the area (its edge, the gap in the button row, Send, expand) takes the cursor away, so the
+  // keyboard stays up and nothing needs tapping again; the buttons still act (their click still
+  // comes). Without the cursor, a press on the edge puts it in the text; a button just acts. The
+  // keyboard goes down by tapping the conversation or Back.
   const edge = (e) => {
     const el = e.currentTarget.querySelector("textarea");
     if (!el || e.target === el) return;
-    if ((e.target === e.currentTarget || e.target.classList.contains("boxscroll")) && document.activeElement !== el)
-      return (e.preventDefault(), el.focus());
-    if (document.activeElement === el && e.target.closest("button")) e.preventDefault();
+    if (document.activeElement === el) return e.preventDefault();
+    if (!e.target.closest("button")) (e.preventDefault(), el.focus());
   };
   return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`} onMouseDown=${edge}>
     ${PP.icon_render("stackadd", "Quick edit and add", () => (document.activeElement?.blur(), PP.command_run("quick_edit")), false, "icon", "quick_edit")}

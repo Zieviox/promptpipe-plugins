@@ -4,15 +4,15 @@
     {
       "id": "base64",
       "name": "Base64",
-      "version": "3.0.0",
+      "version": "3.1.1",
       "description": "Asks the AI to answer in base64 (and encodes your message), then decodes the reply; small mistakes in the base64 are repaired unless set to strict. \"Decode base64\" is under every reply, even when it's off.",
       "tags": [],
       "min_app": "1.0.0",
       "path": "base64",
       "built_in": true,
       "hashes": {
-        "plugin.json": "37c7e3b495f94dce508e6710f7f5d906e3dff4e4397cfe128c2bc9cb826eab5d",
-        "base64.js": "b60e209267f7c22b504817b413cbdcab48b640b550789728704defa9adc25fe9"
+        "plugin.json": "1f2b14987146d0b39980ce83189fb2402655f8aa0a06e86b8c5d7625e144e8dd",
+        "base64.js": "2eb0d75dc1e1f4ffcdb00c4b6ebe8eeeded319317ec6ed488d15867e024c5588"
       }
     },
     {
@@ -51,15 +51,15 @@
     {
       "id": "memory",
       "name": "Memory",
-      "version": "4.0.0",
+      "version": "4.0.1",
       "description": "Puts your pinned facts and the earlier chat in front of every message, so a fresh site chat has the context. Below the maximum everything goes in full; above it, recent messages stay word for word and older ones go in as summaries, coarser the older they are. Summaries are made once, in the background, and show at the end of the chat file, where you can correct them.",
       "tags": [],
       "min_app": "1.0.0",
       "path": "memory",
       "built_in": true,
       "hashes": {
-        "plugin.json": "ee52c1b7b3c772a5baf6b8381b7ec03026e4d74244cd594000c4117d2899fa9c",
-        "memory.js": "ee36b12f09ba5f97a3d579e8920b9639f56e12af4fe0310b332216ab162d9d20",
+        "plugin.json": "9a6695408b1e21a06e41faf1d7db61b68ec3ea54bc9329aeceea6f8adf713b56",
+        "memory.js": "192d8854829604b0501e4771d87a5780b44dc1e361ea28d5d3825e1cf801813a",
         "GUIDE.md": "e5e9f61783775ca2245d4238638f91366d7bdd7ff542f097b4800c4d379cab92"
       }
     },
@@ -76,13 +76,13 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "a400dafc13af1d1754d842c6ba544f482efce29849c1a45f8d0f2f8695151ab0",
-        "import.js": "5e5c336e2fd9a15959bbde66cad6306c15a8ce0d99195cc8f6f5c87e6265f144"
+        "import.js": "d3d78bad016fb584a332283686e80bfad9e2fdbb29c8d3da2be1b3a70634bcb1"
       }
     },
     {
       "id": "openai",
       "name": "OpenAI-style API",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Any service with an OpenAI-style chat API (OpenAI, OpenRouter, DeepSeek's API, a local server): its address, a credential for its host, and a model.",
       "tags": [
         "provider",
@@ -92,7 +92,7 @@
       "path": "openai",
       "built_in": true,
       "hashes": {
-        "plugin.json": "a9c81b0a5a16ea8aaea000800b9513833ec4f598da00ca9d208ed9cffdf71d0d",
+        "plugin.json": "a2b22c49c8a5dd6c513074f606778fe3cd0fef35bc0edfb76723d676c56125a3",
         "api.js": "a8e0bc6a9a85aa337ceb57fa4e24971ade45bae099e838417383be56505e12b6"
       }
     },
@@ -115,7 +115,7 @@
     {
       "id": "qwen-chat",
       "name": "Qwen Chat",
-      "version": "3.0.0",
+      "version": "3.4.0",
       "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
       "tags": [
         "provider",
@@ -125,8 +125,8 @@
       "path": "qwen-chat",
       "built_in": true,
       "hashes": {
-        "plugin.json": "86f1c325d7848ee7212d17d147d6554b196a2704b25b44fe380d37f45b70b99d",
-        "site.js": "0456bbd436c45aca83979b01180ac9a4fdf427a4744a3b52872f1dba2b8d4f33"
+        "plugin.json": "081f1a16dea65043614be81729bcc41eb39e1d9b17e9389b2821504f63939022",
+        "site.js": "0badd88482bf8b5692970673617a49640ffe361daf9370de08348e31b202954d"
       }
     },
     {
@@ -143,7 +143,7 @@
       "hashes": {
         "plugin.json": "c746d331460478fd69dbf0e7373af84ad0f0868be1219e265c326136ae7198e2",
         "text.js": "eb01e3fcff093d6ad4119d5e22249fe0214788a9c1a4cf661ed2dff9d2d77d8d",
-        "chats.js": "a0759f51a76ab0cd397dc913e1fb8dbfac7c4d764a807bd4b7d122b55120c598"
+        "chats.js": "30fef4345fafe710d153d1197fe3b15811879e629346c8bfd37dfba136932fe2"
       }
     },
     {
@@ -201,9 +201,9 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "4eb815309c8a9613057ac9af10cbb2b2b9e054a6c1128f144df76272d8afae14",
-        "records.js": "39f7eba33a4f138fa4c1049fa35c39ef6e298eca02aeb2453ce85f10ceb8e5c9",
+        "records.js": "b238188429a7f727d2bfeec78c367f29f73d064f3877ee040a8f76cca3e6e62c",
         "export.js": "57c15f6e1952b61d3203a50b1d4d0114d195e489997907958c4707e6d00479dc",
-        "schemas.json": "e6d2deb65361352456fb57e2a9e115911ca307d9812fbb5449a269945b595c85"
+        "schemas.json": "a18432c6232ee5916d6d6386fe81d2fdcfcb313fa6c2af76d58ba42b76c6c30f"
       }
     },
     {
@@ -224,15 +224,15 @@
         "vendor/htm.js": "7a31776e04bd4afde0d4308177d26f377716fcf7e4bd70be590746d6aa594f08",
         "vendor/markdown-it.js": "b06c85174d2b1bb6339dfa1f0bc938cea57f62663f132a77abbf651562542443",
         "vendor/sortable.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
-        "screen.css": "99feba02dc6fb60361223cb3a1037f6337591fb0aa0623ca2e40c76103607ffa",
-        "icons.json": "2bed02823387a5da1bb4f0e44f13d59c0a03633ad2e384aabcd083bba9334f4d",
-        "view.js": "19288166165f7e7b3d96495aeef700b3183b3814bc8cb3d6a70dbe73e88d984b",
-        "commands.js": "3cc57f700b0e6c57feb7677a630c0a3be064126389bcd706e3156dea2761d735",
-        "chat.js": "bfec340e7bc4a8e4f4c1f77439ad69d9adb783c406a536cb4c6133d2108d9829",
-        "lists.js": "5ae83f324983d8922564897dc4e410ec2c619d5679f47fb6cc17f2cb84767bff",
-        "actions.js": "f7098cebf5b80b3b968d90806c416cf7da5ff87710a68bc84ee3f495ec503e96",
-        "sheets.js": "4a6df27c40dca9573dbc03d68e972975bf7f0ef1d1eeeda7e782bd374aa3bade",
-        "screen.js": "fd68b556aec962e0944d6aaa26b435e42e8bf51ea604fe945e445941eb5559f8"
+        "screen.css": "0744155c14ca151ea9e971d75527688d75f9211e94b79b091dda6f2e0598596d",
+        "icons.json": "53dc2b5bab1b94f18db0973921713292b9243dfee62822a78c2832b1fb7706c2",
+        "view.js": "bf8d4517f4626febcbf8198a887bb76042f9c7b275c37d87fca665f98f5916d6",
+        "commands.js": "0d33236636661a9bbf8c6f1834e6c217afdd2da2fd9ab38495ac24c5c1bca7ed",
+        "chat.js": "2a2fcc9df68f828ca006911a04a906693f3604a1e0e819cb5872664175bdd2f0",
+        "lists.js": "d78c9723856d61aa623ae584dc5003138a2b4d0cb45da090daba77c0489c38bc",
+        "actions.js": "98bcfd4db2b5c531ea64fe27bcc1ee0fa99866258b92328c139a5280fd2de7f6",
+        "sheets.js": "6447a6da549d2eb1d49943b39d7923675a788278427e5738f60eb5cd255f74e2",
+        "screen.js": "22974afafa8239d79127aafab69db03d3cd0b1528a80bb5c1cea0830f25448aa"
       }
     },
     {
@@ -248,7 +248,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "9b6436de5ba8bf82b576f1d84d6ef894efdec2a349718352595ae84929323b3c",
-        "send.js": "52b511f02b0b6482bea357803bbbb43e7d5785d985e232759f12af4494c0e4dd"
+        "send.js": "620ef18c7ebb506f7415bb559a340a28260a375324f51c672cf12864fabd8492"
       }
     },
     {
@@ -266,7 +266,7 @@
         "plugin.json": "dff315a38622c60d535a39e731a79ce71624c5e60e73b8da6ae157fc542eeb3a",
         "vendor/turndown.js": "ead805af2012a8434b58f1dab07b452370a7dcd3e9665ff64fc1d61dd2e38e9a",
         "vendor/turndown-plugin-gfm.js": "cf744cc1b7580f06d64ce236a4ff2630a53d389eccf2133a09d71ca443511912",
-        "routine.js": "f87ff0503306909ac5a33a62a9ff56d91ca450286823ad07874c84b709f4d45b"
+        "routine.js": "3216f52ee770a966c82a1ebe987ff82ff65614d439b23f13a9cc8cfb8f961b72"
       }
     },
     {
@@ -282,7 +282,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "0754146b9323fc55cee9eed5bde01d45fdbb41a24521e439862a13c60f2e2920",
-        "storage.js": "af6799862a75998ee0506c46def98ad6fcdd3f7d8c0ad9ebf4c7dbc354a735f4"
+        "storage.js": "3b0f314c62acd1b039484527c494d196cc8618c1cdafa98c11433f9468372c3a"
       }
     },
     {
@@ -296,8 +296,22 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "2e57e0bec9431970bfa24044de63eeb3258259e7a8528e2769eda7f4f6ad375e",
-        "sub-chats.js": "be6b9a6f62e415e6445d7dc595032e649d1f65bac859d508a5d4024257808146",
+        "sub-chats.js": "f3a40ebf9b89154b51e18f536909645ddcda8abcccb32ac09812430a3462e49a",
         "GUIDE.md": "6536f24cf0936a54bb8c38229e70086e5b4d49fb458b4aa2d9c77e4af55dc77a"
+      }
+    },
+    {
+      "id": "typing-trace",
+      "name": "Typing trace",
+      "version": "1.0.0",
+      "description": "For finding what goes wrong while typing or selecting in the message box: while Record is on, every touch, focus change, selection change, keyboard input and keyboard opening or closing around the box is written down with its time, and saved to Settings › Advanced › Logs a moment after you stop. Off, it does nothing.",
+      "tags": [],
+      "min_app": "1.0.0",
+      "path": "typing-trace",
+      "built_in": true,
+      "hashes": {
+        "plugin.json": "8b3bc59235a6387c75b20b269d64f5f805793baec13fe2e398db4af8b5a9a552",
+        "trace.js": "763cacd9b0539ba7460a1ecaff36d48e60fd267844247645bfcc4097cc7f8592"
       }
     }
   ]
