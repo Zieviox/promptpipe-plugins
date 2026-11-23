@@ -112,9 +112,14 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     await page.click("text=Skip");
     const height = () => page.$eval("#message", (el) => el.getBoundingClientRect().height);
     const empty = await height();
+    const place = () => page.$eval("#message", (el) => [el.getBoundingClientRect().left, el.offsetWidth]);
+    const [left, width] = await place();
     await page.click("#message");
     await page.waitForTimeout(300);
-    assert.equal(await height(), empty, "tapping the box doesn't resize it");
+    assert.equal(await height(), empty, "tapping the box doesn't change its height");
+    const [left_typing, width_typing] = await place();
+    assert.equal(left_typing, left, "the text keeps its left edge");
+    assert.ok(width_typing > width + 60, `the buttons went under the text (${width} → ${width_typing})`);
 
     await page.evaluate(() => {
       window.loud = 0;

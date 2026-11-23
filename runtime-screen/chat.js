@@ -485,20 +485,26 @@ const composer_render = (state) => {
         ${PP.icon_render("close", "Not a version: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
       </div>`
     : null;
-  // A tap on the box's edge (around the text) puts the cursor in the text.
+  // A tap on the box's edge (around the text) puts the cursor in the text. A tap on its buttons
+  // leaves the cursor (and the keyboard) in the box: otherwise the buttons would move back beside
+  // the text under the finger, and the tap would miss.
   const edge = (e) => {
-    if (e.target !== e.currentTarget) return;
     const el = e.currentTarget.querySelector("textarea");
-    if (el && document.activeElement !== el) (e.preventDefault(), el.focus());
+    if (!el || e.target === el) return;
+    if (e.target === e.currentTarget && document.activeElement !== el)
+      return (e.preventDefault(), el.focus());
+    if (document.activeElement === el && e.target.closest("button")) e.preventDefault();
   };
   return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`} onMouseDown=${edge}>
-    ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"), false, "icon", "quick_edit")}
+    ${PP.icon_render("stackadd", "Quick edit and add", () => (document.activeElement?.blur(), PP.command_run("quick_edit")), false, "icon", "quick_edit")}
     <textarea
       id="message"
       rows="1"
       placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
       aria-label="Message"
       onInput=${(e) => ((box_known = e.target.value), box_size(e.target), PP.draft_type(e.target.value))}
+      onFocus=${(e) => box_size(e.target)}
+      onBlur=${(e) => box_size(e.target)}
       onKeyDown=${key}
     ></textarea>
     ${draft.attachments.length ? html`<small>${draft.attachments.length} attached</small>` : null}
