@@ -328,14 +328,19 @@ const back_run = () => {
   if (ui.sheets.length) return (PP.sheet_close(), true);
   if (ui.selection.on) return close({ selection: { on: false, ids: [] } });
   if (ui.drawer) return close({ drawer: false });
-  // The site view works like a browser: back inside the site first (a site's panel often closes
-  // that way), the chat once there's nowhere to go back to.
+  // The site view: a panel the site has open over the chat closes first (the provider knows it),
+  // then the site view (the site's own history stays on its Back inside the site button: the app
+  // moves pages between chats, so it isn't yours). Answered at once (the platform waits only a
+  // second); the steps run after.
   if (ui.site_view.open) {
-    const page = PP.state_get().pages.find((p) => p.id === ui.site_view.page);
-    if (page && page.can_back)
-      return (PP.call_try("page_navigate", { page: page.id, to: "back" }), true);
-    return (PP.command_run("site_view"), true);
+    const page = ui.site_view.page;
+    (async () => {
+      const panel = page && (await PP.call_send("site_back", { page }).catch(() => null));
+      if (!(panel && panel.closed)) PP.command_run("site_view");
+    })();
+    return true;
   }
+
   if (ui.composer.big) return close({ composer: { big: false } });
   return false;
 };
@@ -526,8 +531,6 @@ const after_draw = (state) => {
   }
   if (state.ui.site_view.open !== view_open) {
     view_open = state.ui.site_view.open;
-    if (view_open && state.ui.site_view.page)
-      PP.call_send("site_view_prepare", { page: state.ui.site_view.page }).catch(() => null);
     PP.call_send(
       "view_set",
       view_open ? { page: state.ui.site_view.page, region: PP.region_get() } : { page: null },

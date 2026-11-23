@@ -600,9 +600,7 @@ const page_changed = (event) =>
   PP.state_set((s) => {
     if (event.status === "closed")
       return { ...s, pages: s.pages.filter((p) => p.id !== event.page) };
-    const fields = ["url", "title", "status", "popup", "error", "can_back"].filter(
-      (k) => k in event,
-    );
+    const fields = ["url", "title", "status", "popup", "error"].filter((k) => k in event);
     const update = (p) => ({ ...p, ...Object.fromEntries(fields.map((k) => [k, event[k]])) });
     return { ...s, pages: s.pages.map((p) => (p.id === event.page ? update(p) : p)) };
   });
