@@ -107,7 +107,14 @@ textarea.field { resize: vertical; min-height: 6em; }
 /* Tapped: a little taller (about three lines), then it grows with what you type, up to 40% of the
    screen; the expand button makes it tall. */
 .composer:focus-within textarea { min-height: 4.2em; }
-.composer.big textarea { height: 60vh !important; max-height: 60vh; }
+/* Expanded: the whole screen is the message box (the keyboard still fits: the screen resizes for
+   it); the buttons stay at the bottom. */
+.composer.big { position: absolute; inset: 0; z-index: 30; margin: 0; border-radius: 0; padding: 18px 16px 14px; background: var(--bg); display: grid; grid-template-columns: auto 1fr auto auto; grid-template-rows: 1fr auto; gap: 10px; align-items: center; }
+.composer.big textarea { grid-column: 1 / -1; grid-row: 1; align-self: stretch; height: auto !important; max-height: none; min-height: 0; font-size: 15px; line-height: 1.5; }
+.composer.big > :first-child { grid-column: 1; grid-row: 2; }
+.composer.big > small { grid-column: 2; grid-row: 2; }
+.composer.big > :nth-last-child(2) { grid-column: 3; grid-row: 2; }
+.composer.big > :last-child { grid-column: 4; grid-row: 2; }
 .send { background: var(--accent); color: var(--on-accent); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; }
 .send.stop { background: var(--text); color: var(--bg); }
 
