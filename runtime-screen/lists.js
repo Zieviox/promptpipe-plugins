@@ -107,6 +107,12 @@ const hold_handlers = (ids) => {
   };
 };
 
+// An error in the log since it was last opened (a dot on the Settings button).
+const log_unread = (state) => {
+  const log = state.log || { entries: [], seen_at: "" };
+  return log.entries.some((e) => PP.LOG_ERRORS.includes(e.kind) && e.at > (log.seen_at || ""));
+};
+
 // A chat row: name, its tags (muted), "Didn't send", "Replying…" or "Reply ready", the pin, the grip.
 const chat_row = (state, chat, pinned) => {
   const selecting = state.ui.selection.on;
@@ -260,7 +266,7 @@ const drawer_render = (state) => {
         }
       </div>
       <div class="chips drawerfoot">
-        <button class="pill big" onClick=${() => PP.command_run("settings")}>${PP.icon_svg("settings")} Settings${updates ? html`<span class="badge">${updates}</span>` : null}</button>
+        <button class="pill big" onClick=${() => PP.command_run("settings")}>${PP.icon_svg("settings")} Settings${updates ? html`<span class="badge">${updates}</span>` : null}${log_unread(state) ? html`<span class="errdot" title="An error you haven't seen: Settings › Advanced › Logs"></span>` : null}</button>
         <button class="pill big" onClick=${() => PP.command_run("quick_start")}>${PP.icon_svg("play")} Quick start</button>
       </div>
     </div>

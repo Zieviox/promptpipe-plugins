@@ -228,6 +228,7 @@ const HELP = {
   help_mode: "Tap anything to see what it does, instead of doing it.",
   quick_start: "Short guides to the app; each can be shown again.",
   find: "Finds chats, messages, functions and settings by name.",
+  logs: "Every notice and error, failed sends and site problems, kept so you can read a missed one; with the core's log and the crash record.",
   undo: "Undoes your last action (deleting, moving, renaming, a change to a profile…); again for the one before.",
   redo: "Does again what Undo undid.",
   send: "Sends your message. Sending more while a reply comes queues them in order.",
@@ -339,6 +340,15 @@ const COMMANDS = [
   C("quick_start", "Quick start", "Help", "", () => sheet_open("quick_start")),
   C("find", "Find", "everywhere", "Ctrl+K", () => sheet_open("find")),
   C("undo", "Undo", "everywhere", "Ctrl+Z", undo_run),
+  C("logs", "Logs", "Settings › Advanced", "", (state) => {
+    // Opening it marks what's there as seen (the dot on Settings goes).
+    PP.state_set((s) => ({
+      ...s,
+      log: { ...(s.log || { entries: [] }), seen_at: new Date().toISOString() },
+    }));
+    PP.store_save(PP.state_get(), [{ file: "log" }]).catch(() => null);
+    sheet_open("log");
+  }),
   C("redo", "Redo", "everywhere", "Ctrl+Shift+Z", redo_run),
   C("send", "Send", "Message box", "Ctrl+Enter", message_send),
   C("stop", "Stop waiting", "Message box", "", send_stop),
@@ -355,6 +365,11 @@ const RUNS = {
       "message deleted",
       "Message deleted",
     ),
+  log_clear: (s, d) => {
+    if (d.choice !== "yes") return;
+    PP.state_set((st) => ({ ...st, log: { entries: [], seen_at: new Date().toISOString() } }));
+    PP.store_save(PP.state_get(), [{ file: "log" }]).catch(() => null);
+  },
   // Its text back into the box, or discarded (the dialog's choice).
   send_dismiss: (s, d) => d.choice && PP.send_dismiss(d.send, d.choice),
   // Confirmed in the dialog first (choice "yes").

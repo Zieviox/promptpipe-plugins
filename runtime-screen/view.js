@@ -45,8 +45,37 @@ const error_words = (error, site) => {
 // A short notice; errors stay longer and say what to do (an `Error` with a page offers Open the
 // site and Copy page report where the screen shows them).
 // `open`: a chat a tap on the toast opens ("Reply ready").
-// `action`: a button on the toast, { label, command } (Undo, Redo).
-const toast = (text, error, open, action) => {
+// ---------- the log ----------
+
+// One place for all logs (Settings › Advanced › Logs, and Find): every notice shown, failed
+// sends, site page problems, history errors, imports' reports; each with its time, kind and the
+// details. Kept in the app's log.json (the newest 500), so a missed one can be read later.
+const LOG_MAX = 500;
+let log_timer = 0;
+const log_add = (kind, text, detail) => {
+  const entry = { at: new Date().toISOString(), kind, text: String(text || "") };
+  if (detail) entry.detail = String(detail);
+  PP.state_set((s) => {
+    const log = s.log || { entries: [], seen_at: "" };
+    return { ...s, log: { ...log, entries: [...log.entries, entry].slice(-LOG_MAX) } };
+  });
+  clearTimeout(log_timer);
+  log_timer = setTimeout(
+    () =>
+      PP.store_save(PP.state_get(), [{ file: "log" }])
+        .then((saved) =>
+          PP.state_set((s) => ({ ...s, revisions: { ...s.revisions, ...saved.revisions } })),
+        )
+        .catch(() => null),
+    1500,
+  );
+};
+
+// `action`: a button on the toast, { label, command } (Undo, Redo). `kind`/`detail`: how it goes
+// in the log (by default "error" or "notice", without details).
+// `kind` false: not logged (its own fuller entry is already in the log).
+const toast = (text, error, open, action, kind, detail) => {
+  if (kind !== false) log_add(kind || (error ? "error" : "notice"), text, detail);
   const id = PP.id_create();
   ui_set((ui) => ({ toasts: [...ui.toasts, { id, text, error, open, action }] }));
   setTimeout(
@@ -76,7 +105,14 @@ const apply_try = async (operation, message, undo_toast) => {
     if (undo_toast) toast(undo_toast, false, null, { label: "Undo", command: "undo" });
     const failed = result && result.commit_error;
     if (failed && failed.code !== "unimplemented")
-      toast(`Saved, but not added to the history: ${failed.message}`, true);
+      toast(
+        "Saved, but not added to the history (Logs has why)",
+        true,
+        null,
+        null,
+        "history",
+        failed.message,
+      );
     return result;
   } catch (error) {
     toast(error.message, true);
@@ -187,6 +223,7 @@ PP.plugin_set({
   functions: {
     html,
     error_words,
+    log_add,
     ui_get,
     ui_set,
     toast,

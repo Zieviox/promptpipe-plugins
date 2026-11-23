@@ -335,7 +335,12 @@ const send_run = async (id) => {
     } else {
       PP.state_set((s) => send_set(s, id, { status: "failed", error, progress: "", force: false }));
       outbox_save();
-      PP.event_send("send_failed", { send: id, chat: chat && chat.id });
+      PP.event_send("send_failed", {
+        send: id,
+        chat: chat && chat.id,
+        message: send.message,
+        error: { code: error.code || "", message: error.message || String(error) },
+      });
     }
   } finally {
     if (!waiting) (queue_run(), pool_add());

@@ -199,6 +199,7 @@ const state_load = async (state) => {
     folders: await read("chats", ".promptpipe/folders.json", []),
     counters: await read("chats", ".promptpipe/counters.json", {}),
     drafts: await read("app", "drafts.json", []),
+    log: await read("app", "log.json", { entries: [], seen_at: "" }),
     ...outbox_load(await read("app", "outbox.json", { sends: [], held: {} })),
     chats: metas.map((f) => JSON.parse(f.data)),
     chat_data: [],

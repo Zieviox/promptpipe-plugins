@@ -84,11 +84,11 @@ const folder_back_up = async (state, base) => {
 };
 
 // What the import did, on screen (not only in a toast).
-const report_open = (lines) =>
-  PP.sheet_open("text", {
-    title: "The old app's content",
-    text: lines.filter(Boolean).join("\n\n"),
-  });
+const report_open = (lines) => {
+  const text = lines.filter(Boolean).join("\n\n");
+  if (PP.log_add) PP.log_add("import", "The old app's content", text);
+  PP.sheet_open("text", { title: "The old app's content", text });
+};
 
 // ---------- settings and profiles ----------
 

@@ -12,6 +12,9 @@ const label = (text) => html`<div class="label">${text}</div>`;
 // ui.loads under a key starting with the sheet's name (opening the sheet again reads it again);
 // undefined while it's on its way. `loading` only stops a second read starting meanwhile.
 const loading = new Set();
+// The kinds of log entry that count as errors (marked, and a dot on Settings while unseen).
+const LOG_ERRORS = ["error", "send", "site", "history"];
+
 const load_get = (state, key, load) => {
   const loads = state.ui.loads || {};
   if (!(key in loads) && !loading.has(key)) {
@@ -195,7 +198,7 @@ const GROUPS = [
   ["Credentials", "API keys, tokens, passwords", "credentials", "char"],
   ["Import and export", "Profiles, prompts, name clashes", null, "impexp"],
   ["Local API", "Address, token, folder", null, "api"],
-  ["Advanced", "Reset, safe mode, core log", null, "adv"],
+  ["Advanced", "Reset, safe mode, logs", null, "adv"],
   ["Help", "Shortcuts, quick start", null, "help"],
 ];
 
@@ -1373,16 +1376,98 @@ ${p.text}</textarea
     };
   },
 
+  // One place for all logs: what's in the app's log (newest first, by kind), and the core's log
+  // and the platform's crash record from their files.
   log: (state) => {
-    const log = load_get(state, "log", () => PP.call_send("log_read", {}).then((r) => r.text));
+    const log = state.log || { entries: [], seen_at: "" };
+    const kind = state.ui.log_kind || "all";
+    const KINDS = [
+      ["all", "All"],
+      ["errors", "Errors"],
+      ["send", "Sends"],
+      ["site", "Sites"],
+      ["history", "History"],
+      ["import", "Imports"],
+      ["notice", "Notices"],
+    ];
+    const shown = log.entries
+      .filter(
+        (e) =>
+          kind === "all" || e.kind === kind || (kind === "errors" && LOG_ERRORS.includes(e.kind)),
+      )
+      .slice()
+      .reverse();
+    const text = shown
+      .map(
+        (e) =>
+          `${new Date(e.at).toLocaleString()} · ${e.kind}: ${e.text}${e.detail ? `\n  ${e.detail}` : ""}`,
+      )
+      .join("\n");
     return {
-      title: "Core log",
+      title: "Logs",
       rows: [
-        html`<pre>${typeof log === "string" ? log : log ? log.error : "…"}</pre>`,
+        html`<div class="chips choose">
+          ${KINDS.map(
+            ([k, label]) =>
+              html`<button key=${k} class=${`pill${k === kind ? " on" : ""}`} onClick=${() => PP.ui_set(() => ({ log_kind: k }))}>${label}</button>`,
+          )}
+        </div>`,
+        shown.length
+          ? html`<div class="logs">
+              ${shown.slice(0, 200).map(
+                (
+                  e,
+                  i,
+                ) => html`<div key=${`${e.at}-${i}`} class=${`logrow${LOG_ERRORS.includes(e.kind) ? " err" : ""}`}>
+                  <small>${new Date(e.at).toLocaleString()} · ${e.kind}</small>
+                  <div>${e.text}</div>
+                  ${e.detail ? html`<details><summary>Details</summary><pre>${e.detail}</pre></details>` : null}
+                </div>`,
+              )}
+            </div>`
+          : html`<small>Nothing here yet.</small>`,
+        html`<div class="chips">
+          <button class="pill" onClick=${() => PP.call_try("clipboard_write", { text }, "Copied")}>Copy</button>
+          <button class="pill" onClick=${() => PP.confirm_open("Clear the log?", "Clear", "log_clear")}>Clear</button>
+        </div>`,
         item({
-          label: "Copy",
-          onClick: () => PP.call_try("clipboard_write", { text: log }, "Copied"),
+          label: "The core's log",
+          sub: "What the app's server wrote",
+          right: "›",
+          onClick: () =>
+            PP.sheet_open("log_file", {
+              root: "app",
+              path: "logs/core.log",
+              title: "The core's log",
+            }),
         }),
+        item({
+          label: "The crash record",
+          sub: "Written when the app crashes (Download/promptpipe-crash.txt)",
+          right: "›",
+          onClick: () =>
+            PP.sheet_open("log_file", {
+              root: "device",
+              path: "/storage/emulated/0/Download/promptpipe-crash.txt",
+              title: "The crash record",
+            }),
+        }),
+      ],
+    };
+  },
+
+  // A log kept in a file, shown as it is.
+  log_file: (state, { root, path, title }) => {
+    const file = load_get(state, `file:${root}:${path}`, () =>
+      PP.call_send("file_read", { root, path }).then((f) => (f[0] ? f[0].data : "")),
+    );
+    const text =
+      typeof file === "string" ? file || "Empty, or not there yet." : file ? file.error : "…";
+    return {
+      title,
+      rows: [
+        html`<pre class="logfile">${text.length > 60000 ? `…${text.slice(-60000)}` : text}</pre>`,
+        item({ label: "Copy", onClick: () => PP.call_try("clipboard_write", { text }, "Copied") }),
       ],
     };
   },
@@ -1652,7 +1737,12 @@ const SECTION_EXTRAS = {
       label: state.app.safe_mode ? "Leave safe mode" : "Restart in safe mode",
       onClick: () => PP.call_try("app_start", { mode: state.app.safe_mode ? "normal" : "safe" }),
     }),
-    item({ label: "Core log", right: "›", onClick: () => PP.sheet_open("log") }),
+    item({
+      label: "Logs",
+      sub: "Every notice and error, failed sends, site problems; the core's log and crash record",
+      right: "›",
+      onClick: () => PP.command_run("logs"),
+    }),
     item({ label: "Stop background service", onClick: () => PP.call_try("service_stop", {}) }),
     item({
       label: "Version",
@@ -1711,4 +1801,6 @@ const change_render = (state) => {
   </div>`;
 };
 
-PP.plugin_set({ functions: { sheet_render, change_render, field_render, profile_pick } });
+PP.plugin_set({
+  functions: { sheet_render, change_render, field_render, profile_pick, LOG_ERRORS },
+});

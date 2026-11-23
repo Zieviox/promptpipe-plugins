@@ -221,6 +221,9 @@ const writes_build = async (state, target) => {
   if (target.chat) return PP.chat_files_build(state, target.chat);
   if (target.file === "config") return [{ root: "app", path: "config.json", data: state.config }];
   if (target.file === "drafts") return [{ root: "app", path: "drafts.json", data: state.drafts }];
+  // The log of notices, errors and events (runtime-screen's log_add).
+  if (target.file === "log")
+    return [{ root: "app", path: "log.json", data: state.log || { entries: [], seen_at: "" } }];
   // A chat's messages not answered yet, and which queues hold (runtime-send's outbox).
   if (target.file === "outbox") {
     const keep = [

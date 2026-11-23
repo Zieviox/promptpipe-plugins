@@ -377,13 +377,34 @@ const reply_changed = (data) => {
   }, 300);
 };
 
+// A site page's problem (reloaded, crashed, didn't load) into the log.
+const page_logged = (event) => {
+  if (!event.error) return;
+  const state = PP.state_get();
+  const page = state.pages.find((p) => p.id === event.page);
+  const plugin = page && state.plugins.find((p) => p.id === page.provider);
+  PP.log_add(
+    "site",
+    `${plugin ? plugin.manifest.name : "A site page"}: ${PP.error_words(event.error)}`,
+    event.error.message,
+  );
+};
+
 // A message that didn't send in a chat you aren't reading: said at once, and a tap opens it (it's
 // kept there, and the chat list marks it "Didn't send").
-const send_failed = ({ chat }) => {
+const send_failed = ({ chat, message, error }) => {
   const state = PP.state_get();
   const record = chat && state.chats.find((c) => c.id === chat);
+  const first = String(message || "")
+    .split("\n")[0]
+    .slice(0, 60);
+  PP.log_add(
+    "send",
+    `“${first}”${record ? ` in “${record.name}”` : ""} didn't send: ${PP.error_words(error)}`,
+    error && error.message,
+  );
   if (record && chat !== state.ui.chat)
-    PP.toast(`A message in “${record.name}” didn't send. Tap to open it.`, true, chat);
+    PP.toast(`A message in “${record.name}” didn't send. Tap to open it.`, true, chat, null, false);
 };
 
 // ---------- drawing ----------
@@ -586,5 +607,5 @@ PP.plugin_set({
       handled: data && data.key === "Alt+S" ? (PP.command_run("site_view"), true) : back_run(),
     }),
   },
-  events: { share_received, reply_changed, send_failed },
+  events: { share_received, reply_changed, send_failed, page_changed: page_logged },
 });
