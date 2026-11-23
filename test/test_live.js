@@ -105,3 +105,43 @@ test(
     assert.equal(out.result.reply, "Short answer.");
   },
 );
+
+test(
+  "reading all of a page's messages finds each reply once, when selectors find nested parts",
+  { timeout: 30000 },
+  async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      // Like Qwen: the answer element holds a markdown element, and the provider names all three.
+      await page.setContent(`<div class="u"><div class="umc">hi</div></div>
+      <div class="resp"><div class="answer"><div class="md">hello there</div></div></div>`);
+      const turns = await page.evaluate(async (code) => {
+        const PP = {
+          event_send: () => {},
+          pause: (ms) => new Promise((r) => setTimeout(r, ms)),
+          cancelled: () => false,
+          stages: {},
+          defaults: {},
+        };
+        const provider = {
+          id: "x",
+          selectors: {
+            user: [".u .umc", ".umc"],
+            reply: [".answer", ".resp .md", ".md"],
+            input: ["#none"],
+            send: ["#none"],
+          },
+        };
+        const stages = new Function("PP", "provider", code)(PP, provider);
+        return stages.site_read({ which: "all" }, provider);
+      }, CODE);
+      assert.deepEqual(
+        turns.map((t) => [t.message, t.reply]),
+        [["hi", "hello there"]],
+      );
+    } finally {
+      await browser.close();
+    }
+  },
+);

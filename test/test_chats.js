@@ -257,3 +257,48 @@ test("deleting a chat's last message saves it empty (the safety net only keeps s
   const files = await pp.chat_files_build(state, "c9");
   assert.deepEqual(files.find((f) => f.path.endsWith("turns.json")).data, []);
 });
+
+test("an import never adds the same message twice, and repeated messages can be removed", async () => {
+  // The page read each reply three times (nested elements): one with the message, two without.
+  const site = [
+    { message: "hi", reply: "hello", thinking: "" },
+    { message: "", reply: "hello", thinking: "" },
+    { message: "", reply: "hello", thinking: "" },
+  ];
+  const pp = plugins_load(["runtime-records", "runtime-chats"], { site_read: () => site });
+  pp.hook_run = async (name, reply) => reply;
+  const state = {
+    schemas: JSON.parse(
+      require("node:fs").readFileSync(
+        require("node:path").join(__dirname, "..", "runtime-records", "schemas.json"),
+        "utf8",
+      ),
+    ),
+    config: {
+      settings: {},
+      profiles: [{ id: "p", name: "Plain", plugin_settings: {} }],
+      blocks: [],
+    },
+    chats: [{ id: "c1", name: "Chat", file: "Chat.md", tags: [] }],
+    turns: [],
+  };
+  const out = await pp.site_chat_import(state, {
+    chat: "c1",
+    page: "p1",
+    which: "all",
+    save: true,
+  });
+  assert.equal(out.added, 1);
+  assert.equal(out.skipped, 2);
+
+  const tripled = {
+    ...state,
+    turns: [1, 2, 3].map((i) => ({ id: `t${i}`, chat: "c1", message: "hi", reply: "hello" })),
+  };
+  const cleaned = pp.turns_repeated_remove(tripled, { chat: "c1" });
+  assert.deepEqual(
+    cleaned.state.turns.map((t) => t.id),
+    ["t1"],
+  );
+  assert.equal(cleaned.removed, 2);
+});

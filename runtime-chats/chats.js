@@ -266,6 +266,7 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
     return { preview: await after(last.reply) };
   }
   const here = state.turns.filter((t) => t.chat === chat);
+  // (A copy of the list: what this import adds is checked too.)
   let result = { state, targets: [] };
   let added = 0;
   let skipped = 0;
@@ -298,9 +299,27 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
     });
     if (made.error) return made;
     result = { state: made.state, targets: [{ chat }] };
+    here.push(made.record); // the next ones are checked against it too
     added += 1;
   }
   return { ...result, added, skipped };
+};
+
+// A chat's repeated messages (the same message and reply again, as an import that read every
+// reply three times left them): every copy after the first, as a record operation.
+const turns_repeated_remove = (state, { chat }) => {
+  const seen = new Set();
+  const repeated = [];
+  for (const t of state.turns.filter((x) => x.chat === chat)) {
+    const key = `${words(t.message)}\u0000${words(t.reply)}`;
+    if (seen.has(key)) repeated.push(t.id);
+    else seen.add(key);
+  }
+  return {
+    state: { ...state, turns: state.turns.filter((t) => !repeated.includes(t.id)) },
+    targets: repeated.length ? [{ chat }] : [],
+    removed: repeated.length,
+  };
 };
 
 // ---------- attachments (UC48) ----------
@@ -430,6 +449,7 @@ PP.plugin_set({
     site_name_get,
     site_chat_open,
     site_chat_import,
+    turns_repeated_remove,
     attachment_add,
     chats_folder_move,
     chat_files_build,

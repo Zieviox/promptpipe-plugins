@@ -361,14 +361,24 @@ const thinking_near = (provider, el) => {
 };
 
 // The newest reply (waiting until it's finished if asked), or every turn in page order.
+// The elements of a kind, as the provider's selectors are meant: tried in order, the first that
+// finds any wins (they're alternatives for different versions of the site, and on one page two
+// can find nested parts of the same message, which read every reply three times); an element
+// inside another found one is left out.
+const all_first = (provider, kind) => {
+  for (const s of selectors_get(provider, kind)) {
+    const found = all_find(s).filter((e) => text_get(e));
+    if (found.length) return found.filter((e) => !found.some((o) => o !== e && o.contains(e)));
+  }
+  return [];
+};
+
 const site_read = async ({ which, wait, limits }, provider) => {
   if (which === "all") {
-    const users = all_find(selectors_get(provider, "user").join(",") || "x-none").filter((e) =>
-      text_get(e),
+    const users = all_first(provider, "user");
+    const replies = all_first(provider, "reply").filter(
+      (e) => !users.some((u) => u.contains(e) || e.contains(u)),
     );
-    const replies = selectors_get(provider, "reply")
-      .flatMap(all_find)
-      .filter((e) => text_get(e) && !users.some((u) => u.contains(e) || e.contains(u)));
     if (!users.length && !replies.length)
       throw fail("not_found", "No messages found on the page (copy the page report)");
     const marks = [

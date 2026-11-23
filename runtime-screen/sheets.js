@@ -267,6 +267,29 @@ const SHEETS = {
         </div>`,
         label("Actions"),
         item({ label: "Copy the whole chat", onClick: () => PP.command_run("chat_copy") }),
+        item({
+          label: "Remove repeated messages",
+          sub: "Copies of the same message and reply, keeping the first",
+          onClick: async () => {
+            const before = PP.state_get().turns.filter((t) => t.chat === chat.id).length;
+            await PP.apply_try(
+              (s) => PP.turns_repeated_remove(s, { chat: chat.id }),
+              `repeated messages removed: ${chat.name}`,
+            );
+            const removed = before - PP.state_get().turns.filter((t) => t.chat === chat.id).length;
+            if (removed)
+              PP.toast(
+                `${removed} repeated message${removed === 1 ? "" : "s"} removed`,
+                false,
+                null,
+                {
+                  label: "Undo",
+                  command: "undo",
+                },
+              );
+            else PP.toast("No repeated messages in this chat");
+          },
+        }),
         item({ label: "Share or export…", onClick: () => PP.command_run("chat_share") }),
         item({
           label: "Pin to top",
