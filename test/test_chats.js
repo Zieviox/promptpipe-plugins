@@ -356,3 +356,56 @@ test("an import fills in your text in messages an earlier import brought in with
   assert.equal(out.fixed, 1);
   assert.equal(out.state.turns.find((t) => t.id === "t1").message, "what's the lamp?");
 });
+
+test("a folder hundreds of levels deep is removed from the top, never by a long path", async () => {
+  // A stand-in chats folder: history/history/… 300 deep, a copy of a chat file at each level.
+  const dirs = new Map(); // path -> { files: Set, sub: Set }
+  const at = (p) => dirs.get(p) || (dirs.set(p, { files: new Set(), sub: new Set() }), dirs.get(p));
+  let path = "history";
+  at(path).files.add("Chat.md");
+  for (let i = 0; i < 300; i += 1) {
+    at(path).sub.add("history");
+    path = `${path}/history`;
+    at(path).files.add("Chat.md");
+  }
+  let longest = 0;
+  const pp = plugins_load(["runtime-records", "runtime-chats"], {
+    file_list: ({ folder }) => {
+      longest = Math.max(longest, folder.length);
+      const d = dirs.get(folder);
+      if (!d) throw { code: "not_found", message: folder };
+      return [
+        ...[...d.sub].map((name) => ({ name, folder: true })),
+        ...[...d.files].map((name) => ({ name, folder: false })),
+      ];
+    },
+    file_move: ({ from, to }) => {
+      longest = Math.max(longest, from.length, to.length);
+      for (const [p, d] of [...dirs]) {
+        if (p === from || p.startsWith(`${from}/`)) {
+          dirs.delete(p);
+          dirs.set(to + p.slice(from.length), d);
+        }
+      }
+      const parent = from.slice(0, from.lastIndexOf("/"));
+      dirs.get(parent).sub.delete(from.slice(from.lastIndexOf("/") + 1));
+      return { done: true };
+    },
+    file_delete: ({ path: p }) => {
+      longest = Math.max(longest, p.length);
+      assert.equal(dirs.get(p).sub.size, 0, "only an emptied folder is deleted");
+      dirs.delete(p);
+      return { done: true };
+    },
+  });
+  const state = { chats: [{ id: "c", file: "Kept.md" }] };
+  const out = await pp.folder_deep_remove(state, { folder: "history" });
+  assert.equal(out.removed, 301);
+  assert.equal(dirs.size, 0);
+  assert.ok(longest < 60, `no long paths (${longest})`);
+  const busy = await pp.folder_deep_remove(
+    { chats: [{ id: "c", file: "history/x.md" }] },
+    { folder: "history" },
+  );
+  assert.deepEqual(busy, { removed: 0, chats: 1 });
+});

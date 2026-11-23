@@ -1654,6 +1654,26 @@ const live_render = (turn) => {
 const SECTION_EXTRAS = {
   "Chats and storage": (state) => [
     item({
+      label: "Remove the old app's nested history folders",
+      sub: "Copies the old app made of its chats folder inside itself, hundreds of levels deep",
+      onClick: async () => {
+        const deep = await PP.call_send("file_list", {
+          root: "chats",
+          folder: "history/history",
+        }).catch(() => null);
+        if (!deep) return PP.toast("There are none in the chats folder");
+        PP.toast("Removing them, level by level…");
+        const r = await PP.call_try("folder_deep_remove", { folder: "history" });
+        if (!r) return;
+        if (r.chats)
+          return PP.toast(
+            `${r.chats} chats still live in there. Remove chats imported twice first (Settings › Chats and storage), then try again.`,
+            true,
+          );
+        PP.toast(`Removed (${r.removed} folders)`);
+      },
+    }),
+    item({
       label: "Move all chats to another folder…",
       onClick: () =>
         PP.dialog_open({

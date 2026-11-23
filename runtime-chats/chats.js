@@ -372,6 +372,33 @@ const attachment_add = async (state, { chat, files }) => {
 
 // ---------- the chats folder (UC36) ----------
 
+// A folder deep enough that its paths pass what Android allows (the old app copied its chats
+// folder into itself ~500 levels deep; the import copied that): deleted from the top, each folder
+// below moved up to a short name first, so no path is ever long. Not while a chat lives in it.
+const folder_deep_remove = async (state, { folder }) => {
+  const inside = state.chats.filter((c) => c.file.startsWith(`${folder}/`)).length;
+  if (inside) return { removed: 0, chats: inside };
+  const queue = [folder];
+  let removed = 0;
+  let n = 0;
+  while (queue.length) {
+    const current = queue.shift();
+    const entries = await PP.call_send("file_list", {
+      root: "chats",
+      folder: current,
+      hidden: true,
+    }).catch(() => []);
+    for (const e of entries.filter((x) => x.folder)) {
+      const short = `.promptpipe/trash-${Date.now().toString(36)}-${(n += 1)}`;
+      await PP.call_send("file_move", { root: "chats", from: `${current}/${e.name}`, to: short });
+      queue.push(short);
+    }
+    await PP.call_send("file_delete", { root: "chats", path: current });
+    removed += 1;
+  }
+  return { removed, chats: 0 };
+};
+
 // move: use the new folder, then copy the chats into it; use: use it as it is; merge: copy its
 // chats into the folder in use. Copies never overwrite (the core's `file_move` with `copy`).
 const chats_folder_move = async (state, { folder, how }) => {
@@ -479,6 +506,7 @@ PP.plugin_set({
     site_name_get,
     site_chat_open,
     site_chat_import,
+    folder_deep_remove,
     turns_repeated_remove,
     attachment_add,
     chats_folder_move,
@@ -491,6 +519,7 @@ PP.plugin_set({
     chat_find: (d, state) => chat_find(state, d.query),
     site_chat_open: (d, state) => site_chat_open(state, d),
     site_chat_import: (d, state) => site_chat_import(state, d),
+    folder_deep_remove: (d, state) => folder_deep_remove(state, d),
     attachment_add: (d, state) => attachment_add(state, d),
     chats_folder_move: (d, state) => chats_folder_move(state, d),
   },
