@@ -296,3 +296,5 @@ details .item { margin-top: 6px; }
 .logrow details { background: none; padding: 0; margin-top: 4px; }
 .logrow pre, pre.logfile { font-size: 11.5px; max-height: 60vh; overflow: auto; }
 .errdot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); flex: none; }
+.editbar { display: flex; align-items: center; gap: 8px; margin: 8px 10px -2px; padding: 6px 6px 6px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, var(--raise)); color: var(--text); font-size: 13px; }
+.editbar .svg svg { width: 16px; height: 16px; }

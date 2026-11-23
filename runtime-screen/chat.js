@@ -430,7 +430,17 @@ const composer_render = (state) => {
     if (e.key === "ArrowUp" && !e.target.value)
       return (e.preventDefault(), PP.command_run("last_edit"));
   };
-  return html`<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>
+  // An edit: the send replaces that message (and its reply); said over the box, × to send it as a
+  // new message instead.
+  const editing = draft.replaces && state.turns.find((t) => t.id === draft.replaces);
+  const edit_bar = editing
+    ? html`<div class="editbar">
+        ${PP.icon_svg("edit")}
+        <span class="grow">Editing your message · it replaces the one above when sent</span>
+        ${PP.icon_render("close", "Don't replace it: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
+      </div>`
+    : null;
+  return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>
     ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"), false, "icon", "quick_edit")}
     <textarea
       ref=${box_size}

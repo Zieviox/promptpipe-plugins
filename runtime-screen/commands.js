@@ -81,7 +81,10 @@ const draft_set = (text, fields = {}) => {
   PP.state_set((s) => {
     const id = s.ui.chat || "new";
     const old = s.drafts.find((d) => d.id === id) || { id, attachments: [] };
-    return { ...s, drafts: [...s.drafts.filter((d) => d.id !== id), { ...old, ...fields, text }] };
+    const next = { ...old, ...fields, text };
+    // Emptying the box ends an edit: what's typed next is a new message, not a replacement.
+    if (!String(text || "").trim() && !("replaces" in fields)) delete next.replaces;
+    return { ...s, drafts: [...s.drafts.filter((d) => d.id !== id), next] };
   });
   clearTimeout(draft_timer);
   draft_timer = setTimeout(
@@ -228,6 +231,8 @@ const HELP = {
   help_mode: "Tap anything to see what it does, instead of doing it.",
   quick_start: "Short guides to the app; each can be shown again.",
   find: "Finds chats, messages, functions and settings by name.",
+  plugin_guide:
+    "How plugins are made, and Copy instructions for AI: an AI can write a plugin from it.",
   logs: "Every notice and error, failed sends and site problems, kept so you can read a missed one; with the core's log and the crash record.",
   undo: "Undoes your last action (deleting, moving, renaming, a change to a profile…); again for the one before.",
   redo: "Does again what Undo undid.",
@@ -299,6 +304,7 @@ const COMMANDS = [
   C("profile_next", "Next profile", "Profile", "Ctrl+P", profile_next),
   C("prompts", "Prompt library", "Settings", "", () => sheet_open("prompts")),
   C("plugins", "Plugins", "Settings", "Ctrl+Shift+P", () => sheet_open("plugins")),
+  C("plugin_guide", "Plugin guide", "Settings › Plugins", "", () => sheet_open("plugin_guide")),
   C("plugins_reload", "Reload plugins", "Settings › Plugins", "Ctrl+Shift+R", () =>
     PP.call_try("app_start", { mode: "normal" }),
   ),

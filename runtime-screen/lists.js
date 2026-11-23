@@ -325,6 +325,7 @@ const site_bar_render = (state) => {
               ${PP.icon_render("back", "Back inside the site", () => PP.call_try("page_navigate", { page: shown.id, to: "back" }), false, "icon card")}
               <label class="search"><input aria-label="Page address" value=${shown.url} onKeyDown=${go} /></label>
               ${PP.icon_render("retry", "Reload", () => PP.call_try("page_navigate", { page: shown.id, to: "reload" }), false, "icon card")}
+              ${PP.icon_render("copy", "Copy page report (to fix a site)", () => PP.page_report_copy(shown.id), false, "icon card")}
             </div>`
           : null
       }
