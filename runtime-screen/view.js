@@ -5,7 +5,9 @@
 // back and sent as a record move, so Preact stays the only one changing the page).
 
 const html = htm.bind(preact.h);
-const md = markdownit({ html: false, linkify: true });
+// The one renderer for all text on the screen: replies, thinking, your messages, guides. A line
+// break shows as one (as typed, and as the sites' text came in).
+const md = markdownit({ html: false, linkify: true, breaks: true });
 md.renderer.rules.fence = (
   (fence) => (tokens, i, options, env, self) =>
     fence(tokens, i, options, env, self).replace(
@@ -16,6 +18,21 @@ md.renderer.rules.fence = (
 
 const ui_get = () => PP.state_get().ui;
 const ui_set = (change) => PP.state_set((s) => ({ ...s, ui: { ...s.ui, ...change(s.ui) } }));
+
+// What went wrong, in plain words: the code says what kind, and the technical text is kept apart
+// (the failed message's Details) for whoever fixes a plugin. `site`: the provider's name.
+const error_words = (error, site = "The site") => {
+  const code = (error && error.code) || "";
+  const text = String((error && error.message) || error || "");
+  if (/isn't in this page's scripts|not connected|reloaded|did not finish loading|isn't ready again/.test(text))
+    return `${site} wasn't ready. Try again in a moment.`;
+  if (/not supported on this platform/.test(text)) return "That only works in the phone app.";
+  if (code === "unavailable") return `Couldn't reach ${site}. Check the connection, then try again.`;
+  if (code === "deadline_exceeded") return `${site} took too long to answer.`;
+  if (code === "cancelled") return "Stopped.";
+  if (code === "internal" || code === "unknown") return "Something went wrong in the app. Try again.";
+  return text;
+};
 
 // A short notice; errors stay longer and say what to do (an `Error` with a page offers Open the
 // site and Copy page report where the screen shows them).
@@ -36,7 +53,7 @@ const call_try = async (name, data, done) => {
     if (done) toast(done);
     return result;
   } catch (error) {
-    toast(error.message, true);
+    toast(error_words(error), true);
     return null;
   }
 };
@@ -63,8 +80,8 @@ const dialog_open = (dialog) => ui_set(() => ({ dialog: { value: "", ok: "OK", .
 const confirm_open = (title, label, command, data = {}) =>
   dialog_open({ title, choices: [["yes", label]], command, data });
 
-const markdown_render = (text) =>
-  html`<div class="reply" dangerouslySetInnerHTML=${{ __html: md.render(text || "") }}></div>`;
+const markdown_render = (text, cls = "reply") =>
+  html`<div class=${`md ${cls}`} dangerouslySetInnerHTML=${{ __html: md.render(text || "") }}></div>`;
 
 // The wireframe's line icons (one family, 1.7 stroke, in the text colour; design/ux/wireframe.html).
 const ICONS = JSON.parse(PP.content_read("runtime-screen", "icons.json") || "{}");
@@ -157,6 +174,7 @@ const sortable_ref =
 PP.plugin_set({
   functions: {
     html,
+    error_words,
     ui_get,
     ui_set,
     toast,

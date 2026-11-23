@@ -1,7 +1,7 @@
 {
   "id": "qwen-chat",
   "name": "Qwen Chat",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
   "tags": ["provider", "web"],
   "pp": 1,

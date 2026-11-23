@@ -339,16 +339,40 @@ const failure_resolve = async (id, choice) => {
     PP.state_set((s) => send_set(s, id, { status: "queued", error: null }));
     return queue_run();
   }
+  // Check: the page's newest reply, waited for while it's still being written (never for long),
+  // saved as this message's reply; nothing there puts the message back with the reason.
   if (choice === "check") {
-    const [last] = (
-      await PP.call_send("site_read", { page: send.page, which: "newest", wait: true })
-    ).slice(-1);
-    return turn_save(id, {
-      reply: last.reply,
-      received: last.reply,
-      thinking: last.thinking,
-      notes: ["checked on the page"],
-    });
+    const failed = (message) =>
+      PP.state_set((s) =>
+        send_set(s, id, { status: "failed", progress: "", error: { code: "not_found", message } }),
+      );
+    if (!send.page || !PP.state_get().pages.some((p) => p.id === send.page))
+      return failed(
+        "This message never reached a site page, so there's nothing to check. Tap Retry.",
+      );
+    PP.state_set((s) => send_set(s, id, { status: "checking", progress: "Checking the page…" }));
+    try {
+      const [last] = (
+        await PP.call_send("site_read", {
+          page: send.page,
+          which: "newest",
+          wait: true,
+          limits: { idle_min: 0.5, total_min: 3 },
+        })
+      ).slice(-1);
+      if (!last || !last.reply)
+        return failed(
+          "The page shows no reply to this message yet. Open the site to look, or tap Retry.",
+        );
+      return turn_save(id, {
+        reply: last.reply,
+        received: last.reply,
+        thinking: last.thinking,
+        notes: ["checked on the page"],
+      });
+    } catch (error) {
+      return failed(`Couldn't check the page: ${error.message}`);
+    }
   }
   if (choice === "edit") {
     const draft = { id: send.chat, text: send.message, attachments: send.attachments };

@@ -53,7 +53,7 @@ const world_build = () => {
     page_navigate: (d) => (navigations.push(d), null),
     site_send: (d) => new Promise((resolve, reject) => pending.push({ d, resolve, reject })),
     site_stop: () => ({}),
-    site_read: () => [{ message: "x", reply: "from the page", thinking: "" }],
+    site_read: () => pp.page_shows || [{ message: "x", reply: "from the page", thinking: "" }],
     file_write: (d) => ((files[d.path] = d.data), { revision: "r" }),
     file_read: () => [],
     repo_commit: () => ({}),
@@ -294,4 +294,41 @@ test("a page shows the chat's own conversation before sending: a new chat starts
   pp.message_send({ chat: "c3", message: "once more" });
   await tick();
   assert.deepEqual(navigations, [], "already there: not reloaded");
+});
+
+test("Check takes the page's newest reply, says why when there's none, and never waits unbounded", async () => {
+  const { pp, pending, files } = world_build();
+  pp.message_send({ chat: "c2", message: "hello" });
+  await tick();
+  pending[0].reject({ code: "deadline_exceeded", message: "no reply in time" });
+  await tick();
+  await tick();
+  const failed = pp.state.sends[0];
+  await pp.failure_resolve(failed.id, "check");
+  const read = pp.sent.find((s) => s.name === "site_read");
+  assert.deepEqual(read.data.limits, { idle_min: 0.5, total_min: 3 }, "a bounded wait");
+  await tick();
+  assert.equal(pp.state.turns.find((t) => t.message === "hello").reply, "from the page");
+  assert.equal(pp.state.sends.length, 0);
+  assert.ok(files["c2.md"]);
+
+  // Nothing on the page: back to failed, with the reason.
+  pp.message_send({ chat: "c2", message: "again" });
+  await tick();
+  pending[1].reject({ code: "deadline_exceeded", message: "no reply in time" });
+  await tick();
+  await tick();
+  const second = pp.state.sends[0];
+  pp.page_shows = [{ message: "again", reply: "", thinking: "" }];
+  await pp.failure_resolve(second.id, "check");
+  assert.equal(pp.state.sends[0].status, "failed");
+  assert.match(pp.state.sends[0].error.message, /shows no reply to this message yet/);
+
+  // Never reached a page.
+  pp.state = {
+    ...pp.state,
+    sends: pp.state.sends.map((s) => ({ ...s, page: undefined })),
+  };
+  await pp.failure_resolve(second.id, "check");
+  assert.match(pp.state.sends[0].error.message, /never reached a site page/);
 });

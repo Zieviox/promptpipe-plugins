@@ -169,6 +169,7 @@ const swipe_handlers = (turn, state) => {
     onPointerDown: (e) => (start = { x: e.clientX, y: e.clientY }),
     onPointerUp: (e) => {
       if (!start) return;
+      if (String(getSelection() || "")) return void (start = null); // moving a selection's handles
       const dx = e.clientX - start.x;
       const dy = Math.abs(e.clientY - start.y);
       start = null;
@@ -179,18 +180,19 @@ const swipe_handlers = (turn, state) => {
   };
 };
 
-// Your message: over 8 lines or 600 characters it's tucked (about 6 lines, fading out) with a
-// "Show more" line; Copy and Edit under it (Edit puts it back in the box and replaces it when sent).
+// Your message, the same wherever it is: saved, on its way, queued or failed. Copy and Edit are
+// always there (Edit sends it again as a new message unless it's a saved one it replaces). Over 8
+// lines or 600 characters it's tucked (about 6 lines, fading out) with a "Show more" line.
 const message_render = (state, turn) => {
   const text = turn.message || "";
   const long = text.split("\n").length > 8 || text.length > 600;
   const open = unfolded(state, turn.id);
   return html`<div class="youwrap">
-    <div class=${`you${long && !open ? " tuck" : ""}`}>${text}</div>
+    <div class=${`you${long && !open ? " tuck" : ""}`}>${PP.markdown_render(text, "mine")}</div>
     ${long ? html`<button class="thin" onClick=${() => fold_toggle(turn.id)}>${open ? "Show less" : "Show more"} ${PP.icon_svg(open ? "up" : "down")}</button>` : null}
     <div class="actions right">
       ${PP.icon_render("copy", "Copy your message", () => PP.call_try("clipboard_write", { text }, "Copied"), false, "act")}
-      ${PP.icon_render("edit", "Edit and send again", () => PP.draft_set(text, { replaces: turn.id }), false, "act")}
+      ${PP.icon_render("edit", "Edit and send again", () => PP.draft_set(text, turn.saved === false ? {} : { replaces: turn.id }), false, "act")}
     </div>
   </div>`;
 };
@@ -212,7 +214,7 @@ const thin_render = (state, turn) => {
     ${
       open
         ? html`<div class="thinbox">
-      ${turn.thinking ? PP.markdown_render(turn.thinking) : null}
+      ${turn.thinking ? html`<div class="thinking">${PP.markdown_render(turn.thinking, "thought")}</div>` : null}
       ${sent.length ? html`<small>Sent with: ${sent.join(", ")}</small>` : null}
       <button class="thin" onClick=${() => PP.sheet_open("turn", { id: turn.id })}>Show the full text</button>
     </div>`
@@ -235,34 +237,43 @@ const turn_render = (state, turn, last) =>
 // A send on its way: the thinking's newest line and the reply so far; queued: under the chat,
 // with Move up, Edit and Remove (UC2); failed: its reason and what can be done (UC4).
 const send_render = (state, send) => {
+  const page = state.pages.find((p) => p.id === send.page);
+  const plugin = page && state.plugins.find((p) => p.id === page.provider);
+  const site = plugin ? plugin.manifest.name : "The site";
+  const you = message_render(state, { id: send.id, message: send.message, saved: false });
+  // Failed: what happened in plain words (the technical text under Details), Retry first.
   if (send.status === "failed") {
-    const site =
-      send.page &&
-      ["permission_denied", "failed_precondition", "unavailable", "not_found"].includes(
-        send.error.code,
-      );
+    const words = PP.error_words(send.error, site);
+    const raw = send.error.message;
     const resolve = (choice) => () => PP.call_try("failure_resolve", { send: send.id, choice });
     return html`<div class="turn failed" key=${send.id}>
-      <div class="you">${send.message}</div>
-      <div class="error">${send.error.message}</div>
-      <div class="chips">
-        <button class="pill" onClick=${resolve("check")}>Check</button
-        ><button class="pill" onClick=${resolve("retry")}>Retry</button>
-        <button class="pill" onClick=${resolve("edit")}>Edit</button
-        ><button class="pill" onClick=${resolve("dismiss")}>Dismiss</button>
+      ${you}
+      <div class="notice">
+        <span class="ni">${PP.icon_svg("alert")}</span>
+        <div class="grow">
+          <div>${words}</div>
+          ${
+            raw && raw !== words
+              ? html`<details><summary>Details</summary><small>${raw}</small></details>`
+              : null
+          }
+        </div>
+      </div>
+      <div class="chips choices">
+        <button class="pill on" onClick=${resolve("retry")}>${PP.icon_svg("retry")} Retry</button>
+        <button class="pill" onClick=${resolve("check")}>Check the page</button>
+        <button class="pill" onClick=${resolve("edit")}>Edit</button>
         ${
-          site
+          send.page
             ? html`<button
                 class="pill"
                 onClick=${() => PP.ui_set(() => ({ site_view: { open: true, page: send.page } }))}
               >
                 Open the site
-              </button>
-              <button class="pill" onClick=${() => PP.page_report_copy(send.page)}>
-                Copy page report
               </button>`
             : null
         }
+        <button class="pill quiet" onClick=${resolve("dismiss")}>Dismiss</button>
       </div>
     </div>`;
   }
@@ -273,28 +284,31 @@ const send_render = (state, send) => {
     const up = () =>
       PP.apply_try((s) => PP.record_move(s, { collection: "sends", id: send.id, index: 0 }));
     return html`<div class="turn queued" key=${send.id}>
-      <div class="you">${send.message}</div>
-      <div class="chips">
-        <small>Queued</small><button class="pill" onClick=${up}>Move up</button>
-        <button class="pill" onClick=${edit}>Edit</button
-        ><button class="pill" onClick=${remove}>Remove</button>
+      ${you}
+      <div class="chips choices">
+        <span class="status">Waiting its turn</span>
+        <button class="pill" onClick=${up}>Send next</button>
+        <button class="pill" onClick=${edit}>Edit</button>
+        <button class="pill quiet" onClick=${remove}>Remove</button>
       </div>
     </div>`;
   }
-  // The thinking as it comes, its newest lines in view, until the reply starts; then it folds to
-  // one line ("Thought for N s" once the turn is saved).
+  // On its way: the thinking in full as it comes, then the reply as it's written. The status line
+  // says what's happening in words (no character counts); a pulsing dot while it's alive.
   const secs = Math.max(1, Math.round((Date.now() - Date.parse(send.at || 0)) / 1000));
   const live = send.thinking && !send.reply;
+  const status = live
+    ? `Thinking · ${secs} s`
+    : send.reply
+      ? "Writing…"
+      : /chars$/.test(send.progress || "")
+        ? "Thinking…"
+        : send.progress || `Waiting for ${site}…`;
   return html`<div class="turn" key=${send.id}>
-    <div class="you">${send.message}</div>
-    ${
-      send.thinking
-        ? html`<div class="thin">${live ? `Thinking… ${secs} s` : "Thought · writing the reply"}</div>
-          ${live ? html`<div class="thinking live"><div>${PP.markdown_render(send.thinking)}</div></div>` : null}`
-        : null
-    }
+    ${you}
+    <div class="live"><span class="pulse"></span>${status}</div>
+    ${live ? html`<div class="thinking live">${PP.markdown_render(send.thinking, "thought")}</div>` : null}
     ${send.reply ? PP.markdown_render(send.reply) : null}
-    ${live ? null : html`<small class="muted">${send.progress}</small>`}
   </div>`;
 };
 
@@ -349,6 +363,13 @@ const new_reply_render = (state) => {
   return html`<button class="jump" onClick=${() => box() && (box().scrollTop = box().scrollHeight)}>Jump to latest</button>`;
 };
 
+// The message box grows with what's in it (typed, or put there by Edit or a quote).
+const box_size = (el) => {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = `${Math.min(el.scrollHeight, innerHeight * 0.4)}px`;
+};
+
 const composer_render = (state) => {
   const draft = PP.draft_get(state);
   const busy = state.sends.some(
@@ -365,12 +386,13 @@ const composer_render = (state) => {
   return html`<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>
     ${PP.icon_render("stackadd", "Quick edit and add", () => PP.command_run("quick_edit"), false, "icon", "quick_edit")}
     <textarea
+      ref=${box_size}
       id="message"
       rows="1"
       placeholder="Message"
       aria-label="Message"
       value=${draft.text}
-      onInput=${(e) => PP.draft_set(e.target.value)}
+      onInput=${(e) => (box_size(e.target), PP.draft_set(e.target.value))}
       onKeyDown=${key}
     ></textarea>
     ${draft.attachments.length ? html`<small>${draft.attachments.length} attached</small>` : null}
@@ -395,6 +417,7 @@ const composer_render = (state) => {
 
 PP.plugin_set({
   functions: {
+    box_size,
     header_render,
     provider_menu_render,
     chat_render,

@@ -25,7 +25,7 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.35 var(--font); }
-#app { display: flex; flex-direction: column; height: 100dvh; max-width: 820px; margin: 0 auto; position: relative; zoom: var(--scale, 1); }
+#app { touch-action: manipulation; display: flex; flex-direction: column; height: 100dvh; max-width: 820px; margin: 0 auto; position: relative; zoom: var(--scale, 1); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
 input, textarea, select { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -34,6 +34,7 @@ code, pre { font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; }
 pre { white-space: pre-wrap; word-break: break-word; background: var(--raise); border-radius: 10px; padding: 10px; margin: 4px 0; position: relative; }
 small, .muted { color: var(--muted); font-size: 12px; }
 .error { color: var(--error); }
+::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); color: inherit; }
 mark { background: color-mix(in srgb, var(--warn) 30%, transparent); color: inherit; border-radius: 3px; }
 
 /* parts */
@@ -72,25 +73,41 @@ textarea.field { resize: vertical; min-height: 6em; }
 /* the chat */
 .turn { display: flex; flex-direction: column; gap: 6px; }
 .chat { flex: 1; overflow: auto; overflow-anchor: none; padding: 8px 14px; display: flex; flex-direction: column; gap: 14px; }
-.you { align-self: flex-end; background: var(--raise); padding: 8px 12px; border-radius: 16px; max-width: 80%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.you { align-self: flex-end; background: var(--raise); padding: 8px 12px; border-radius: 16px; max-width: 80%; overflow-wrap: anywhere; user-select: text; }
+.md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+.md.mine p { margin: 0 0 .5em; }
 .you.folded { max-height: calc(1.35em * 6 + 16px); overflow: hidden; mask-image: linear-gradient(#000 55%, transparent); }
 .reply { overflow-wrap: anywhere; user-select: text; font-size: var(--reply-size, 14px); }
 .reply table { border-collapse: collapse; margin: .5em 0; } .reply th, .reply td { border: 1px solid var(--line); padding: 4px 8px; }
 .reply a { color: var(--accent); }
 .reply blockquote { border-left: 2px solid var(--line); margin: .5em 0; padding-left: 12px; color: var(--muted); }
 .code-copy { position: absolute; top: 4px; right: 4px; padding: 2px 8px; font-size: 12px; color: var(--muted); background: var(--raise2); border-radius: 8px; }
-.thinking { border-left: 2px solid var(--line); padding-left: 10px; color: var(--muted); font-size: 13px; }
-.thinking.live { max-height: 9.5em; overflow: hidden; display: flex; flex-direction: column-reverse; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 2.2em); mask-image: linear-gradient(to bottom, transparent, #000 2.2em); }
-.thinking.live .reply { font-size: 13px; color: var(--muted); }
+.thinking { border-left: 2px solid var(--line); padding-left: 10px; color: var(--muted); font-size: 13px; user-select: text; }
+.md.thought { font-size: 13px; color: var(--muted); }
+.thinking.live { margin: 4px 0 6px; }
 .actions { display: flex; gap: 2px; margin-top: 4px; align-items: center; }
-.failed .you, .queued .you { opacity: .65; }
+.failed .you, .queued .you { opacity: .7; }
+/* A message's state under it: on its way, failed, waiting its turn. */
+.live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; margin: 8px 0 2px; }
+.pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.4s ease-in-out infinite; flex: none; }
+.notice { display: flex; gap: 10px; align-items: flex-start; background: color-mix(in srgb, var(--error) 9%, var(--raise)); border: 1px solid color-mix(in srgb, var(--error) 28%, transparent); border-radius: 14px; padding: 10px 12px; margin-top: 8px; font-size: 13.5px; }
+.notice .ni { color: var(--error); flex: none; margin-top: 1px; }
+.notice details { margin-top: 4px; } .notice summary { color: var(--muted); font-size: 12px; cursor: pointer; } .notice details small { display: block; margin-top: 4px; overflow-wrap: anywhere; }
+.chips.choices { margin-top: 8px; gap: 6px; }
+.chips.choices .pill { padding: 6px 12px; font-size: 13px; }
+.chips.choices .pill .svg svg { width: 15px; height: 15px; }
+.pill.quiet { border-color: transparent; background: none !important; color: var(--muted); }
+.status { color: var(--muted); font-size: 12.5px; margin-right: 4px; }
 .new-reply { position: absolute; left: 50%; transform: translateX(-50%); bottom: 78px; z-index: 4; }
 .empty { margin: auto; color: var(--muted); text-align: center; }
 
 /* the message box */
 .composer { margin: 8px 10px 14px; background: var(--raise); border-radius: 22px; padding: 10px 12px; display: flex; align-items: flex-end; gap: 10px; }
-.composer textarea { flex: 1; min-width: 0; background: none; border: 0; outline: 0; resize: none; max-height: 40vh; }
-.composer.big textarea { height: 40vh; }
+.composer textarea { flex: 1; min-width: 0; background: none; border: 0; outline: 0; resize: none; line-height: 1.4; min-height: 1.4em; max-height: 40vh; padding: 2px 0; transition: min-height .15s ease; }
+/* Tapped: a little taller (about three lines), then it grows with what you type, up to 40% of the
+   screen; the expand button makes it tall. */
+.composer:focus-within textarea { min-height: 4.2em; }
+.composer.big textarea { height: 60vh !important; max-height: 60vh; }
 .send { background: var(--accent); color: var(--on-accent); width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: none; }
 .send.stop { background: var(--text); color: var(--bg); }
 
@@ -107,8 +124,8 @@ textarea.field { resize: vertical; min-height: 6em; }
 .row.folder { background: none; font-weight: 600; }
 .menu { position: absolute; top: 54px; right: 10px; width: 250px; background: var(--raise); border-radius: 16px; padding: 6px; z-index: 12; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); }
 .toasts { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; z-index: 40; pointer-events: none; }
-.toast { background: var(--text); color: var(--bg); padding: 7px 14px; border-radius: 99px; font-size: 13px; }
-.toast.error { background: var(--error); color: #1a1208; border-radius: 14px; }
+.toast { background: var(--raise2); color: var(--text); border: 1px solid var(--line); padding: 9px 14px; border-radius: 12px; font-size: 13px; max-width: min(360px, calc(100vw - 32px)); box-shadow: 0 6px 20px rgba(0, 0, 0, .28); }
+.toast.error { border-left: 3px solid var(--error); }
 .dialog { z-index: 30; }
 .site-bar { display: flex; flex-direction: column; gap: 6px; padding-bottom: 8px; }
 .site-bar .top { padding-bottom: 4px; }
@@ -255,3 +272,4 @@ details { background: var(--raise); border-radius: 10px; padding: 8px 10px; font
 details summary { cursor: pointer; color: var(--muted); }
 details .item { margin-top: 6px; }
 
+.notice details { background: none; padding: 0; border-radius: 0; }

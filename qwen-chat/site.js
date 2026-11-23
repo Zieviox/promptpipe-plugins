@@ -33,7 +33,7 @@ const thinking_visible = (card = card_newest()) =>
 const thinking_open = async () => {
   const read = () => {
     const found = thinking_visible();
-    return found.length ? text_get(found[found.length - 1]) : "";
+    return found.length ? PP.stages.thinking_format(provider, found[found.length - 1]) : "";
   };
   if (thinking_visible().length) return read();
   const card = card_newest();
@@ -47,15 +47,21 @@ const thinking_open = async () => {
 
 // While a reply comes, the newest card is kept open so its thinking is on the page and can be
 // read as it grows (opened once: a second click would fold it again).
+// On a phone-sized page Qwen shows an open card full screen, over the chat: one this opened is
+// folded again once the reply is read, so the site view shows the chat.
 const thinking_keep_open = () => {
-  let opened = null;
+  let seen = null;
+  let clicked = null;
   const timer = setInterval(() => {
     const card = card_newest();
-    if (!card || card === opened) return;
-    if (!thinking_visible(card).length) card.click();
-    opened = card;
+    if (!card || card === seen) return;
+    if (!thinking_visible(card).length) (card.click(), (clicked = card));
+    seen = card;
   }, 400);
-  return () => clearInterval(timer);
+  return () => {
+    clearInterval(timer);
+    if (clicked && clicked.isConnected && thinking_visible(clicked).length) clicked.click();
+  };
 };
 
 const site_send = async (data, def) => {

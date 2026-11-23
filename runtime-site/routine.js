@@ -66,13 +66,14 @@ const markdown = (() => {
   return service;
 })();
 
-// The reply's HTML as Markdown (Turndown with GFM: tables, lists, code), thinking and the
-// provider's "strip" parts (citations) left out; plain text if the conversion fails.
-const reply_format = (provider, el) => {
+// The one way site text comes into the app: an element's HTML as Markdown (Turndown with GFM:
+// headings, lists, tables, code), the provider's parts of the given kinds left out; plain text if
+// the conversion fails. A reply leaves out its thinking and the "strip" parts (citations); the
+// thinking leaves out "strip". The screen then shows all text with one Markdown renderer.
+const markdown_get = (provider, el, drop = ["strip"]) => {
   if (!el) return "";
-  const drop = [...selectors_get(provider, "thinking"), ...selectors_get(provider, "strip")];
   const copy = el.cloneNode(true);
-  for (const s of drop) {
+  for (const s of drop.flatMap((kind) => selectors_get(provider, kind))) {
     try {
       copy.querySelectorAll(s).forEach((n) => n.remove());
     } catch (error) {
@@ -85,6 +86,8 @@ const reply_format = (provider, el) => {
     return text_get(el);
   }
 };
+const reply_format = (provider, el) => markdown_get(provider, el, ["thinking", "strip"]);
+const thinking_format = (provider, el) => markdown_get(provider, el, ["strip"]);
 
 // ---------- errors from the site ----------
 
@@ -171,7 +174,7 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
       }
     }
     const busy = !!element_find(selectors_get(provider, "stop"));
-    const th = text_get(thinking_last(provider));
+    const th = thinking_format(provider, thinking_last(provider));
     const next = [
       busy,
       now.length,
@@ -383,7 +386,7 @@ const site_read = async ({ which, wait, limits }, provider) => {
           turns.push({ message: "", reply: "", thinking: "" });
         Object.assign(turns[turns.length - 1], {
           reply: reply_format(provider, m.el),
-          thinking: text_get(thinking_near(provider, m.el)),
+          thinking: thinking_format(provider, thinking_near(provider, m.el)),
         });
       }
     }
@@ -396,7 +399,7 @@ const site_read = async ({ which, wait, limits }, provider) => {
     {
       message: text_get(users[users.length - 1]),
       reply: reply_format(provider, el),
-      thinking: el ? text_get(thinking_near(provider, el)) : "",
+      thinking: el ? thinking_format(provider, thinking_near(provider, el)) : "",
     },
   ];
 };
@@ -584,6 +587,8 @@ return {
   ready_get,
   reply_read,
   reply_format,
+  thinking_format,
+  markdown_get,
   text_write,
   element_find,
   visible,

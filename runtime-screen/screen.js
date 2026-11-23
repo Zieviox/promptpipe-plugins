@@ -277,6 +277,34 @@ const hover_render = (ui) =>
       </button>`
     : null;
 
+// ---------- selecting text ----------
+// A double tap on text selects the word under it, as in other apps (a long press selects too).
+
+let tap_last = null;
+const word_select = (x, y) => {
+  const at = document.caretPositionFromPoint
+    ? document.caretPositionFromPoint(x, y)
+    : document.caretRangeFromPoint && document.caretRangeFromPoint(x, y);
+  if (!at) return;
+  const node = at.offsetNode || at.startContainer;
+  const offset = at.offset ?? at.startOffset;
+  const sel = getSelection();
+  sel.collapse(node, offset);
+  sel.modify("move", "backward", "word");
+  sel.modify("extend", "forward", "word");
+};
+addEventListener("pointerup", (e) => {
+  if (e.pointerType !== "touch" || !e.target.closest(".md") || e.target.closest("a, button"))
+    return;
+  const now = { t: e.timeStamp, x: e.clientX, y: e.clientY };
+  const last = tap_last;
+  tap_last = now;
+  if (last && now.t - last.t < 350 && Math.hypot(now.x - last.x, now.y - last.y) < 24) {
+    tap_last = null;
+    word_select(e.clientX, e.clientY);
+  }
+});
+
 // ---------- keys and Back ----------
 
 const key_name = (e) => {
@@ -453,6 +481,8 @@ const theme_set = (state) => {
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
 let view_open = false;
 const after_draw = (state) => {
+  const box = document.getElementById("message");
+  if (box && !state.ui.composer.big) PP.box_size(box);
   const chat = document.getElementById("chat");
   // A chat just opened shows its newest message; then it follows only when you're at the bottom.
   if (chat && state.ui.bottom) {
