@@ -11,8 +11,7 @@ a `plugin.json` and its files; how to write one is in the app's
   tokens), `runtime-site` (the default way of using a site, run in its page), `runtime-screen`
   (the screen).
 - **Providers**: DeepSeek, Qwen Chat, OpenAI-style API. **Block plugins**: Memory, Sub-chats,
-  Base64. **Themes**: Ember, Paper. **Once**: Old app import (removable). **Diagnostics**: Typing
-  trace (records what happens around the message box while its Record setting is on).
+  Base64. **Themes**: Ember, Paper. **Once**: Old app import (removable).
 - **Libraries** are pinned in each plugin's `vendor/` with their licences: Preact, htm,
   markdown-it, SortableJS, fflate, Turndown.
 

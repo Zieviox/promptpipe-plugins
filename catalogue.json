@@ -299,20 +299,6 @@
         "sub-chats.js": "f3a40ebf9b89154b51e18f536909645ddcda8abcccb32ac09812430a3462e49a",
         "GUIDE.md": "6536f24cf0936a54bb8c38229e70086e5b4d49fb458b4aa2d9c77e4af55dc77a"
       }
-    },
-    {
-      "id": "typing-trace",
-      "name": "Typing trace",
-      "version": "1.0.0",
-      "description": "For finding what goes wrong while typing or selecting in the message box: while Record is on, every touch, focus change, selection change, keyboard input and keyboard opening or closing around the box is written down with its time, and saved to Settings › Advanced › Logs a moment after you stop. Off, it does nothing.",
-      "tags": [],
-      "min_app": "1.0.0",
-      "path": "typing-trace",
-      "built_in": true,
-      "hashes": {
-        "plugin.json": "8b3bc59235a6387c75b20b269d64f5f805793baec13fe2e398db4af8b5a9a552",
-        "trace.js": "763cacd9b0539ba7460a1ecaff36d48e60fd267844247645bfcc4097cc7f8592"
-      }
     }
   ]
 }
