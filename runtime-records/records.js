@@ -233,6 +233,7 @@ const writes_build = async (state, target) => {
       "message",
       "attachments",
       "replaces",
+      "regenerate",
       "profile",
       "status",
       "at",

@@ -487,3 +487,42 @@ test("a chat is linked only to a site chat's address, even when the site gives i
   await tick();
   assert.equal(chat().site_url, "https://ds/c/42");
 });
+
+test("an edit and Send again make new versions; the site regenerates and is switched to the shown versions", async () => {
+  const { pp, pending } = world_build();
+  const calls = [];
+  pp.calls.site_regenerate = (d) => (
+    calls.push(["regenerate", d.site_ref]),
+    { reply: "again", url: "https://ds/c/2", site_ref: "r-2b" }
+  );
+  pp.calls.site_version_set = (d) => (calls.push(["version", d.want, d.refs]), { done: true });
+  pp.message_send({ chat: "c2", message: "one" });
+  await tick();
+  pending[0].resolve({ reply: "first", url: "https://ds/c/2", site_ref: "r-1" });
+  await tick();
+  await tick();
+  const one = pp.state.turns.find((t) => t.message === "one");
+  // Send again: a new version of "one", by the site's Regenerate on its reply.
+  pp.message_send({ chat: "c2", message: "one", replaces: one.id, regenerate: true });
+  await tick();
+  await tick();
+  await tick();
+  assert.deepEqual(calls[0], ["regenerate", "r-1"]);
+  const versions = pp.state.turns.filter((t) => t.message === "one");
+  assert.equal(versions.length, 2, "both versions kept");
+  assert.equal(pp.turns_shown(pp.state, "c2").pop().reply, "again", "the new one shown");
+  // Back to the first version, then a new message: the site is switched to it first.
+  const switched = pp.version_show(pp.state, { turn: versions[1].id, id: one.id });
+  pp.state = switched.state;
+  pp.message_send({ chat: "c2", message: "two" });
+  await tick();
+  assert.deepEqual(calls[1], ["version", "r-1", ["r-1", "r-2b"]]);
+  pending[1].resolve({ reply: "r", url: "https://ds/c/2", site_ref: "r-3" });
+  await tick();
+  await tick();
+  assert.equal(
+    pp.state.turns.find((t) => t.message === "two").parent,
+    one.id,
+    "follows the shown version",
+  );
+});

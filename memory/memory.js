@@ -29,7 +29,9 @@ const turn_format = (turn, named, side = "both", n = Infinity) => {
 const turns_get = (state, chat) =>
   PP.sub_chat_turns_get
     ? PP.sub_chat_turns_get(state, chat)
-    : state.turns.filter((t) => t.chat === chat.id);
+    : PP.turns_shown
+      ? PP.turns_shown(state, chat.id) // with branches, the path shown
+      : state.turns.filter((t) => t.chat === chat.id);
 const data_get = (state, chat) => PP.chat_data_get(state, chat.id, ID) || { levels: [] };
 
 // The parts that stand for the older turns: the finest summaries first, then (oldest first) a

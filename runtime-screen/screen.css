@@ -298,3 +298,6 @@ details .item { margin-top: 6px; }
 .errdot { width: 8px; height: 8px; border-radius: 50%; background: var(--error); flex: none; }
 .editbar { display: flex; align-items: center; gap: 8px; margin: 8px 10px -2px; padding: 6px 6px 6px 12px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 12%, var(--raise)); color: var(--text); font-size: 13px; }
 .editbar .svg svg { width: 16px; height: 16px; }
+.versions { display: inline-flex; align-items: center; gap: 0; margin-left: auto; color: var(--muted); font-size: 12.5px; }
+.versions .act { width: 26px; height: 26px; }
+.versions .svg svg { width: 15px; height: 15px; }

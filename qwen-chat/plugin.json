@@ -1,7 +1,7 @@
 {
   "id": "qwen-chat",
   "name": "Qwen Chat",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
   "tags": ["provider", "web"],
   "pp": 1,
@@ -20,6 +20,9 @@
       "send": ["button.send-button:not(.disabled)", "#send-message-button"],
       "stop": ["button.stop-button", "#stop-message-button"],
       "upload": ["input#filesUpload", "input[type=file]"],
+      "regenerate": ["[aria-label=Regenerate]", ".qwen-chat-package-comp-new-action-control-container-regenerate"],
+      "version_prev": [".qwen-chat-ui-packages-siblings > .anticon:first-child"],
+      "version_next": [".qwen-chat-ui-packages-siblings > .anticon:last-child"],
       "reply": [
         ".response-message-content.phase-answer",
         ".chat-response-message .custom-qwen-markdown",

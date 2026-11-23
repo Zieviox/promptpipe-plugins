@@ -143,16 +143,31 @@ const reply_foot = (state, turn, last) => {
     unfolded(state, `actions:${turn.id}`) !== (mode === "every" || (mode === "newest" && last));
   const toggle = () => fold_toggle(`actions:${turn.id}`);
   const tags = turn.tags || [];
+  // Versions of this message (an edit, Send again): "‹ 2/3 ›", switching what's shown after it.
+  const versions = PP.versions_get(state, turn);
+  const step = (by) => {
+    const next = versions.list[versions.index + by];
+    if (next) PP.call_try("version_show", { turn: turn.id, id: next.id });
+  };
+  const switcher =
+    versions.list.length > 1
+      ? html`<span class="versions">
+          ${PP.icon_render("back", "Previous version", () => step(-1), false, "act")}
+          <span>${versions.index + 1}/${versions.list.length}</span>
+          ${PP.icon_render("right", "Next version", () => step(1), false, "act")}
+        </span>`
+      : null;
   const foot = html`<div class="foot">
     ${PP.icon_render(open ? "up" : "more", open ? "Hide actions" : "Show actions", toggle, false, "act")}
     <span>${time_short(turn.at)}</span>${!open && tags.length ? html`<span class="tg">#${tags.length}</span>` : null}
+    ${switcher}
   </div>`;
   if (!open) return foot;
   return html`${foot}
     <div class="actions">
       ${PP.icon_render("copy", "Copy", () => PP.call_try("clipboard_write", { text: turn.reply }, "Copied"), false, "act", "Copies this reply.")}
       ${PP.icon_render("quote", "Quote", () => quote_add(state, turn.reply), false, "act", "Puts this reply in your message as a quote.")}
-      ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message }), false, "act", "Sends the same message again for a new reply.")}
+      ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message, replaces: turn.id, regenerate: true }), false, "act", "A new reply to the same message: a new version beside this one (‹ 2/2 ›); on the site, its Regenerate.")}
       ${PP.icon_render("sites", "Check against the site", () => turn_check_run(turn.id), false, "act", "Compares this reply with the site's and takes the site's version if it's different (one cut short, say).")}
       ${PP.icon_render("more", "More", () => PP.sheet_open("turn", { id: turn.id }), false, "act", "Tags, the message sent, its blocks and more for this reply.")}
     </div>
@@ -350,7 +365,7 @@ const send_render = (state, send) => {
 
 const chat_render = (state) => {
   const id = state.ui.chat;
-  const turns = state.turns.filter((t) => t.chat === id);
+  const turns = PP.turns_shown(state, id); // with branches, the versions shown
   const sends = state.sends.filter((s) => s.chat === id && s.chat);
   const hooks = state.plugins.map((p) => PP.hook_get(p.id, "turn_render")).filter(Boolean);
   const body =
@@ -436,8 +451,8 @@ const composer_render = (state) => {
   const edit_bar = editing
     ? html`<div class="editbar">
         ${PP.icon_svg("edit")}
-        <span class="grow">Editing your message · it replaces the one above when sent</span>
-        ${PP.icon_render("close", "Don't replace it: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
+        <span class="grow">Editing your message · sent as a new version of it (the old one stays)</span>
+        ${PP.icon_render("close", "Not a version: send as a new message", () => PP.draft_set(draft.text, { replaces: null }), false, "act")}
       </div>`
     : null;
   return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`}>

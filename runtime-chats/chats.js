@@ -354,6 +354,68 @@ const turns_repeated_remove = (state, { chat }) => {
   };
 };
 
+// ---------- branches: versions of a message ----------
+
+// A chat's messages as a tree: each follows its `parent` (null for the first). Messages saved before
+// branches have none and follow each other in their saved order.
+const turns_tree = (turns) => {
+  let previous = null;
+  return turns.map((t) => {
+    const parent = "parent" in t ? t.parent : previous;
+    previous = t.id;
+    return "parent" in t ? t : { ...t, parent };
+  });
+};
+
+// The path a chat shows: from the first message, at each fork the version its `shown` map names
+// (the message it follows, or "root", to the version), else the newest. Pure: from the turns given.
+const path_of = (turns, shown = {}) => {
+  const children = new Map();
+  for (const t of turns_tree(turns)) {
+    const key = t.parent || "root";
+    if (!children.has(key)) children.set(key, []);
+    children.get(key).push(t);
+  }
+  const path = [];
+  const seen = new Set();
+  for (let at = "root"; children.has(at) && !seen.has(at); ) {
+    seen.add(at);
+    const list = children.get(at);
+    const pick = list.find((t) => t.id === shown[at]) || list[list.length - 1];
+    path.push(pick);
+    at = pick.id;
+  }
+  return path;
+};
+
+// The messages of a chat as shown (the screen, Memory, the readable file, numbering).
+const turns_shown = (state, chat) => {
+  const record = state.chats.find((c) => c.id === chat);
+  return path_of(
+    state.turns.filter((t) => t.chat === chat),
+    (record && record.shown) || {},
+  );
+};
+
+// A message's versions (those following the same message, oldest first) and which one it is.
+const versions_get = (state, turn) => {
+  const tree = turns_tree(state.turns.filter((t) => t.chat === turn.chat));
+  const me = tree.find((t) => t.id === turn.id);
+  const list = tree.filter((t) => (t.parent || null) === ((me && me.parent) || null));
+  return { list, index: list.findIndex((t) => t.id === turn.id), key: (me && me.parent) || "root" };
+};
+
+// Show another version of a message (and what follows it), as a record operation.
+const version_show = (state, { turn, id }) => {
+  const record = state.turns.find((t) => t.id === turn);
+  const { key } = versions_get(state, record);
+  return PP.record_set(state, {
+    collection: "chats",
+    id: record.chat,
+    fields: { shown: { [key]: id } },
+  });
+};
+
 // ---------- attachments (UC48) ----------
 
 // Files are copied into the chat's data folder at once (so a draft's attachments survive a
@@ -477,7 +539,9 @@ const chat_files_build = async (state, id) => {
   const missed =
     loaded && mine.length && disk.length && !disk.some((d) => mine.some((t) => t.id === d.id));
   const turns = !loaded ? disk : missed ? [...disk, ...mine] : mine;
-  const chat = { ...meta, turns };
+  // Saved with their parents (older ones get them now); the readable file shows the shown path.
+  const tree = turns_tree(turns);
+  const chat = { ...meta, turns: path_of(tree, meta.shown || {}) };
   const info = {
     provider: PP.provider_get(state, chat),
     model: PP.model_get(state, chat),
@@ -487,7 +551,7 @@ const chat_files_build = async (state, id) => {
   const sections = PP.hook_run ? await PP.hook_run("chat_section_format", [], { chat }) : [];
   return [
     { root: "chats", path: `${dir}/meta.json`, data: meta },
-    { root: "chats", path: `${dir}/turns.json`, data: turns },
+    { root: "chats", path: `${dir}/turns.json`, data: tree },
     { root: "chats", path: meta.file, data: PP.chat_format(chat, info, sections) },
   ];
 };
@@ -509,6 +573,11 @@ PP.plugin_set({
     site_chat_open,
     site_chat_import,
     folder_deep_remove,
+    turns_tree,
+    path_of,
+    turns_shown,
+    versions_get,
+    version_show,
     turns_repeated_remove,
     attachment_add,
     chats_folder_move,
@@ -522,6 +591,7 @@ PP.plugin_set({
     site_chat_open: (d, state) => site_chat_open(state, d),
     site_chat_import: (d, state) => site_chat_import(state, d),
     folder_deep_remove: (d, state) => folder_deep_remove(state, d),
+    version_show: (d, state) => version_show(state, d),
     attachment_add: (d, state) => attachment_add(state, d),
     chats_folder_move: (d, state) => chats_folder_move(state, d),
   },

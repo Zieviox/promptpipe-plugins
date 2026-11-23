@@ -387,9 +387,13 @@ const site_send = async ({ text, limits, attachments = [] }, provider) => {
       );
     }
   }
-  const result = await reply_read(provider, before, limits, old);
-  // A new site chat gets its own address a moment after the reply: wait for it (up to 3 s), so the
-  // chat is linked to its conversation, not to the site's start (which would start a new one).
+  return reply_finish(provider, await reply_read(provider, before, limits, old));
+};
+
+// A reply read to its end: the site chat's address (a new one gets it a moment after: waited for,
+// up to 3 s, so the chat is linked to its conversation, not the site's start), the reply as
+// Markdown, its reference on the page, the model.
+const reply_finish = async (provider, result) => {
   if (provider.chat_urls && provider.chat_urls.length)
     await wait_for(() => chat_url_is(provider, location.href) || null, 3000);
   else await PP.pause(300);
@@ -404,6 +408,67 @@ const site_send = async ({ text, limits, attachments = [] }, provider) => {
         : "",
     model: text_get(element_find(selectors_get(provider, "model"))),
   };
+};
+
+// ---------- versions of a message (branches) ----------
+
+// The element holding a reply, by its reference; and, when the site swaps in a version the app
+// doesn't know, the one at the same place among the page's replies of that kind.
+const ref_find = (refs, at) => {
+  for (const ref of refs) {
+    const el = ref && document.getElementById(ref);
+    if (el) return el;
+  }
+  if (!at) return null;
+  return [...document.querySelectorAll(`[id^="${at.prefix}"]`)][at.index] || null;
+};
+const ref_place = (el) => {
+  const prefix = el.id.replace(/[0-9a-f]{8}-[0-9a-f-]{27,}$/i, "").replace(/[0-9a-f-]{16,}$/i, "");
+  return { prefix, index: [...document.querySelectorAll(`[id^="${prefix}"]`)].indexOf(el) };
+};
+
+// Send again on the site: the reply's own Regenerate (the provider's "regenerate" selectors, looked
+// for inside the reply), then the new version read like any reply.
+const site_regenerate = async ({ site_ref, limits }, provider) => {
+  const el = site_ref && document.getElementById(site_ref);
+  if (!el)
+    throw fail(
+      "not_found",
+      "That reply isn't shown on the site page (another version is, or it's gone)",
+    );
+  const button = selectors_get(provider, "regenerate")
+    .map((s) => el.querySelector(s))
+    .find(Boolean);
+  if (!button) throw fail("unimplemented", "This site's plugin doesn't know its Regenerate button");
+  const before = snapshot_take(provider);
+  const first_error = error_find(provider, null);
+  const old = new Set(first_error ? [first_error.el] : []);
+  button.click();
+  return reply_finish(provider, await reply_read(provider, before, limits, old));
+};
+
+// Show the version the app shows: the reply's version arrows (the provider's "version_prev" and
+// "version_next" selectors, inside the reply) pressed until the wanted one is on the page.
+const site_version_set = async ({ want, refs = [] }, provider) => {
+  if (!want || document.getElementById(want)) return { done: true };
+  const first = ref_find(refs);
+  if (!first) return { done: false };
+  const at = ref_place(first);
+  for (const kind of ["version_prev", "version_next"]) {
+    for (let i = 0; i < 12; i += 1) {
+      const el = ref_find(refs, at);
+      const button =
+        el &&
+        selectors_get(provider, kind)
+          .map((s) => el.querySelector(s))
+          .find(Boolean);
+      if (!button) break;
+      button.click();
+      await PP.pause(700);
+      if (document.getElementById(want)) return { done: true };
+    }
+  }
+  return { done: false };
 };
 
 // ---------- the other stages ----------
@@ -631,7 +696,7 @@ const site_report_build = (data, provider) => {
   const yours = all_find(selectors_get(provider, "user").join(",") || "x-none").pop();
   if (yours) {
     lines.push("", "== around your newest message (a reply on its way is here) ==");
-    walk(around(yours, 5), 0);
+    walk(around(yours, 9), 0); // the whole message, with its own buttons (edit, versions)
   }
   const box = element_find(selectors_get(provider, "input"));
   lines.push(
@@ -662,6 +727,8 @@ return {
   site_model_set,
   site_chat_list,
   site_report_build,
+  site_regenerate,
+  site_version_set,
   // Back in the site view: a provider closes a panel it knows is open over the chat ({ closed }).
   site_back: () => ({ closed: false }),
   ready_get,

@@ -260,3 +260,74 @@ test(
     }
   },
 );
+
+test(
+  "Send again uses the reply's Regenerate; the version arrows bring the wanted version back",
+  { timeout: 30000 },
+  async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      // Like Qwen: a reply with an id, its footer holding Regenerate and the "‹ n / m ›" arrows;
+      // a regenerate swaps in a new version (new id), the arrows move between versions.
+      await page.setContent(`<div class="user">hi</div><div id="slot"></div>
+      <script>
+        const versions = [{ id: "chat-response-message-aaaaaaaa-0000-0000-0000-000000000001", text: "first answer" }];
+        let at = 0;
+        const draw = () => {
+          const v = versions[at];
+          document.getElementById("slot").innerHTML =
+            '<div class="chat-response-message" id="' + v.id + '"><div class="answer">' + v.text + '</div>' +
+            '<div class="foot"><span class="regen" aria-label="Regenerate">↻</span>' +
+            '<div class="siblings"><span class="prev">‹</span><span>' + (at + 1) + ' / ' + versions.length + '</span><span class="next">›</span></div></div></div>';
+          const el = document.getElementById(v.id);
+          el.querySelector(".regen").onclick = () => setTimeout(() => {
+            versions.push({ id: "chat-response-message-bbbbbbbb-0000-0000-0000-000000000002", text: "" });
+            at = versions.length - 1; draw();
+            let n = 0; const t = setInterval(() => { versions[at].text += " again"; document.querySelector("#slot .answer").textContent = versions[at].text; if (++n > 3) clearInterval(t); }, 150);
+          }, 100);
+          el.querySelector(".prev").onclick = () => { if (at > 0) (at--, draw()); };
+          el.querySelector(".next").onclick = () => { if (at < versions.length - 1) (at++, draw()); };
+        };
+        draw();
+      </script>`);
+      const out = await page.evaluate(async (code) => {
+        const PP = {
+          event_send: () => {},
+          pause: (ms) => new Promise((r) => setTimeout(r, ms)),
+          cancelled: () => false,
+          stages: {},
+          defaults: {},
+        };
+        const provider = {
+          id: "x",
+          settle_ms: 600,
+          selectors: {
+            reply: [".answer"],
+            user: [".user"],
+            regenerate: ["[aria-label=Regenerate]"],
+            version_prev: [".siblings > .prev"],
+            version_next: [".siblings > .next"],
+          },
+        };
+        const stages = new Function("PP", "provider", code)(PP, provider);
+        const first = "chat-response-message-aaaaaaaa-0000-0000-0000-000000000001";
+        const again = await stages.site_regenerate({ site_ref: first, limits: {} }, provider);
+        const back = await stages.site_version_set(
+          { want: first, refs: [first, again.site_ref] },
+          provider,
+        );
+        return { again, back, shown: document.querySelector("#slot .answer").textContent };
+      }, CODE);
+      assert.equal(out.again.reply, "again again again again");
+      assert.equal(
+        out.again.site_ref,
+        "chat-response-message-bbbbbbbb-0000-0000-0000-000000000002",
+      );
+      assert.deepEqual(out.back, { done: true });
+      assert.equal(out.shown, "first answer", "the wanted version is on the page again");
+    } finally {
+      await browser.close();
+    }
+  },
+);

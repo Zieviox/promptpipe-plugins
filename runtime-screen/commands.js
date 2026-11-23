@@ -134,7 +134,7 @@ const send_stop = (state) => {
 
 // Edit and resend your last message: back into the box, replacing it when sent (UC5).
 const last_edit = (state) => {
-  const turns = state.turns.filter((t) => t.chat === state.ui.chat);
+  const turns = PP.turns_shown(state, state.ui.chat);
   const last = turns[turns.length - 1];
   if (last) draft_set(last.message, { replaces: last.id });
 };

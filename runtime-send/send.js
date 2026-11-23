@@ -133,7 +133,8 @@ const message_send = (draft) => {
     chat: draft.chat || null,
     message: draft.message,
     attachments: draft.attachments || [],
-    replaces: draft.replaces || null,
+    replaces: draft.replaces || null, // a new version of that message (an edit, Send again)
+    regenerate: !!draft.regenerate, // Send again: the same message, the site's own Regenerate
     profile: draft.profile || null,
     plain: !!draft.plain, // a side request sent as it is, without the profile's blocks
     job: draft.job || null,
@@ -226,7 +227,20 @@ const send_run = async (id) => {
   const send = send_get(id);
   const state = PP.state_get();
   const chat = send.chat && state.chats.find((c) => c.id === send.chat);
-  const turns = chat ? state.turns.filter((t) => t.chat === chat.id) : [];
+  // The messages as shown (with branches, the path you see); the new one follows the last of them,
+  // or, as a new version of a message (an edit, Send again), the message that one follows.
+  const turns = chat ? PP.turns_shown(state, chat.id) : [];
+  const versioned =
+    send.replaces &&
+    PP.turns_tree(state.turns.filter((t) => t.chat === send.chat)).find(
+      (t) => t.id === send.replaces,
+    );
+  const parent = versioned
+    ? versioned.parent || null
+    : turns.length
+      ? turns[turns.length - 1].id
+      : null;
+  if (chat) PP.state_set((s) => send_set(s, id, { parent }));
   let waiting = false;
   try {
     const route = (await PP.hook_run("chat_route", null, { chat, message: send.message })) || {};
@@ -246,9 +260,18 @@ const send_run = async (id) => {
     const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
     const first = !chat || !turns.length || route.url === "new";
     const context = { chat: view, message: send.message, count: turns.length + 1, first };
-    const built = send.plain
-      ? { text: send.message, trace: [], notes: [], blocks: [] }
-      : await PP.message_build(state, context, PP.hook_get);
+    // Send again (a regenerate): the same message as it went, the site re-answering it.
+    const built =
+      send.regenerate && versioned
+        ? {
+            text: versioned.sent || versioned.message,
+            trace: [],
+            notes: [],
+            blocks: versioned.blocks || [],
+          }
+        : send.plain
+          ? { text: send.message, trace: [], notes: [], blocks: [] }
+          : await PP.message_build(state, context, PP.hook_get);
     let answer;
     if (plugin.manifest.tags.includes("api")) {
       PP.state_set((s) =>
@@ -316,12 +339,28 @@ const send_run = async (id) => {
           throw { code: "not_found", message: `The attached file ${a.name} isn't there any more` };
         files.push({ name: a.name, mime_type: a.mime_type, data: file.data });
       }
-      answer = await PP.call_send("site_send", {
-        page,
-        text: built.text,
-        attachments: files,
-        limits,
-      });
+      // The site shows the versions the app shows, on the way to where this goes (a message
+      // switched to another version in the app is switched on the site first), so it continues
+      // the same branch.
+      const tree = PP.turns_tree(PP.state_get().turns.filter((t) => t.chat === send.chat));
+      for (const t of turns.slice(0, parent ? turns.findIndex((x) => x.id === parent) + 1 : 0)) {
+        const versions = tree.filter((x) => (x.parent || null) === (t.parent || null));
+        if (versions.length > 1 && t.site_ref)
+          await PP.call_send("site_version_set", {
+            page,
+            want: t.site_ref,
+            refs: versions.map((x) => x.site_ref).filter(Boolean),
+          }).catch(() => null);
+      }
+      answer =
+        send.regenerate && versioned && versioned.site_ref
+          ? await PP.call_send("site_regenerate", { page, site_ref: versioned.site_ref, limits })
+          : await PP.call_send("site_send", {
+              page,
+              text: built.text,
+              attachments: files,
+              limits,
+            });
     }
     // A message sent as typed (the profile off) gets its reply as it came, too.
     const reply = send.plain
@@ -413,6 +452,7 @@ const turn_save = async (id, answer) => {
     model: answer.model || "",
     page_url: answer.url || "",
     site_ref: answer.site_ref || "",
+    parent: send.parent === undefined ? null : send.parent,
     blocks: answer.blocks || [],
     notes: answer.notes || [],
     diagnostics: { ...(answer.diagnostics || {}), got: send.updates_got || 0 },
@@ -420,17 +460,26 @@ const turn_save = async (id, answer) => {
   };
   const name =
     chat.name && chat.name !== "New chat" ? chat.name : send.message.split("\n")[0].slice(0, 60);
-  const count = state.turns.filter((t) => t.chat === chat.id && t.id !== send.replaces).length + 1;
+  const path = PP.turns_shown(state, chat.id);
+  const at = path.findIndex((t) => t.id === send.parent);
+  const count = !send.parent ? 1 : at >= 0 ? at + 2 : path.length + 1;
+  // A new version (an edit, Send again) is kept beside the one it's a version of, and shown.
+  const key = send.parent || "root";
   await PP.record_apply((s) => {
-    const kept = s.turns.filter((t) => t.id !== send.replaces);
     const chats = s.chats.map((c) =>
       c.id === chat.id
-        ? { ...c, name, site_url: chat_link_get(s, c, answer.url), updated: PP.time_get() }
+        ? {
+            ...c,
+            name,
+            site_url: chat_link_get(s, c, answer.url),
+            updated: PP.time_get(),
+            ...(send.replaces && { shown: { ...(c.shown || {}), [key]: turn.id } }),
+          }
         : c,
     );
     const next = {
       ...send_remove(s, id),
-      turns: [...kept, turn],
+      turns: [...s.turns, turn],
       chats,
       counters: tagged.counters,
     };
@@ -563,7 +612,7 @@ const turn_check = async (id) => {
     if (!shown || !PP.url_same(shown.url, chat.site_url))
       await PP.call_send("page_navigate", { page, to: chat.site_url, wait: true });
     const site = await PP.call_send("site_read", { page, which: "all" });
-    const mine = PP.state_get().turns.filter((t) => t.chat === chat.id);
+    const mine = PP.turns_shown(PP.state_get(), chat.id);
     const by_text = site.filter(
       (t) => words_same(t.message, turn.sent) || words_same(t.message, turn.message),
     );

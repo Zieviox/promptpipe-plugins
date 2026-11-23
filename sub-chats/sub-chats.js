@@ -15,7 +15,7 @@ const segments_get = (turns) => {
   const urls = [];
   return turns.reduce((list, t, i) => {
     const last = list[list.length - 1];
-    if (last && (!t.page_url || same(last.url, t.page_url))) return (last.count += 1), list;
+    if (last && (!t.page_url || same(last.url, t.page_url))) return ((last.count += 1), list);
     if (!urls.some((u) => same(u, t.page_url))) urls.push(t.page_url);
     const number = urls.findIndex((u) => same(u, t.page_url)) + 1;
     return [...list, { url: t.page_url, start: i, count: 1, number, model: t.model }];
@@ -25,7 +25,8 @@ const segments_get = (turns) => {
 const want_get = (state, chat) => (state.ui.sub_chats || {})[chat] || null;
 const want_set = (chat, want) =>
   PP.ui_set((ui) => ({ sub_chats: { ...(ui.sub_chats || {}), [chat]: want } }));
-const turns_get = (state, chat) => state.turns.filter((t) => t.chat === chat);
+const turns_get = (state, chat) =>
+  PP.turns_shown ? PP.turns_shown(state, chat) : state.turns.filter((t) => t.chat === chat);
 
 // What the next message's site chat can see: all of it, or up to a branch's reply and then its own.
 const sub_chat_turns_get = (state, chat) => {

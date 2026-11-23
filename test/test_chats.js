@@ -409,3 +409,47 @@ test("a folder hundreds of levels deep is removed from the top, never by a long 
   );
   assert.deepEqual(busy, { removed: 0, chats: 1 });
 });
+
+test("branches: a chat's messages as a tree, the path shown, and a message's versions", () => {
+  const pp = plugins_load(["runtime-records", "runtime-chats"]);
+  // Saved before branches: no parents, one after another.
+  const old = [
+    { id: "a", chat: "c" },
+    { id: "b", chat: "c" },
+  ];
+  assert.deepEqual(
+    pp.turns_tree(old).map((t) => t.parent),
+    [null, "a"],
+  );
+  // b has a newer version b2 (an edit), followed by d.
+  const turns = [
+    ...old,
+    { id: "b2", chat: "c", parent: "a" },
+    { id: "d", chat: "c", parent: "b2" },
+  ];
+  const state = {
+    schemas: JSON.parse(
+      require("node:fs").readFileSync(
+        require("node:path").join(__dirname, "..", "runtime-records", "schemas.json"),
+        "utf8",
+      ),
+    ),
+    chats: [{ id: "c", name: "C", file: "C.md", tags: [] }],
+    turns,
+  };
+  assert.deepEqual(
+    pp.turns_shown(state, "c").map((t) => t.id),
+    ["a", "b2", "d"],
+    "the newest version by default",
+  );
+  const v = pp.versions_get(state, turns[2]);
+  assert.deepEqual([v.list.map((t) => t.id), v.index, v.key], [["b", "b2"], 1, "a"]);
+  const shown = pp.version_show(state, { turn: "b2", id: "b" });
+  const chat = shown.state.chats[0];
+  assert.deepEqual(chat.shown, { a: "b" });
+  assert.deepEqual(
+    pp.turns_shown(shown.state, "c").map((t) => t.id),
+    ["a", "b"],
+    "the older version, and what follows it (nothing yet)",
+  );
+});
