@@ -47,6 +47,20 @@ const chat_step = (state, by) => {
 const draft_get = (state) =>
   state.drafts.find((d) => d.id === (state.ui.chat || "new")) || { text: "", attachments: [] };
 
+// Whether the profile is off for the open chat (or the chat about to start): your message goes
+// alone, as typed. Kept with the chat (own.raw), or with the new chat's draft until it starts.
+const raw_get = (state) => {
+  const chat = chat_get(state);
+  return chat ? !!(chat.own && chat.own.raw) : !!draft_get(state).raw;
+};
+const raw_set = (state, on) => {
+  const chat = chat_get(state);
+  if (!chat) return draft_set(draft_get(state).text, { raw: on });
+  return PP.apply_try((s) =>
+    PP.record_set(s, { collection: "chats", id: chat.id, fields: { own: { raw: on || null } } }),
+  );
+};
+
 // The draft is kept per chat on this device (UC7): in the State at once, in its file shortly after.
 let draft_timer = 0;
 const draft_set = (text, fields = {}) => {
@@ -71,7 +85,10 @@ const message_send = async (state) => {
   if (!chat) {
     chat = PP.id_create();
     const folder = state.ui.folder || "";
-    const made = await PP.apply_try((s) => PP.chat_create(s, { id: chat, message: text, folder }));
+    const own = draft.raw ? { raw: true } : {};
+    const made = await PP.apply_try((s) =>
+      PP.chat_create(s, { id: chat, message: text, folder, own }),
+    );
     if (!made) return;
     PP.state_set((s) => ({ ...s, loaded: [...s.loaded, chat], ui: { ...s.ui, chat } }));
   }
@@ -82,6 +99,7 @@ const message_send = async (state) => {
     message: text,
     attachments: draft.attachments,
     replaces: draft.replaces || null,
+    plain: raw_get(PP.state_get()),
   });
   await PP.outbox_save();
   await PP.apply_try((s) => ({
@@ -411,6 +429,8 @@ PP.plugin_set({
     chat_get,
     chat_open,
     draft_get,
+    raw_get,
+    raw_set,
     draft_set,
     message_send_run: message_send,
   },

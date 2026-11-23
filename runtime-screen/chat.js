@@ -455,7 +455,7 @@ const composer_render = (state) => {
       ref=${box_size}
       id="message"
       rows="1"
-      placeholder="Message"
+      placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
       aria-label="Message"
       value=${draft.text}
       onInput=${(e) => (box_size(e.target), PP.draft_set(e.target.value))}

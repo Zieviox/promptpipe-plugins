@@ -493,6 +493,18 @@ const SHEETS = {
           </button>`,
       head_extra: html`<button class="pill big" onClick=${() => PP.sheet_open("profile", { id: profile.id })}>${PP.icon_svg("edit")} Edit profile</button>`,
       rows: [
+        // The whole profile on or off: off, your message goes alone, as typed.
+        item({
+          label: "Use the profile",
+          sub: PP.raw_get(state)
+            ? "Off: your message goes alone, as typed"
+            : "Its blocks go with your message",
+          right: PP.switch_render(!PP.raw_get(state), "Use the profile", (on) =>
+            PP.raw_set(state, !on),
+          ),
+          onClick: () => PP.raw_set(state, !PP.raw_get(state)),
+          cls: PP.raw_get(state) ? "off" : "",
+        }),
         profile_dropdown(
           state,
           profile,
@@ -500,7 +512,7 @@ const SHEETS = {
           (p) => profile_pick(chat, p.id),
         ),
         html`<small>Switch on or off, drag to reorder.</small>`,
-        block_rows(state, profile, chat, (b) => PP.sheet_open("block", { id: b.id })),
+        html`<div class=${PP.raw_get(state) ? "dimmed" : ""}>${block_rows(state, profile, chat, (b) => PP.sheet_open("block", { id: b.id }))}</div>`,
         Object.keys(own).length
           ? item({
               label: "Use the profile's toggles",

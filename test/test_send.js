@@ -427,3 +427,27 @@ test("a saved reply is checked against the site's version and updated when it di
   assert.equal((await pp.turn_check(turn.id)).status, "same");
   assert.equal(pp.state.sends.length, 0, "the check let its page go");
 });
+
+test("with the profile off, a message goes exactly as typed and its reply as it came", async () => {
+  const { pp, pending } = world_build();
+  pp.state = {
+    ...pp.state,
+    config: {
+      ...pp.state.config,
+      blocks: [
+        { id: "s", profile: "p1", type: "prompt", text: "SYSTEM", send: "every", on: true },
+        ...pp.state.config.blocks,
+      ],
+    },
+  };
+  let hooked = 0;
+  pp.hook_run = async (hook, input) => (hook === "reply_after" && (hooked += 1), input);
+  pp.message_send({ chat: "c2", message: "just this", plain: true });
+  await tick();
+  assert.equal(pending[0].d.text, "just this");
+  pending[0].resolve({ reply: "raw reply", url: "https://ds/c/2" });
+  await tick();
+  await tick();
+  assert.equal(hooked, 0, "no reply plugins");
+  assert.equal(pp.state.turns.find((t) => t.message === "just this").reply, "raw reply");
+});

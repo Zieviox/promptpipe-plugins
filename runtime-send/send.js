@@ -310,10 +310,10 @@ const send_run = async (id) => {
         limits,
       });
     }
-    const reply = await PP.hook_run("reply_after", answer.reply, {
-      chat: view,
-      notes: built.notes,
-    });
+    // A message sent as typed (the profile off) gets its reply as it came, too.
+    const reply = send.plain
+      ? answer.reply
+      : await PP.hook_run("reply_after", answer.reply, { chat: view, notes: built.notes });
     if (!chat) return send_done(id, { ...answer, received: answer.reply, reply });
     await turn_save(id, {
       ...built,
