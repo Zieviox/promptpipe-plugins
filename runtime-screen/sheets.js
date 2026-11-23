@@ -1493,6 +1493,19 @@ ${p.text}</textarea
               data: { id: turn.id },
             }),
         }),
+        item({
+          label: "Delete this message and reply",
+          cls: "danger",
+          onClick: () => (
+            PP.sheet_close(),
+            PP.dialog_open({
+              title: "Delete this message and its reply? It stays in the chat's history.",
+              choices: [["yes", "Delete"]],
+              command: "turn_delete",
+              data: { id: turn.id },
+            })
+          ),
+        }),
         ...(PP.plugin_commands || [])
           .filter((c) => c.place === "Reply")
           .map((c) =>

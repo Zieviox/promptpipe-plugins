@@ -233,3 +233,27 @@ test("adding the site's messages skips what's here, unwraps PromptPipe's, and ru
     ],
   );
 });
+
+test("deleting a chat's last message saves it empty (the safety net only keeps saved messages when there are new ones)", async () => {
+  const old = [{ id: "t1", chat: "c9", message: "old one", reply: "r" }];
+  const pp = plugins_load(["runtime-records", "runtime-chats"], {
+    file_read: (d) =>
+      d.path === ".promptpipe/chats/c9/turns.json"
+        ? [{ data: JSON.stringify(old), revision: "r" }]
+        : [],
+  });
+  const state = {
+    config: {
+      settings: {},
+      profiles: [{ id: "p", name: "Plain", plugin_settings: {} }],
+      blocks: [],
+    },
+    schemas: { settings: [] },
+    plugins: [],
+    chats: [{ id: "c9", name: "Old", file: "Old.md", tags: [] }],
+    turns: [],
+    loaded: ["c9"],
+  };
+  const files = await pp.chat_files_build(state, "c9");
+  assert.deepEqual(files.find((f) => f.path.endsWith("turns.json")).data, []);
+});

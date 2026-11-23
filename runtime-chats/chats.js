@@ -395,7 +395,9 @@ const chat_files_build = async (state, id) => {
   const mine = state.turns.filter((t) => t.chat === id);
   // A chat that was loaded without its messages (a listing that missed them) would be saved with
   // only the new ones: when the State shares none of the saved messages, they're kept first.
-  const missed = loaded && disk.length && !disk.some((d) => mine.some((t) => t.id === d.id));
+  // (Only when there's something new to save: deleting a chat's last message leaves it empty.)
+  const missed =
+    loaded && mine.length && disk.length && !disk.some((d) => mine.some((t) => t.id === d.id));
   const turns = !loaded ? disk : missed ? [...disk, ...mine] : mine;
   const chat = { ...meta, turns };
   const info = {

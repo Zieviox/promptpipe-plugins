@@ -329,6 +329,13 @@ const COMMANDS = [
 // What a dialog's OK or a sheet's item runs with its data (the dialog adds the text typed as `value` and
 // the button pressed as `choice`); not listed in Find.
 const RUNS = {
+  // A message and its reply deleted, after the dialog's yes (it stays in the history).
+  turn_delete: (s, d) =>
+    d.choice === "yes" &&
+    PP.apply_try(
+      (st) => PP.record_delete(st, { collection: "turns", id: d.id }),
+      "message deleted",
+    ).then((done) => done && PP.toast("Deleted. It's still in the chat's history.")),
   // Its text back into the box, or discarded (the dialog's choice).
   send_dismiss: (s, d) => d.choice && PP.send_dismiss(d.send, d.choice),
   // Confirmed in the dialog first (choice "yes").
