@@ -278,31 +278,18 @@ const hover_render = (ui) =>
     : null;
 
 // ---------- selecting text ----------
-// A double tap on text selects the word under it, as in other apps (a long press selects too).
+// Selection is Android's own (long press, handles, its menu): the app adds no gestures on text,
+// and while text in the chat is selected nothing is redrawn or scrolled under it; the redraw
+// waits until the selection goes.
 
-let tap_last = null;
-const word_select = (x, y) => {
-  const at = document.caretPositionFromPoint
-    ? document.caretPositionFromPoint(x, y)
-    : document.caretRangeFromPoint && document.caretRangeFromPoint(x, y);
-  if (!at) return;
-  const node = at.offsetNode || at.startContainer;
-  const offset = at.offset ?? at.startOffset;
+const selecting = () => {
   const sel = getSelection();
-  sel.collapse(node, offset);
-  sel.modify("move", "backward", "word");
-  sel.modify("extend", "forward", "word");
+  const chat = document.getElementById("chat");
+  return !!(sel && !sel.isCollapsed && sel.anchorNode && chat && chat.contains(sel.anchorNode));
 };
-addEventListener("pointerup", (e) => {
-  if (e.pointerType !== "touch" || !e.target.closest(".md") || e.target.closest("a, button"))
-    return;
-  const now = { t: e.timeStamp, x: e.clientX, y: e.clientY };
-  const last = tap_last;
-  tap_last = now;
-  if (last && now.t - last.t < 350 && Math.hypot(now.x - last.x, now.y - last.y) < 24) {
-    tap_last = null;
-    word_select(e.clientX, e.clientY);
-  }
+let held = false;
+document.addEventListener("selectionchange", () => {
+  if (held && !selecting()) ((held = false), redraw());
 });
 
 // ---------- keys and Back ----------
@@ -477,17 +464,21 @@ const screen_render = (state) => {
     ${state.changes.length ? PP.change_render(state) : null}
     ${ui.dialog ? dialog_render(state) : null} ${ui.tour ? tour_render(state) : null}
     ${ui.help || ui.help_card ? help_render(state) : null} ${hover_render(ui)}
-    <div class="toasts" aria-live="polite">
-      ${ui.toasts.map((t) =>
-        t.action
-          ? html`<div class=${`toast act-toast${t.error ? " error" : ""}`} key=${t.id}>
-              <span>${t.text}</span>
-              <button class="ta" onClick=${() => (PP.ui_set((ui) => ({ toasts: ui.toasts.filter((x) => x.id !== t.id) })), PP.command_run(t.action.command))}>${t.action.label}</button>
-            </div>`
-          : t.open
-            ? html`<button class=${`toast tap${t.error ? " error" : ""}`} key=${t.id} onClick=${() => PP.chat_open(t.open)}>${t.text}</button>`
-            : html`<div class=${`toast${t.error ? " error" : ""}`} key=${t.id}>${t.text}</div>`,
-      )}
+    <div class="toasts">
+      ${ui.toasts.map((t) => {
+        // A tap closes it (a "Reply ready" opens its chat); its button does its action. Only the
+        // text is announced, never the buttons.
+        const close = () => PP.ui_set((ui) => ({ toasts: ui.toasts.filter((x) => x.id !== t.id) }));
+        const tap = () => (close(), t.open && PP.chat_open(t.open));
+        return html`<div class=${`toast${t.error ? " error" : ""}${t.action ? " act-toast" : ""}`} key=${t.id} onClick=${tap}>
+          <span role="status">${t.text}</span>
+          ${
+            t.action
+              ? html`<button class="ta" onClick=${(e) => (e.stopPropagation(), close(), PP.command_run(t.action.command))}>${t.action.label}</button>`
+              : null
+          }
+        </div>`;
+      })}
     </div>`;
 };
 
@@ -512,9 +503,13 @@ const theme_set = (state) => {
 
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
 let view_open = false;
+// The message box is sized only when its text changed (typing sizes it at once), never on every
+// redraw, so the conversation above doesn't move.
+let box_text = null;
 const after_draw = (state) => {
   const box = document.getElementById("message");
-  if (box && !state.ui.composer.big) PP.box_size(box);
+  if (box && !state.ui.composer.big && box.value !== box_text)
+    ((box_text = box.value), PP.box_size(box));
   const chat = document.getElementById("chat");
   // A chat just opened shows its newest message; then it follows only when you're at the bottom.
   if (chat && state.ui.bottom) {
@@ -564,6 +559,7 @@ const redraw = () => {
   if (frame) return;
   frame = setTimeout(() => {
     frame = 0;
+    if (selecting()) return void (held = true);
     const state = PP.state_get();
     const root = document.getElementById("app");
     if (first) ((first = false), (root.textContent = ""));

@@ -267,7 +267,7 @@ textarea.field { resize: vertical; min-height: 6em; }
 .ddlist { display: flex; flex-direction: column; gap: 6px; padding-left: 8px; border-left: 2px solid var(--line); }
 .item.blk { padding: 10px 8px 10px 4px; }
 .item .lead { display: inline-flex; align-self: flex-start; margin: 1px 4px 0 0; }
-.toast.tap { pointer-events: auto; cursor: pointer; }
+
 .ddrow .pill.big { padding: 7px 12px; font-size: 13.5px; }
 /* Settings: a choice's row holds its segments or chips under the label. */
 .item.col { flex-direction: column; align-items: stretch; gap: 8px; }
@@ -289,3 +289,4 @@ details .item { margin-top: 6px; }
 .dimmed { opacity: .45; }
 .toast.act-toast { display: flex; align-items: center; gap: 14px; pointer-events: auto; }
 .toast .ta { color: var(--accent); font-weight: 600; padding: 2px 4px; flex: none; }
+.toast { pointer-events: auto; cursor: pointer; }

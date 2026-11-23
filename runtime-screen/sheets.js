@@ -152,13 +152,14 @@ const profile_pick = (chat, id) =>
 
 // The profile dropdown (Quick edit, the profile editor): the profile and a line under it; open,
 // every profile with Edit, + New, Import…, Export this, Export all. `pick` runs on a choice.
-const profile_dropdown = (state, current, sub, pick) => {
+// `edit`: the Edit button beside it (off where the sheet already has "Edit profile").
+const profile_dropdown = (state, current, sub, pick, edit = true) => {
   const open = state.ui.profile_menu;
   const toggle_open = () => PP.ui_set((ui) => ({ profile_menu: !ui.profile_menu }));
   return html`<div class="dd">
     <div class="ddrow">
       <button class="item grow" onClick=${toggle_open}><span class="grow">${current.name}<small>${sub}</small></span><span class="ch">${PP.icon_svg(open ? "up" : "down")}</span></button>
-      <button class="pill big" onClick=${() => PP.sheet_open("profile", { id: current.id })}>${PP.icon_svg("edit")} Edit</button>
+      ${edit ? html`<button class="pill big" onClick=${() => PP.sheet_open("profile", { id: current.id })}>${PP.icon_svg("edit")} Edit</button>` : null}
     </div>
     ${
       open
@@ -533,6 +534,7 @@ const SHEETS = {
           profile,
           chat ? "This chat's profile · tap to switch" : "New chats start with it · tap to switch",
           (p) => profile_pick(chat, p.id),
+          false,
         ),
         html`<small>Switch on or off, drag to reorder.</small>`,
         html`<div class=${PP.raw_get(state) ? "dimmed" : ""}>${block_rows(state, profile, chat, (b) => PP.sheet_open("block", { id: b.id }))}</div>`,
@@ -833,12 +835,6 @@ ${b.text || ""}</textarea
   text: (state, { title, text }) => ({ title, rows: [PP.markdown_render(text)] }),
 
   // A box where picking a part of a reply is easy (long-press works on the reply too).
-  select_text: (state, { text }) => ({
-    title: "Select text",
-    rows: [
-      html`<textarea class="field" rows="16" readonly onFocus=${(e) => e.target.select()}>${text}</textarea>`,
-    ],
-  }),
 
   preview: (state, { id }) => ({
     title: "What will be sent",

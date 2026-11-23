@@ -153,7 +153,6 @@ const reply_foot = (state, turn, last) => {
       ${PP.icon_render("copy", "Copy", () => PP.call_try("clipboard_write", { text: turn.reply }, "Copied"), false, "act", "Copies this reply.")}
       ${PP.icon_render("quote", "Quote", () => quote_add(state, turn.reply), false, "act", "Puts this reply in your message as a quote.")}
       ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message }), false, "act", "Sends the same message again for a new reply.")}
-      ${PP.icon_render("select", "Select text", () => PP.sheet_open("select_text", { text: turn.reply }), false, "act", "Shows the reply as plain text so you can select part of it.")}
       ${PP.icon_render("sites", "Check against the site", () => turn_check_run(turn.id), false, "act", "Compares this reply with the site's and takes the site's version if it's different (one cut short, say).")}
       ${PP.icon_render("more", "More", () => PP.sheet_open("turn", { id: turn.id }), false, "act", "Tags, the message sent, its blocks and more for this reply.")}
     </div>
@@ -161,24 +160,6 @@ const reply_foot = (state, turn, last) => {
       ${tags.map((t) => html`<span class="tag" key=${t}>#${t}</span>`)}
       <button class="tag" onClick=${() => PP.dialog_open({ title: "Tag this message (name# numbers it)", ok: "Add", command: "turn_tag_add", data: { id: turn.id } })}>+ tag</button>
     </div>`;
-};
-
-// A swipe across a reply: right quotes it, left copies it (UC6).
-const swipe_handlers = (turn, state) => {
-  let start = null;
-  return {
-    onPointerDown: (e) => (start = { x: e.clientX, y: e.clientY }),
-    onPointerUp: (e) => {
-      if (!start) return;
-      if (String(getSelection() || "")) return void (start = null); // moving a selection's handles
-      const dx = e.clientX - start.x;
-      const dy = Math.abs(e.clientY - start.y);
-      start = null;
-      if (Math.abs(dx) < 80 || dy > 40) return;
-      if (dx > 0) quote_add(state, turn.reply);
-      else PP.call_try("clipboard_write", { text: turn.reply }, "Copied");
-    },
-  };
 };
 
 // Your message, the same wherever it is: saved, on its way, queued or failed. Copy and Edit are
@@ -273,7 +254,7 @@ const turn_render = (state, turn, last) =>
     ${message_render(state, turn)}
     <div class="ai">
       <small>${provider_name_get(state, turn)}${turn.model ? ` · ${turn.model}` : ""}</small>
-      <div ...${swipe_handlers(turn, state)}>${PP.markdown_render(turn.reply)}</div>
+      ${PP.markdown_render(turn.reply)}
       ${thin_render(state, turn)}
       ${
         turn.error
