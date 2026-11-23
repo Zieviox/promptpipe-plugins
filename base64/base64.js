@@ -119,6 +119,35 @@ const reply_after = (reply, context) => {
   }
 };
 
+// A message as a site shows it, back to what you typed (an import): this plugin's instruction lines
+// taken off, and the message (or its marked blocks) decoded when it was sent encoded.
+const INSTRUCTION =
+  /^.*(Reply with base64 only|base64 encoded UTF-8; decode (it|them) first).*$/gim;
+const decoded = (raw) => {
+  if (/[ \t]/.test(raw.trim())) return null; // base64 has line breaks at most, never spaces
+  try {
+    const text = text_decode(raw.replace(/\s+/g, ""), true).text;
+    const readable =
+      text.replace(/[^\p{L}\p{N}\p{P}\p{Zs}\n\t]/gu, "").length / Math.max(1, text.length);
+    return readable > 0.9 ? text : null;
+  } catch {
+    return null;
+  }
+};
+const sent_unwrap = (text) =>
+  String(text || "")
+    .replace(INSTRUCTION, "")
+    .replace(
+      /\[base64 block\]\s*([\s\S]*?)\s*\[end of base64 block\]/g,
+      (all, body) => decoded(body) ?? all,
+    )
+    .split(/\n\s*\n/)
+    .map((part) =>
+      /^[A-Za-z0-9+/=_\-\s]{12,}$/.test(part.trim()) ? (decoded(part) ?? part) : part,
+    )
+    .join("\n\n")
+    .trim();
+
 // Under every reply, whether or not the plugin is on: the reply replaced with its decoded text
 // (what came back stays as it was, under the reply's More: What went out and what came back).
 const reply_show = async (state, { turn }) => {
@@ -142,6 +171,6 @@ const reply_show = async (state, { turn }) => {
 
 PP.plugin_set({
   functions: { reply_decode },
-  hooks: { send_before, reply_after },
+  hooks: { send_before, reply_after, sent_unwrap },
   commands: [{ id: "base64_decode", label: "Decode base64", place: "Reply", run: reply_show }],
 });

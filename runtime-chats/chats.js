@@ -236,9 +236,16 @@ const words = (text) =>
     .replace(/\s+/g, " ")
     .trim();
 
-// A message as the site shows it, without what PromptPipe sent around it: the texts of the chat's
-// profile's System prompts are taken off, leaving yours.
-const message_unwrap = (state, chat, text) => {
+// For telling the same text apart from formatting: letters and digits only.
+const loose = (text) =>
+  String(text || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "");
+
+// A message as the site shows it, without what PromptPipe sent around it: the chat's profile's
+// System prompt texts are taken off, then each plugin takes off its own part (sent_unwrap: Base64
+// its instruction, decoding your text; Memory its summary), leaving yours.
+const message_unwrap = async (state, chat, text) => {
   const record = state.chats.find((c) => c.id === chat);
   const profile = record && PP.profile_get(state, record);
   const texts = ((state.config && state.config.blocks) || [])
@@ -247,6 +254,7 @@ const message_unwrap = (state, chat, text) => {
     .sort((a, b) => b.length - a.length);
   let out = String(text || "");
   for (const t of texts) out = out.split(t).join("");
+  if (PP.hook_run) out = await PP.hook_run("sent_unwrap", out, { chat: record });
   return out.replace(/\n{3,}/g, "\n\n").trim() || String(text || "").trim();
 };
 
@@ -271,11 +279,16 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
   let added = 0;
   let skipped = 0;
   for (const turn of turns) {
+    const mine = turn.message ? await message_unwrap(state, chat, turn.message) : "";
+    // Already here: by what was sent, your text, or (a message without one) its reply; formatting
+    // aside (the site shows text a little differently from what was sent).
     const known = here.some(
       (t) =>
         (turn.message &&
-          (words(t.sent) === words(turn.message) || words(t.message) === words(turn.message))) ||
-        (!turn.message && turn.reply && words(t.received || t.reply) === words(turn.reply)),
+          (loose(t.sent) === loose(turn.message) ||
+            loose(t.message) === loose(turn.message) ||
+            loose(t.message) === loose(mine))) ||
+        (!turn.message && turn.reply && loose(t.received || t.reply) === loose(turn.reply)),
     );
     if (known) {
       skipped += 1;
@@ -285,7 +298,7 @@ const site_chat_import = async (state, { chat, page, which, save }) => {
       chat,
       at: PP.time_get(),
       tags: [],
-      message: message_unwrap(state, chat, turn.message),
+      message: mine,
       sent: turn.message || "",
       received: turn.reply || "",
       reply: await after(turn.reply),

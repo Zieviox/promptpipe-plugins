@@ -241,7 +241,7 @@ const chat_section_parse = (text, data = { levels: [] }) => {
   const edits = {};
   for (const line of text.split("\n")) {
     const mark = MARK.exec(line.trim());
-    if (mark) (at = `${mark[1] - 1}/${mark[2] - 1}`), (edits[at] = []);
+    if (mark) ((at = `${mark[1] - 1}/${mark[2] - 1}`), (edits[at] = []));
     else if (at) edits[at].push(line);
   }
   for (const [key, body] of Object.entries(edits)) {
@@ -253,4 +253,12 @@ const chat_section_parse = (text, data = { levels: [] }) => {
   return { levels };
 };
 
-PP.plugin_set({ hooks: { block_text, reply_after, chat_section_format, chat_section_parse } });
+// A message as a site shows it, back to what you typed (an import): Memory's part taken off.
+const sent_unwrap = (text) =>
+  String(text || "")
+    .replace(/\[Memory:[^\]]*\][\s\S]*?\[End of memory\]\s*/g, "")
+    .trim();
+
+PP.plugin_set({
+  hooks: { block_text, reply_after, chat_section_format, chat_section_parse, sent_unwrap },
+});

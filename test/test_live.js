@@ -113,8 +113,11 @@ test(
     const browser = await chromium.launch();
     try {
       const page = await browser.newPage();
-      // Like Qwen: the answer element holds a markdown element, and the provider names all three.
-      await page.setContent(`<div class="u"><div class="umc">hi</div></div>
+      // Like Qwen: the answer element holds a markdown element, and the provider names all three;
+      // the first user selector finds only the newest message (older ones lack its wrapper).
+      await page.setContent(`<div class="umc">first</div>
+      <div class="resp"><div class="answer"><div class="md">one</div></div></div>
+      <div class="u"><div class="umc">hi</div></div>
       <div class="resp"><div class="answer"><div class="md">hello there</div></div></div>`);
       const turns = await page.evaluate(async (code) => {
         const PP = {
@@ -138,7 +141,10 @@ test(
       }, CODE);
       assert.deepEqual(
         turns.map((t) => [t.message, t.reply]),
-        [["hi", "hello there"]],
+        [
+          ["first", "one"],
+          ["hi", "hello there"],
+        ],
       );
     } finally {
       await browser.close();

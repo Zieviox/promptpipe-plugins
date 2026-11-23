@@ -361,22 +361,30 @@ const thinking_near = (provider, el) => {
 };
 
 // The newest reply (waiting until it's finished if asked), or every turn in page order.
-// The elements of a kind, as the provider's selectors are meant: tried in order, the first that
-// finds any wins (they're alternatives for different versions of the site, and on one page two
-// can find nested parts of the same message, which read every reply three times); an element
-// inside another found one is left out.
-const all_first = (provider, kind) => {
+// The elements of a kind, by one of the provider's selectors (alternatives for different versions
+// of the site): each is tried and the one that fits this page is used: for your messages the one
+// finding the most (one may miss older messages), for replies the one whose count is nearest to
+// `near` (the number of your messages: one finding nested parts or thinking finds too many).
+// One selector only, so a message is never read twice; an element inside another is left out.
+const all_best = (provider, kind, near) => {
+  let best = [];
   for (const s of selectors_get(provider, kind)) {
     const found = all_find(s).filter((e) => text_get(e));
-    if (found.length) return found.filter((e) => !found.some((o) => o !== e && o.contains(e)));
+    const outer = found.filter((e) => !found.some((o) => o !== e && o.contains(e)));
+    if (!outer.length) continue;
+    const better =
+      near === undefined
+        ? outer.length > best.length
+        : !best.length || Math.abs(outer.length - near) < Math.abs(best.length - near);
+    if (better) best = outer;
   }
-  return [];
+  return best;
 };
 
 const site_read = async ({ which, wait, limits }, provider) => {
   if (which === "all") {
-    const users = all_first(provider, "user");
-    const replies = all_first(provider, "reply").filter(
+    const users = all_best(provider, "user");
+    const replies = all_best(provider, "reply", users.length || undefined).filter(
       (e) => !users.some((u) => u.contains(e) || e.contains(u)),
     );
     if (!users.length && !replies.length)

@@ -1,7 +1,7 @@
 {
   "id": "memory",
   "name": "Memory",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Puts your pinned facts and the earlier chat in front of every message, so a fresh site chat has the context. Below the maximum everything goes in full; above it, recent messages stay word for word and older ones go in as summaries, coarser the older they are. Summaries are made once, in the background, and show at the end of the chat file, where you can correct them.",
   "pp": 1,
   "files": ["memory.js", "GUIDE.md"],

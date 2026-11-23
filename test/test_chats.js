@@ -197,9 +197,10 @@ test("adding the site's messages skips what's here, unwraps PromptPipe's, and ru
     { message: "new one", reply: "bmV3", thinking: "" },
   ];
   const pp = plugins_load(["runtime-records", "runtime-chats"], { site_read: () => site });
-  pp.hook_run = async (name, reply, context) => {
+  pp.hook_run = async (name, value, context) => {
+    if (name !== "reply_after") return value;
     assert.ok(context.chat && context.chat.id === "c1" && Array.isArray(context.notes));
-    return Buffer.from(reply, "base64").toString();
+    return Buffer.from(value, "base64").toString();
   };
   const state = {
     schemas: JSON.parse(
@@ -301,4 +302,26 @@ test("an import never adds the same message twice, and repeated messages can be 
     ["t1"],
   );
   assert.equal(cleaned.removed, 2);
+});
+
+test("Base64 and Memory take their own parts off a message as the site shows it", async () => {
+  const pp = plugins_load(["runtime-records", "runtime-plugins", "base64", "memory"]);
+  const run = async (text) => {
+    let out = text;
+    for (const id of ["base64", "memory"]) out = await pp.hook_get(id, "sent_unwrap")(out, {});
+    return out;
+  };
+  const encoded = Buffer.from("What did the lamp mean?").toString("base64");
+  const shown =
+    "[Memory: context from earlier in this conversation. Use it, don't repeat it back.]\n\nThey met at the harbour.\n\n[End of memory]\n\n" +
+    "Reply with base64 only: encode your whole answer as UTF-8 base64. No plain text, no code block, no explanation outside the base64.\n" +
+    "My message below is base64 encoded UTF-8; decode it first.\n\n" +
+    encoded;
+  assert.equal(await run(shown), "What did the lamp mean?");
+  assert.equal(await run("A plain message stays as it is."), "A plain message stays as it is.");
+  assert.equal(
+    await run("Supercalifragilistic"),
+    "Supercalifragilistic",
+    "one long word isn't base64",
+  );
 });
