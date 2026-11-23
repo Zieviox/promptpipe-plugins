@@ -154,6 +154,7 @@ const reply_foot = (state, turn, last) => {
       ${PP.icon_render("quote", "Quote", () => quote_add(state, turn.reply), false, "act", "Puts this reply in your message as a quote.")}
       ${PP.icon_render("retry", "Send again", () => PP.message_send({ chat: turn.chat, message: turn.message }), false, "act", "Sends the same message again for a new reply.")}
       ${PP.icon_render("select", "Select text", () => PP.sheet_open("select_text", { text: turn.reply }), false, "act", "Shows the reply as plain text so you can select part of it.")}
+      ${PP.icon_render("sites", "Check against the site", () => turn_check_run(turn.id), false, "act", "Compares this reply with the site's and takes the site's version if it's different (one cut short, say).")}
       ${PP.icon_render("more", "More", () => PP.sheet_open("turn", { id: turn.id }), false, "act", "Tags, the message sent, its blocks and more for this reply.")}
     </div>
     <div class="chips">
