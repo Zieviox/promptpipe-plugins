@@ -150,7 +150,7 @@ const message_send = (draft) => {
     progress: "",
   };
   PP.state_set((state) => ({ ...state, sends: [...state.sends, send] }));
-  if (send.chat) return (outbox_save(), queue_run(), send);
+  if (send.chat) return outbox_save(), queue_run(), send;
   // A side request runs at once; its answer is what the call returns (UC42.3).
   PP.state_set((state) => send_set(state, send.id, { status: "sending" }));
   return send_run(send.id);
@@ -402,7 +402,7 @@ const send_run = async (id) => {
       });
     }
   } finally {
-    if (!waiting) (queue_run(), pool_add());
+    if (!waiting) queue_run(), pool_add();
   }
 };
 

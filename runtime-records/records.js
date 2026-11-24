@@ -285,7 +285,7 @@ const store_save = async (state, targets) => {
         const expected = key in known ? known[key] : (state.revisions || {})[key];
         const r = await PP.call_send("file_write", { ...w, data, expected });
         if (r.outside_change) changes.push({ ...r.outside_change, root: w.root, target });
-        else ((known[key] = revisions[key] = r.revision), written.push(w));
+        else (known[key] = revisions[key] = r.revision), written.push(w);
       });
     }
   }

@@ -64,8 +64,7 @@ test("a source is added with its own key, and its catalogue is checked against t
       body: d.url.endsWith(".pub") ? `${KEY}\n` : d.url.endsWith(".sig") ? "sig\n" : "{}",
     }),
     catalogue_verify: (d) => (
-      seen.push(d),
-      { entries: [{ id: "extra", version: "1.0.0", min_app: "1.0.0" }] }
+      seen.push(d), { entries: [{ id: "extra", version: "1.0.0", min_app: "1.0.0" }] }
     ),
   });
   const state = { app: { version: "1.0.0" }, config: { sources: [] }, plugins: [] };

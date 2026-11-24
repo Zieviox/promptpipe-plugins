@@ -39,8 +39,7 @@ const core_build = (pick = (id) => id.startsWith("runtime-")) => {
         : [{ path: p, data: files[`${root}/${p}`], revision: "r" }];
     },
     file_write: ({ root, path: p, data }) => (
-      (files[`${root}/${p}`] = data),
-      { revision: `r${(n += 1)}` }
+      (files[`${root}/${p}`] = data), { revision: `r${(n += 1)}` }
     ),
     file_delete: ({ root, path: p }) => (delete files[`${root}/${p}`], {}),
     chats_folder_get: () => ({ folder: "/phone/chats", default: "/phone/chats" }),

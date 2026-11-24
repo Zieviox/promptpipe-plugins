@@ -243,7 +243,7 @@ const chat_section_parse = (text, data = { levels: [] }) => {
   const edits = {};
   for (const line of text.split("\n")) {
     const mark = MARK.exec(line.trim());
-    if (mark) ((at = `${mark[1] - 1}/${mark[2] - 1}`), (edits[at] = []));
+    if (mark) (at = `${mark[1] - 1}/${mark[2] - 1}`), (edits[at] = []);
     else if (at) edits[at].push(line);
   }
   for (const [key, body] of Object.entries(edits)) {

@@ -289,7 +289,7 @@ const selecting = () => {
 };
 let held = false;
 document.addEventListener("selectionchange", () => {
-  if (held && !selecting()) ((held = false), redraw());
+  if (held && !selecting()) (held = false), redraw();
 });
 
 // ---------- keys and Back ----------
@@ -312,7 +312,7 @@ const back_run = () => {
   if (ui.help) return close({ help: false });
   if (ui.tour) return close({ tour: null });
   if (ui.menu) return close({ menu: false });
-  if (ui.sheets.length) return (PP.sheet_close(), true);
+  if (ui.sheets.length) return PP.sheet_close(), true;
   if (ui.selection.on) return close({ selection: { on: false, ids: [] } });
   if (ui.drawer) return close({ drawer: false });
   // The site view: a panel the site has open over the chat closes first (the provider knows it),
@@ -334,7 +334,7 @@ const back_run = () => {
 
 addEventListener("keydown", (e) => {
   if (e.key === "Escape") return back_run() && e.preventDefault();
-  if (e.key === "F3") return (e.preventDefault(), PP.command_run("find"));
+  if (e.key === "F3") return e.preventDefault(), PP.command_run("find");
   const name = key_name(e);
   if (["ArrowUp", "Enter"].includes(name)) return; // the message box's own keys
   // In a text box, undo and redo are the text's own.
@@ -344,7 +344,7 @@ addEventListener("keydown", (e) => {
   )
     return;
   const command = [...PP.COMMANDS, ...(PP.plugin_commands || [])].find((c) => c.key === name);
-  if (command) (e.preventDefault(), PP.command_run(command.id));
+  if (command) e.preventDefault(), PP.command_run(command.id);
 });
 
 // ---------- what comes in ----------
@@ -519,11 +519,11 @@ const theme_set = (state) => {
   root.style.setProperty("--reply-size", `${PP.setting_get(state, "look.text")}px`);
   const background = getComputedStyle(root).getPropertyValue("--bg").trim();
   if (`${background}${dark}` !== bars)
-    ((bars = `${background}${dark}`),
-      PP.call_send("bars_set", { background, dark }).catch(() => null));
+    (bars = `${background}${dark}`),
+      PP.call_send("bars_set", { background, dark }).catch(() => null);
   const ordered = PP.setting_get(state, "look.selection_ordered");
   if (ordered !== keyboard)
-    ((keyboard = ordered), PP.call_send("keyboard_set", { ordered }).catch(() => null));
+    (keyboard = ordered), PP.call_send("keyboard_set", { ordered }).catch(() => null);
 };
 
 // After drawing: stay at the bottom, light up the guide's part, and keep the site view's place.
@@ -596,7 +596,7 @@ const redraw = () => {
     if (selecting()) return void (held = true);
     const state = PP.state_get();
     const root = document.getElementById("app");
-    if (first) ((first = false), (root.textContent = ""));
+    if (first) (first = false), (root.textContent = "");
     if (!state.config) return preact.render(screen_render(state), root);
     theme_set(state);
     preact.render(screen_render(state), root);

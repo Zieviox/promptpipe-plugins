@@ -128,9 +128,7 @@ const device_build = (files, written) => ({
     ];
   },
   file_write: (d) => (
-    written.push(d),
-    d.root === "device" && (files[d.path] = d.data),
-    { revision: "w" }
+    written.push(d), d.root === "device" && (files[d.path] = d.data), { revision: "w" }
   ),
   file_move: (d) => (written.push({ move: d }), { copied: 1 }),
   repo_commit: () => ({}),

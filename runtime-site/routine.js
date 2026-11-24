@@ -139,7 +139,9 @@ const snapshot_take = (provider) => ({
     }),
   ),
   [THOUGHT]: new Map(
-    selectors_get(provider, "thinking").flatMap(all_find).map((el) => [el, text_get(el)]),
+    selectors_get(provider, "thinking")
+      .flatMap(all_find)
+      .map((el) => [el, text_get(el)]),
   ),
 });
 

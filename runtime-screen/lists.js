@@ -295,7 +295,7 @@ const site_bar_render = (state) => {
       id: PP.id_create(),
       at: PP.time_get(),
     });
-    if (chat) (close(), PP.chat_open(chat.id));
+    if (chat) close(), PP.chat_open(chat.id);
   };
   const chat_of = (page) => state.chats.find((c) => c.site_url && page.url.startsWith(c.site_url));
   const plugin = shown && state.plugins.find((p) => p.id === shown.provider);
@@ -418,7 +418,7 @@ const find_entries = (state) => [
 // A pick: a chat opens; a setting opens its section with the row lit up; a function runs.
 const find_run = (state, entry) => {
   recent_add(entry);
-  if (entry.chat) return (PP.ui_set(() => ({ sheets: [] })), PP.chat_open(entry.chat.id));
+  if (entry.chat) return PP.ui_set(() => ({ sheets: [] })), PP.chat_open(entry.chat.id);
   if (entry.setting)
     return PP.ui_set(() => ({
       sheets: [

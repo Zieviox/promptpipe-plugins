@@ -196,13 +196,13 @@ const message_render = (state, turn) => {
 
 // The thinking, one block for a reply on its way and a saved one, above the reply: a row saying
 // "Thinking · N s" (pulsing) while it thinks and "Thought for N s" after, and the thinking under
-// it. Open while it thinks; folded once the reply is being written or saved. A tap folds or
-// unfolds it, and that choice stays with the reply (`key`: the turn's id, the same before and
-// after it's saved).
-const thinking_render = (state, key, text, { live = false, ms = 0 } = {}) => {
+// it. Open while the reply streams, folded once it's saved (UC1.3, Q5). A tap folds or unfolds it,
+// and that choice stays with the reply (`key`: the turn's id, the same before and after it's
+// saved).
+const thinking_render = (state, key, text, { live = false, streaming = false, ms = 0 } = {}) => {
   if (!text) return null;
   const chosen = (state.ui.thinking_open || {})[key];
-  const open = chosen ?? live;
+  const open = chosen ?? streaming;
   const secs = Math.max(1, Math.round(ms / 1000));
   const label = live ? `Thinking · ${secs} s` : ms ? `Thought for ${secs} s` : "Thought";
   const toggle = () =>
@@ -356,8 +356,8 @@ const send_render = (state, send) => {
       </div>
     </div>`;
   }
-  // On its way: the thinking (the same block a saved reply has: open while it thinks, folded once
-  // the reply is written), then the reply as it's written. While it thinks the thinking's row is
+  // On its way: the thinking (the same block a saved reply has: open while the reply streams,
+  // folded once it's saved), then the reply as it's written. While it thinks the thinking's row is
   // the status; otherwise a status line says what's happening in words, with a pulsing dot.
   const thinking_live = !!send.thinking && !send.reply;
   const status = send.reply
@@ -368,7 +368,7 @@ const send_render = (state, send) => {
   return html`<div class="turn" key=${send.id}>
     ${you}
     ${thinking_live ? null : html`<div class="live"><span class="pulse"></span>${status}</div>`}
-    ${thinking_render(state, send.turn, send.thinking, { live: thinking_live, ms: PP.thought_ms_get(send) })}
+    ${thinking_render(state, send.turn, send.thinking, { live: thinking_live, streaming: true, ms: PP.thought_ms_get(send) })}
     ${send.reply ? PP.markdown_render(send.reply) : null}
   </div>`;
 };
@@ -442,11 +442,26 @@ const new_reply_render = (state) => {
 // breaks word choice on the keyboard and the selection); only a change from elsewhere (Edit, a
 // quote, a send emptying it, another chat) is put in. Its height follows its lines, measured on an
 // off-screen copy, so the box itself never collapses or jumps while you select in it.
-let box_copy = null;
 const COPIED = [
-  "width", "font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing",
-  "word-spacing", "padding-left", "padding-right", "padding-top", "padding-bottom", "border-left-width",
-  "border-right-width", "box-sizing", "white-space", "overflow-wrap", "word-break", "tab-size",
+  "width",
+  "font-family",
+  "font-size",
+  "font-weight",
+  "font-style",
+  "line-height",
+  "letter-spacing",
+  "word-spacing",
+  "padding-left",
+  "padding-right",
+  "padding-top",
+  "padding-bottom",
+  "border-left-width",
+  "border-right-width",
+  "box-sizing",
+  "white-space",
+  "overflow-wrap",
+  "word-break",
+  "tab-size",
 ];
 // The buttons sit beside the text while it fits on one line and go to a row under it once it
 // needs a second (data-stacked), decided by what's typed, never by a tap, so nothing moves under
@@ -455,19 +470,31 @@ const COPIED = [
 const side_width = (composer) => {
   const style = getComputedStyle(composer);
   const others = [...composer.children].filter((c) => !c.classList.contains("boxscroll"));
-  const used = others.reduce((w, c) => w + c.offsetWidth, 0) + (parseFloat(style.columnGap) || 0) * others.length;
-  return composer.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - used;
+  const used =
+    others.reduce((w, c) => w + c.offsetWidth, 0) +
+    (parseFloat(style.columnGap) || 0) * others.length;
+  return (
+    composer.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - used
+  );
+};
+// The copy the box is measured on lives off screen in the page, found by its id (no state kept
+// here); measured on every redraw, the box's height only changes when its text or width does
+// (convention 3), and a width change without a redraw (turning the phone) comes as a resize.
+const box_copy_get = () => {
+  const found = document.getElementById("box-copy");
+  if (found) return found;
+  const copy = document.createElement("textarea");
+  copy.id = "box-copy";
+  copy.setAttribute("aria-hidden", "true");
+  copy.tabIndex = -1;
+  copy.style.cssText =
+    "position:fixed;left:-9999px;top:0;visibility:hidden;height:0;min-height:0;overflow:hidden;border:0;";
+  document.body.append(copy);
+  return copy;
 };
 const box_size = (el) => {
   if (!el) return;
-  if (!box_copy) {
-    box_copy = document.createElement("textarea");
-    box_copy.setAttribute("aria-hidden", "true");
-    box_copy.tabIndex = -1;
-    box_copy.style.cssText =
-      "position:fixed;left:-9999px;top:0;visibility:hidden;height:0;min-height:0;overflow:hidden;border:0;";
-    document.body.append(box_copy);
-  }
+  const box_copy = box_copy_get();
   const copy = () => {
     const style = getComputedStyle(el);
     COPIED.forEach((name) => box_copy.style.setProperty(name, style.getPropertyValue(name)));
@@ -481,33 +508,16 @@ const box_size = (el) => {
     const stacked = box_copy.scrollHeight > (parseFloat(style.lineHeight) || 20) * 1.5;
     if (stacked !== "stacked" in composer.dataset)
       stacked ? (composer.dataset.stacked = "") : delete composer.dataset.stacked;
-    box_watch(composer);
   }
   copy();
   const height = `${box_copy.scrollHeight}px`;
   if (el.style.height !== height) el.style.height = height;
 };
-// Measured again when the box's width changes (turning the phone, an attachment note, full screen).
-const box_widths = new WeakMap();
-const box_observer =
-  typeof ResizeObserver === "function" &&
-  new ResizeObserver((entries) =>
-    entries.forEach((entry) => {
-      const width = entry.contentRect.width;
-      if (box_widths.get(entry.target) === width) return;
-      box_widths.set(entry.target, width);
-      box_size(entry.target.querySelector("#message"));
-    }),
-  );
-const box_watch = (composer) => {
-  if (box_observer && !box_widths.has(composer))
-    (box_widths.set(composer, composer.getBoundingClientRect().width), box_observer.observe(composer));
-};
-let box_known = null; // the text the box was last sized for
 const box_sync = (el, text) => {
   if (el.value !== text) el.value = text;
-  if (el.value !== box_known) ((box_known = el.value), box_size(el));
+  box_size(el);
 };
+addEventListener("resize", () => box_size(document.getElementById("message")));
 
 const composer_render = (state) => {
   const draft = PP.draft_get(state);
@@ -518,9 +528,9 @@ const composer_render = (state) => {
   const key = (e) => {
     const enter_sends = PP.setting_get(state, "look.enter_sends");
     if (e.key === "Enter" && (e.ctrlKey || (enter_sends && !e.shiftKey)))
-      return (e.preventDefault(), PP.command_run("send"));
+      return e.preventDefault(), PP.command_run("send");
     if (e.key === "ArrowUp" && !e.target.value)
-      return (e.preventDefault(), PP.command_run("last_edit"));
+      return e.preventDefault(), PP.command_run("last_edit");
   };
   // An edit: the send replaces that message (and its reply); said over the box, × to send it as a
   // new message instead.
@@ -541,7 +551,7 @@ const composer_render = (state) => {
     const el = e.currentTarget.querySelector("textarea");
     if (!el || e.target === el) return;
     if (document.activeElement === el) return e.preventDefault();
-    if (!e.target.closest("button")) (e.preventDefault(), el.focus());
+    if (!e.target.closest("button")) e.preventDefault(), el.focus();
   };
   return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`} onMouseDown=${edge}>
     ${PP.icon_render("stackadd", "Quick edit and add", () => (document.activeElement?.blur(), PP.command_run("quick_edit")), false, "icon", "quick_edit")}
@@ -551,7 +561,7 @@ const composer_render = (state) => {
         rows="1"
         placeholder=${PP.raw_get(state) ? "Message (profile off)" : "Message"}
         aria-label="Message"
-        onInput=${(e) => ((box_known = e.target.value), box_size(e.target), PP.draft_type(e.target.value))}
+        onInput=${(e) => (box_size(e.target), PP.draft_type(e.target.value))}
         onKeyDown=${key}
       ></textarea>
     </div>

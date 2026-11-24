@@ -64,14 +64,16 @@ const overlay_close = async () => {
 // only ever opened from the reply this send is waiting for (one that wasn't on the page before
 // sending), never an earlier one: before the new reply has its card there's nothing to open, and
 // a drawer showing an earlier reply is closed and opened again from the new one's card.
-// `opened_for` remembers which reply this plugin opened it for.
+// `watching.opened_for` remembers which reply this plugin opened it for.
 const DRAWER_THINKING = ".qwen-chat-thinking-and-sources-content-thinking-container";
 const REPLY = ".chat-response-message";
 const key_of = (reply) => reply.id || reply;
-let known = new Set(); // the replies on the page before this send
-let opened_for = null;
+// The page script's own small state (3-terms.md: "the send it is watching"), in one record: the
+// replies on the page before this send, the reply this plugin opened the drawer for, and whether
+// the drawer is being moved over to it.
+const watching = { known: new Set(), opened_for: null, busy: false };
 const reply_new = () =>
-  [...document.querySelectorAll(REPLY)].filter((r) => !known.has(key_of(r))).pop() || null;
+  [...document.querySelectorAll(REPLY)].filter((r) => !watching.known.has(key_of(r))).pop() || null;
 const drawer_get = () =>
   [...document.querySelectorAll(".ant-drawer-open")].find((d) =>
     d.querySelector(DRAWER_THINKING),
@@ -85,7 +87,7 @@ const drawer_open = () => {
       .pop();
   if (!card) return false;
   card.click();
-  opened_for = reply;
+  watching.opened_for = reply;
   return true;
 };
 const drawer_close = async () => {
@@ -102,30 +104,34 @@ const drawer_close = async () => {
 // Qwen may draw a reply again as a new element).
 const drawer_current = () => {
   const reply = reply_new();
-  return !!drawer_get() && !!opened_for && !!reply && key_of(opened_for) === key_of(reply);
+  return (
+    !!drawer_get() &&
+    !!watching.opened_for &&
+    !!reply &&
+    key_of(watching.opened_for) === key_of(reply)
+  );
 };
 
 // While a reply comes and you aren't looking: the drawer kept open on the new reply's thinking
 // (opened again if Qwen closes it, moved over if it shows an earlier reply); when the reply is in,
 // one this opened is closed.
 const drawer_keep = () => {
-  known = new Set([...document.querySelectorAll(REPLY)].map(key_of));
-  opened_for = null;
-  let busy = false;
+  watching.known = new Set([...document.querySelectorAll(REPLY)].map(key_of));
+  watching.opened_for = null;
   const timer = setInterval(async () => {
-    if (busy || PP.view_shown() || drawer_current() || !reply_new()) return;
-    busy = true;
+    if (watching.busy || PP.view_shown() || drawer_current() || !reply_new()) return;
+    watching.busy = true;
     try {
       if (drawer_get()) await drawer_close(); // showing an earlier reply (yours or this plugin's)
       if (!drawer_get()) drawer_open();
     } finally {
-      busy = false;
+      watching.busy = false;
     }
   }, 600);
   return async () => {
     clearInterval(timer);
-    if (opened_for) await drawer_close();
-    opened_for = null;
+    if (watching.opened_for) await drawer_close();
+    watching.opened_for = null;
   };
 };
 
@@ -160,13 +166,13 @@ const site_send = async (data, def) => {
 
 // The site view shows or hides this page: shown, a drawer this opened is closed first.
 const site_shown = async ({ shown: on }) => {
-  if (on && opened_for) (await drawer_close(), (opened_for = null));
+  if (on && watching.opened_for) await drawer_close(), (watching.opened_for = null);
   return {};
 };
 
 // Back in the site view: an open thinking drawer (or another thinking panel) closes first.
 const site_back = async () => {
-  if (drawer_get()) return { closed: (await drawer_close()) && !(opened_for = null) };
+  if (drawer_get()) return { closed: (await drawer_close()) && !(watching.opened_for = null) };
   const thought = [...document.querySelectorAll(provider.selectors.thinking.join(","))].find(shown);
   if (!thought || !thought.closest(OVERLAY)) return { closed: false };
   return { closed: await overlay_close() };

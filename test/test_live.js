@@ -312,7 +312,10 @@ test(
         return events;
       }, CODE);
       const thoughts = [...new Set(events.map((e) => e.thinking).filter(Boolean))];
-      assert.ok(!thoughts.includes("an earlier reply's thinking"), `not the earlier one: ${thoughts}`);
+      assert.ok(
+        !thoughts.includes("an earlier reply's thinking"),
+        `not the earlier one: ${thoughts}`,
+      );
       assert.deepEqual(thoughts.slice(0, 3), ["Reading the question", "Weighing it up", "Writing"]);
     } finally {
       await browser.close();

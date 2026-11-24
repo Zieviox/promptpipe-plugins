@@ -112,7 +112,8 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     await page.click("text=Skip");
     const height = () => page.$eval("#message", (el) => el.getBoundingClientRect().height);
     const empty = await height();
-    const place = () => page.$eval("#message", (el) => [el.getBoundingClientRect().left, el.offsetWidth]);
+    const place = () =>
+      page.$eval("#message", (el) => [el.getBoundingClientRect().left, el.offsetWidth]);
     const [left, width] = await place();
     await page.click("#message");
     await page.waitForTimeout(300);
@@ -120,7 +121,10 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     assert.deepEqual(await place(), [left, width], "tapping the box doesn't move or widen it");
     // Presses inside the message area (its edge, a button) keep the cursor, so the keyboard stays.
     const focused = () => page.evaluate(() => document.activeElement.id);
-    const composer = await page.$eval(".composer", (el) => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, h: r.height }; });
+    const composer = await page.$eval(".composer", (el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.left, y: r.top, h: r.height };
+    });
     await page.mouse.click(composer.x + 4, composer.y + composer.h / 2);
     assert.equal(await focused(), "message", "a press on the area's edge keeps the cursor");
     await page.click("[aria-label='Bigger message box']");
@@ -134,13 +138,23 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     const stacked = () => page.$eval(".composer", (el) => "stacked" in el.dataset);
     await page.keyboard.type("short");
     assert.equal(await stacked(), false, "one line keeps the buttons beside it");
-    const [measured, real] = await page.$eval(".composer", (c) => [Math.round(PP.box_side_width(c)), Math.round(c.querySelector(".boxscroll").offsetWidth)]);
+    const [measured, real] = await page.$eval(".composer", (c) => [
+      Math.round(PP.box_side_width(c)),
+      Math.round(c.querySelector(".boxscroll").offsetWidth),
+    ]);
     assert.equal(measured, real, "the width measured beside the buttons is the real one");
     await page.keyboard.type(" and then a good deal more text, enough to need a second line");
-    await page.waitForFunction(() => "stacked" in document.querySelector(".composer").dataset, null, { timeout: 3000 });
+    await page.waitForFunction(
+      () => "stacked" in document.querySelector(".composer").dataset,
+      null,
+      { timeout: 3000 },
+    );
     const [left_long, width_long] = await place();
     assert.equal(left_long, left, "the text keeps its left edge");
-    assert.ok(width_long > width + 60, `the buttons went under the text (${width} → ${width_long})`);
+    assert.ok(
+      width_long > width + 60,
+      `the buttons went under the text (${width} → ${width_long})`,
+    );
     await page.$eval("#message", (el) => el.setSelectionRange(0, el.value.length));
     await page.keyboard.press("Backspace");
     await page.waitForTimeout(100);
@@ -178,7 +192,8 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
     await page.keyboard.type("there");
     assert.equal(await page.inputValue("#message"), "hello there", "typing replaced the selection");
 
-    for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+Enter"), await page.keyboard.type("x");
+    for (let i = 0; i < 3; i++)
+      await page.keyboard.press("Shift+Enter"), await page.keyboard.type("x");
     const grown = await height();
     assert.ok(grown > empty * 2, `the box grew with its lines (${empty} → ${grown})`);
     assert.ok(
@@ -197,7 +212,9 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
       shown: el.clientHeight,
       bottom: el.scrollTop + el.clientHeight,
       all: el.scrollHeight,
-      self: document.getElementById("message").scrollHeight - document.getElementById("message").clientHeight,
+      self:
+        document.getElementById("message").scrollHeight -
+        document.getElementById("message").clientHeight,
     }));
     assert.ok(scroll.box > scroll.shown, "the box is taller than the part shown");
     assert.ok(scroll.self <= 1, "the box doesn't scroll itself");
@@ -218,53 +235,128 @@ test("the message box keeps what you type and select (UC7)", { timeout: 60000 },
   }
 });
 
-
-// The thinking is one block before and after the reply is in: "Thinking · N s" open while it
-// thinks, "Thought for N s" folded once the reply is written, a tap opens it; the saved reply
-// keeps the same block (and the choice), above the reply.
-test("the thinking is one foldable block, while thinking and after", { timeout: 60000 }, async () => {
-  const core = core_build();
-  const server = await server_start(core);
-  const browser = await chromium.launch();
-  try {
-    const page = await browser.newPage({ viewport: { width: 400, height: 800 } });
-    await page.goto(`http://127.0.0.1:${server.address().port}/`);
-    await page.waitForSelector("#message", { timeout: 15000 });
-    await page.click("text=Skip");
-    await page.evaluate(async () => {
-      const chat = PP.id_create();
-      await PP.apply_try((s) => PP.chat_create(s, { id: chat, message: "Hi", folder: "", own: {} }));
-      PP.state_set((s) => ({
-        ...s,
-        ui: { ...s.ui, chat },
-        sends: [...s.sends, { id: "s1", turn: "t1", chat, message: "Why?", status: "sending", at: new Date().toISOString(), thinking: "Because of scattering.", thinking_at: Date.now() - 7000 }],
-      }));
-    });
-    const row = async () => {
+// The thinking is one block before and after the reply is in: "Thinking · N s" while it thinks,
+// "Thought for N s" once the reply is written, open while the reply streams (UC1.3); folded once
+// it's saved; a tap folds or unfolds it, and the saved reply keeps that choice, above the reply.
+test(
+  "the thinking is one foldable block, while it streams and after (UC1.3)",
+  { timeout: 60000 },
+  async () => {
+    const core = core_build();
+    const server = await server_start(core);
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage({ viewport: { width: 400, height: 800 } });
+      await page.goto(`http://127.0.0.1:${server.address().port}/`);
+      await page.waitForSelector("#message", { timeout: 15000 });
+      await page.click("text=Skip");
+      await page.evaluate(async () => {
+        const chat = PP.id_create();
+        await PP.apply_try((s) =>
+          PP.chat_create(s, { id: chat, message: "Hi", folder: "", own: {} }),
+        );
+        PP.state_set((s) => ({
+          ...s,
+          ui: { ...s.ui, chat },
+          sends: [
+            ...s.sends,
+            {
+              id: "s1",
+              turn: "t1",
+              chat,
+              message: "Why?",
+              status: "sending",
+              at: new Date().toISOString(),
+              thinking: "Because of scattering.",
+              thinking_at: Date.now() - 7000,
+            },
+          ],
+        }));
+      });
+      const row = async () => {
+        await page.waitForTimeout(100);
+        return page.$eval(".thin[aria-expanded]", (b) => ({
+          label: b.textContent.trim(),
+          open: b.getAttribute("aria-expanded") === "true",
+          shown: !!document.querySelector(".thin + .thinking"),
+        }));
+      };
+      assert.deepEqual(
+        await row(),
+        { label: "Thinking · 7 s", open: true, shown: true },
+        "open while it thinks",
+      );
+      await page.evaluate(() =>
+        PP.state_set((s) => ({
+          ...s,
+          sends: s.sends.map((x) => ({
+            ...x,
+            reply: "The answer.",
+            writing_at: x.thinking_at + 7000,
+          })),
+        })),
+      );
+      assert.deepEqual(
+        await row(),
+        { label: "Thought for 7 s", open: true, shown: true },
+        "open while the reply streams",
+      );
+      await page.click(".thin[aria-expanded]");
+      assert.equal((await row()).open, false, "a tap folds it");
+      await page.click(".thin[aria-expanded]");
+      assert.equal((await row()).open, true, "and opens it again");
+      // Saved: the same block, above the reply, with the choice kept (the turn's id is the send's).
+      await page.evaluate(() => {
+        const send = PP.state_get().sends[0];
+        PP.state_set((s) => ({
+          ...s,
+          sends: [],
+          turns: [
+            ...s.turns,
+            {
+              id: "t1",
+              chat: send.chat,
+              at: send.at,
+              message: "Why?",
+              reply: "The answer.",
+              thinking: "Because of scattering.",
+              thought_ms: 7000,
+            },
+          ],
+        }));
+      });
+      assert.deepEqual(
+        await row(),
+        { label: "Thought for 7 s", open: true, shown: true },
+        "the saved reply keeps it",
+      );
+      await page.evaluate(() => {
+        const t = PP.state_get().turns[0];
+        PP.state_set((s) => ({
+          ...s,
+          turns: [...s.turns, { ...t, id: "t2", thinking: "Another.", thought_ms: 3000 }],
+        }));
+      });
       await page.waitForTimeout(100);
-      return page.$eval(".thin[aria-expanded]", (b) => ({ label: b.textContent.trim(), open: b.getAttribute("aria-expanded") === "true", shown: !!document.querySelector(".thin + .thinking") }));
-    };
-    assert.deepEqual(await row(), { label: "Thinking · 7 s", open: true, shown: true }, "open while it thinks");
-    await page.evaluate(() => PP.state_set((s) => ({ ...s, sends: s.sends.map((x) => ({ ...x, reply: "The answer.", writing_at: x.thinking_at + 7000 })) })));
-    assert.deepEqual(await row(), { label: "Thought for 7 s", open: false, shown: false }, "folded once it writes");
-    await page.click(".thin[aria-expanded]");
-    assert.equal((await row()).open, true, "a tap opens it");
-    // Saved: the same block, above the reply, with the choice kept (the turn's id is the send's).
-    await page.evaluate(() => {
-      const send = PP.state_get().sends[0];
-      PP.state_set((s) => ({
-        ...s,
-        sends: [],
-        turns: [...s.turns, { id: "t1", chat: send.chat, at: send.at, message: "Why?", reply: "The answer.", thinking: "Because of scattering.", thought_ms: 7000 }],
-      }));
-    });
-    assert.deepEqual(await row(), { label: "Thought for 7 s", open: true, shown: true }, "the saved reply keeps it");
-    assert.ok(
-      await page.$eval("#turn-t1 .thin[aria-expanded]", (b) => !!(b.compareDocumentPosition(document.querySelector("#turn-t1 .ai .md:not(.thought)")) & Node.DOCUMENT_POSITION_FOLLOWING)),
-      "the thinking is above the reply",
-    );
-  } finally {
-    await browser.close();
-    server.close();
-  }
-});
+      assert.equal(
+        await page.$eval("#turn-t2 .thin[aria-expanded]", (b) => b.getAttribute("aria-expanded")),
+        "false",
+        "a saved reply's thinking is folded unless you opened it",
+      );
+      assert.ok(
+        await page.$eval(
+          "#turn-t1 .thin[aria-expanded]",
+          (b) =>
+            !!(
+              b.compareDocumentPosition(document.querySelector("#turn-t1 .ai .md:not(.thought)")) &
+              Node.DOCUMENT_POSITION_FOLLOWING
+            ),
+        ),
+        "the thinking is above the reply",
+      );
+    } finally {
+      await browser.close();
+      server.close();
+    }
+  },
+);
