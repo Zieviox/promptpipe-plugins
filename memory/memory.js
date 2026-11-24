@@ -131,7 +131,7 @@ const WHAT = { you: "The user's messages", ai: "The AI's messages", both: "Conve
 
 // One summary request, in the old app's words: the request, which side, then the turns (or the
 // summaries of consecutive parts). Comment lines and side headings the AI adds are dropped.
-const summary_ask = async (chat, parts, of_summaries, side) => {
+const summary_create = async (chat, parts, of_summaries, side) => {
   const what = WHAT[side];
   const body = of_summaries
     ? `[Summaries of consecutive parts${side !== "both" ? `, ${SIDE[side].toLowerCase()}` : ""}, oldest first]\n${parts.join("\n\n---\n\n")}\n[End of summaries]`
@@ -154,9 +154,9 @@ const summary_ask = async (chat, parts, of_summaries, side) => {
 // One summary of the given texts: your side and the AI's apart (two requests), or together.
 const part_make = async (chat, texts, of_summaries) => {
   if (setting(chat, "sides") === "together")
-    return { text: await summary_ask(chat, texts.both, of_summaries, "both") };
-  const you = await summary_ask(chat, texts.you, of_summaries, "you");
-  const ai = await summary_ask(chat, texts.ai, of_summaries, "ai");
+    return { text: await summary_create(chat, texts.both, of_summaries, "both") };
+  const you = await summary_create(chat, texts.you, of_summaries, "you");
+  const ai = await summary_create(chat, texts.ai, of_summaries, "ai");
   return { you, ai, text: `${SIDE.you}:\n${you}\n\n${SIDE.ai}:\n${ai}` };
 };
 

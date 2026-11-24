@@ -51,15 +51,15 @@
     {
       "id": "memory",
       "name": "Memory",
-      "version": "4.0.1",
+      "version": "4.0.2",
       "description": "Puts your pinned facts and the earlier chat in front of every message, so a fresh site chat has the context. Below the maximum everything goes in full; above it, recent messages stay word for word and older ones go in as summaries, coarser the older they are. Summaries are made once, in the background, and show at the end of the chat file, where you can correct them.",
       "tags": [],
       "min_app": "1.0.0",
       "path": "memory",
       "built_in": true,
       "hashes": {
-        "plugin.json": "9a6695408b1e21a06e41faf1d7db61b68ec3ea54bc9329aeceea6f8adf713b56",
-        "memory.js": "a68623547946e7d3bf98649a777fb2df0cd4d852617b67a75fc521b4f501f2b3",
+        "plugin.json": "1bdf2be10a46336a3ca5417473bd0f0d240b5242eec2e6f0e02905ac13e51cd2",
+        "memory.js": "603ae54a1d4eaa062e52da3248f5fc9ba7d6e3a432ea0f541c834ad13f2087ec",
         "GUIDE.md": "e5e9f61783775ca2245d4238638f91366d7bdd7ff542f097b4800c4d379cab92"
       }
     },
