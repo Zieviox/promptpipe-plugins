@@ -202,6 +202,33 @@ const GROUPS = [
   ["Help", "Shortcuts, quick start", null, "help"],
 ];
 
+// Making a plugin with an AI, one section wherever it's offered (the Plugin guide, Install a
+// plugin): copy the guide with a request to fill in first, which AI works well, and the guide
+// itself folded under it.
+const ai_make_rows = (state) => {
+  const text = load_get(state, "plugin_guide", () =>
+    fetch("/docs/PLUGINS.md").then((r) => (r.ok ? r.text() : "Guide not found.")),
+  );
+  const guide = typeof text === "string" ? text : "";
+  const request = `${guide}\n\n---\n\nUsing the guide above, write a promptpipe plugin that: <describe what it should do>.\nGive every file, each with its name on the line before its code block.`;
+  return [
+    item({
+      icon: "copy",
+      label: "Copy the guide for an AI",
+      sub: "The plugin guide and a request: paste it, then say what the plugin should do",
+      cls: "prim",
+      onClick: () =>
+        PP.call_try(
+          "clipboard_write",
+          { text: request },
+          "Copied: paste it to an AI and describe your plugin",
+        ),
+    }),
+    html`<small>Claude (claude.ai) writes these well, even on the free plan.</small>`,
+    html`<details class="guidebox"><summary>Read the guide</summary>${guide ? PP.markdown_render(guide) : html`<small>Loading…</small>`}</details>`,
+  ];
+};
+
 const SHEETS = {
   settings: (state) => {
     const updates = ((state.catalogue && state.catalogue.updates) || []).length;
@@ -1101,40 +1128,21 @@ ${p.text}</textarea
     };
   },
 
-  // The Plugin guide: how to make a plugin, a copy of it for an AI with a request to fill in, and
+  // The Plugin guide: making a plugin with an AI (the same section the install sheet has), and
   // installing what comes back.
-  plugin_guide: (state) => {
-    const text = load_get(state, "plugin_guide", () =>
-      fetch("/docs/PLUGINS.md").then((r) => (r.ok ? r.text() : "Guide not found.")),
-    );
-    const guide = typeof text === "string" ? text : "";
-    const request = `${guide}\n\n---\n\nUsing the guide above, write a promptpipe plugin that: <describe what it should do>.\nGive every file, each with its name on the line before its code block.`;
-    return {
-      title: "Plugin guide",
-      rows: [
-        item({
-          icon: "copy",
-          label: "Copy instructions for AI",
-          sub: "The guide and a request to fill in",
-          cls: "prim",
-          onClick: () =>
-            PP.call_try(
-              "clipboard_write",
-              { text: request },
-              "Copied: paste it to an AI and describe your plugin",
-            ),
-        }),
-        item({
-          icon: "plus",
-          label: "Install the result",
-          sub: "Paste the AI's whole answer",
-          right: "›",
-          onClick: () => PP.sheet_open("install"),
-        }),
-        PP.markdown_render(guide),
-      ],
-    };
-  },
+  plugin_guide: (state) => ({
+    title: "Plugin guide",
+    rows: [
+      ...ai_make_rows(state),
+      item({
+        icon: "plus",
+        label: "Install the result",
+        sub: "Paste the AI's whole answer",
+        right: "›",
+        onClick: () => PP.sheet_open("install"),
+      }),
+    ],
+  }),
 
   plugin: (state, { id }) => {
     const p = state.plugins.find((x) => x.id === id);
@@ -1250,6 +1258,23 @@ ${p.text}</textarea
   install: (state) => ({
     title: "Install a plugin",
     rows: [
+      label("Make one with an AI"),
+      ...ai_make_rows(state),
+      html`<textarea
+        class="field"
+        rows="6"
+        placeholder="Paste the AI's whole answer: each file's name on the line before its code block"
+        onChange=${(e) => PP.ui_set(() => ({ install_answer: e.target.value }))}
+      ></textarea>`,
+      item({
+        label: "Install the answer",
+        cls: "prim",
+        onClick: () =>
+          PP.command_run("plugin_install", {
+            files: PP.answer_parse(state.ui.install_answer || ""),
+          }),
+      }),
+      label("Or from a link"),
       html`<input
         class="field"
         placeholder="GitHub folder, plugin.json or .zip"
@@ -1258,21 +1283,7 @@ ${p.text}</textarea
       />`,
       item({
         label: "Install from the link",
-        cls: "prim",
         onClick: () => PP.command_run("plugin_install", { url: state.ui.install_link }),
-      }),
-      html`<textarea
-        class="field"
-        rows="6"
-        placeholder="Or paste an AI's whole answer: each file's name on the line before its code block"
-        onChange=${(e) => PP.ui_set(() => ({ install_answer: e.target.value }))}
-      ></textarea>`,
-      item({
-        label: "Install the answer",
-        onClick: () =>
-          PP.command_run("plugin_install", {
-            files: PP.answer_parse(state.ui.install_answer || ""),
-          }),
       }),
     ],
   }),
