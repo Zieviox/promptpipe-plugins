@@ -204,7 +204,7 @@ test(
 );
 
 test(
-  "live thinking follows the shown step title, not an earlier reply's thinking left hidden",
+  "live thinking follows the shown status card title, not an earlier reply's thinking left hidden",
   { timeout: 30000 },
   async () => {
     const browser = await chromium.launch();
@@ -217,12 +217,12 @@ test(
           const box = document.getElementById("in"); box.value = "";
           const u = document.createElement("div"); u.className = "user"; u.textContent = "hi"; log.append(u);
           const stop = document.createElement("button"); stop.id = "stop"; document.body.appendChild(stop);
-          const title = document.createElement("div"); title.className = "step"; log.append(title);
+          const title = document.createElement("div"); title.className = "status-card"; log.append(title);
           const answer = document.createElement("div"); answer.className = "answer"; log.append(answer);
-          const steps = ["Reading the question", "Weighing it up", "Writing"];
+          const titles = ["Reading the question", "Weighing it up", "Writing"];
           let i = 0;
           const t = setInterval(() => {
-            if (i < steps.length) title.textContent = steps[i];
+            if (i < titles.length) title.textContent = titles[i];
             else answer.textContent += " word";
             if (++i >= 8) clearInterval(t), stop.remove();
           }, 250);
@@ -246,7 +246,7 @@ test(
             stop: ["#stop"],
             reply: [".answer"],
             user: [".user"],
-            thinking: [".drawer-think", ".step"],
+            thinking: [".drawer-think", ".status-card"],
           },
         };
         const stages = new Function("PP", "provider", code)(PP, provider);
@@ -275,12 +275,12 @@ test(
           const box = document.getElementById("in"); box.value = "";
           const u = document.createElement("div"); u.className = "user"; u.textContent = "hi"; log.append(u);
           const stop = document.createElement("button"); stop.id = "stop"; document.body.appendChild(stop);
-          const title = document.createElement("div"); title.className = "step"; log.append(title);
+          const title = document.createElement("div"); title.className = "status-card"; log.append(title);
           const answer = document.createElement("div"); answer.className = "answer"; log.append(answer);
-          const steps = ["Reading the question", "Weighing it up", "Writing"];
+          const titles = ["Reading the question", "Weighing it up", "Writing"];
           let i = 0;
           const t = setInterval(() => {
-            if (i < steps.length) title.textContent = steps[i];
+            if (i < titles.length) title.textContent = titles[i];
             else answer.textContent += " word";
             if (++i >= 8) clearInterval(t), stop.remove();
           }, 250);
@@ -304,7 +304,7 @@ test(
             stop: ["#stop"],
             reply: [".answer"],
             user: [".user"],
-            thinking: [".drawer-think", ".step"],
+            thinking: [".drawer-think", ".status-card"],
           },
         };
         const stages = new Function("PP", "provider", code)(PP, provider);

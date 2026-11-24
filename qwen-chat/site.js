@@ -1,10 +1,10 @@
 // Qwen's quirks: refusals come as a toast, a dialog can sit on top of the chat, and the model list
 // sometimes opens by itself. Its thinking lives in a drawer that the card in the reply opens (in
-// the reply itself only the current step's title shows). While you aren't looking at the site,
+// the reply itself only its status card's title shows). While you aren't looking at the site,
 // the drawer is kept open on the new reply's thinking so it can be read as it's written; the moment the site view
 // shows the page (site_shown), a drawer this opened is closed with its Close button first, and it's
 // never opened while you look (Gtex chose this, 2026-11-23). Only the card in the reply is ever
-// tapped: tapping the step cards inside the drawer made it full screen on a phone.
+// tapped: tapping the status cards inside the drawer made it full screen on a phone.
 const shown = (el) => PP.stages.visible(el);
 const text_get = (el) => PP.stages.text_get(el).replace(/\s+/g, " ");
 const REFUSAL = /permission|denied|limit|too many|try again|error|failed|log ?in/i;
@@ -25,7 +25,7 @@ const list_close = async () => {
 };
 
 // A thinking panel over the chat is closed the way panels close: the close button of the overlay
-// holding the thinking, else Escape, else the page's back step (a phone panel); then checked.
+// holding the thinking, else Escape, else the page's Back (a phone panel); then checked.
 const OVERLAY =
   "[role=dialog], [class*='drawer' i], [class*='modal' i], [class*='popup' i], [class*='sheet' i], [class*='mask' i]";
 const CLOSE = /close|关闭|back|返回|done/i;
@@ -154,7 +154,7 @@ const site_send = async (data, def) => {
   try {
     const result = await PP.defaults.site_send(data, def);
     const full = await thinking_full();
-    // Without the drawer the thinking is only the step title ("Thinking completed"): not kept.
+    // Without the drawer the thinking is only the status card's title ("Thinking completed"): not kept.
     const thinking =
       full ||
       (/^thinking completed$/i.test(String(result.thinking || "").trim()) ? "" : result.thinking);

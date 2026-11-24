@@ -146,7 +146,7 @@ const snapshot_take = (provider) => ({
 });
 
 // The newest reply's thinking: a shown one first, from the selectors in order (a site can keep
-// an earlier reply's thinking in a closed panel; Qwen keeps its drawer's, so the live step title
+// an earlier reply's thinking in a closed panel; Qwen keeps its drawer's, so the live status card title
 // in the reply was never reached); only when none is shown, a folded one (DeepSeek folds its
 // thinking in place). Thinking that was on the page before sending (`before`) and hasn't changed
 // is an earlier reply's, and left out. `from` says which selector (and "h" for hidden), for the

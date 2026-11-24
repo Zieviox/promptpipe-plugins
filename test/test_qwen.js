@@ -1,7 +1,7 @@
 "use strict";
 // The Qwen plugin against a stand-in of today's page (from Gtex's page reports, 2026-11-23): the
 // reply holds a status card; tapping it opens a drawer (.ant-drawer-open) with the thinking and a
-// Close button; the drawer's own step cards are never to be tapped (that made it full screen).
+// Close button; the drawer's own status cards are never to be tapped (that made it full screen).
 // While you aren't looking the drawer is kept open and read; shown, it's closed and stays closed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -17,16 +17,16 @@ const PAGE = `
 <div class="ant-drawer" id="drawer">
   <button class="ant-drawer-close" aria-label="Close">×</button>
   <div class="qwen-chat-thinking-and-sources-content-thinking-container">
-    <div class="qwen-chat-thinking-status-card-title" id="step">Step one</div>
+    <div class="qwen-chat-thinking-status-card-title" id="status-card">First card</div>
     <div class="qwen-markdown" id="thought">the earlier thinking</div>
   </div>
 </div>
 <script>
-  window.taps = { card: 0, old: 0, step: 0 };
+  window.taps = { card: 0, old: 0, status_card: 0 };
   const drawer = document.getElementById("drawer");
   const show = (text) => (document.getElementById("thought").textContent = text, drawer.classList.add("ant-drawer-open"));
   document.getElementById("old-card").onclick = () => (taps.old++, show("the earlier thinking"));
-  document.getElementById("step").onclick = () => taps.step++;
+  document.getElementById("status-card").onclick = () => taps.status_card++;
   document.querySelector(".ant-drawer-close").onclick = () => drawer.classList.remove("ant-drawer-open");
   window.reply_add = () => {
     const reply = document.createElement("div");
@@ -89,11 +89,11 @@ test(
       assert.equal(out.result.during, true, "open while the reply came (you weren't looking)");
       assert.equal(
         out.result.thinking,
-        "Step one the thinking",
+        "First card the thinking",
         "the whole thinking, from the drawer",
       );
       assert.equal(out.after, false, "closed when the reply was in");
-      assert.equal(out.taps.step, 0, "the drawer's step cards are never tapped");
+      assert.equal(out.taps.status_card, 0, "the drawer's status cards are never tapped");
       assert.equal(out.taps.old, 0, "the earlier reply's card is never tapped");
     } finally {
       await browser.close();
@@ -129,7 +129,7 @@ test(
       assert.equal(out.result.reopened, false, "not opened again while you looked");
       assert.deepEqual(out.back, { closed: true }, "Back closes a drawer you opened");
       assert.equal(out.after_back, false);
-      assert.equal(out.taps.step, 0);
+      assert.equal(out.taps.status_card, 0);
     } finally {
       await browser.close();
     }
@@ -160,7 +160,7 @@ test(
       );
       assert.equal(out.result.early.card, 0, "nothing opened before the new reply was there");
       assert.equal(out.result.during, "the thinking", "the drawer was moved to the new reply");
-      assert.equal(out.result.thinking, "Step one the thinking", "the new reply's thinking");
+      assert.equal(out.result.thinking, "First card the thinking", "the new reply's thinking");
       assert.equal(out.taps.old, 0, "the earlier reply's card is never tapped");
     } finally {
       await browser.close();

@@ -26,7 +26,7 @@ const header_render = (state) => {
     <button
       class="pill"
       aria-label="Switch provider"
-      data-help="The AI site this chat uses and its model; the dot is green when its page is ready. Tap to switch."
+      data-help="The provider this chat uses and its model; the dot is green when its page is ready. Tap to switch."
       onClick=${() => PP.ui_set((ui) => ({ menu: !ui.menu }))}
     >
       <span class=${`dot ${page_status(state, chat)}`}></span
@@ -145,16 +145,16 @@ const reply_foot = (state, turn, last) => {
   const tags = turn.tags || [];
   // Versions of this message (an edit, Send again): "‹ 2/3 ›", switching what's shown after it.
   const versions = PP.versions_get(state, turn);
-  const step = (by) => {
+  const version_set = (by) => {
     const next = versions.list[versions.index + by];
     if (next) PP.call_try("version_show", { turn: turn.id, id: next.id });
   };
   const switcher =
     versions.list.length > 1
       ? html`<span class="versions">
-          ${PP.icon_render("back", "Previous version", () => step(-1), false, "act")}
+          ${PP.icon_render("back", "Previous version", () => version_set(-1), false, "act")}
           <span>${versions.index + 1}/${versions.list.length}</span>
-          ${PP.icon_render("right", "Next version", () => step(1), false, "act")}
+          ${PP.icon_render("right", "Next version", () => version_set(1), false, "act")}
         </span>`
       : null;
   const foot = html`<div class="foot">
@@ -194,7 +194,7 @@ const message_render = (state, turn) => {
   </div>`;
 };
 
-// The thinking, one block for a reply on its way and a saved one, above the reply: a row saying
+// The thinking, one block for a reply on its way and a saved one, above the reply: a line saying
 // "Thinking · N s" (pulsing) while it thinks and "Thought for N s" after, and the thinking under
 // it. Open while the reply streams, folded once it's saved (UC1.3, Q5). A tap folds or unfolds it,
 // and that choice stays with the reply (`key`: the turn's id, the same before and after it's
@@ -357,7 +357,7 @@ const send_render = (state, send) => {
     </div>`;
   }
   // On its way: the thinking (the same block a saved reply has: open while the reply streams,
-  // folded once it's saved), then the reply as it's written. While it thinks the thinking's row is
+  // folded once it's saved), then the reply as it's written. While it thinks the thinking's line is
   // the status; otherwise a status line says what's happening in words, with a pulsing dot.
   const thinking_live = !!send.thinking && !send.reply;
   const status = send.reply
@@ -463,7 +463,7 @@ const COPIED = [
   "word-break",
   "tab-size",
 ];
-// The buttons sit beside the text while it fits on one line and go to a row under it once it
+// The buttons sit beside the text while it fits on one line and go under it once it
 // needs a second (data-stacked), decided by what's typed, never by a tap, so nothing moves under
 // the finger. The text is always measured as if the buttons were beside it, so the wider stacked
 // text fitting on one line again doesn't flip it back.
@@ -543,7 +543,7 @@ const composer_render = (state) => {
       </div>`
     : null;
   // The message area is one field, as in chat apps: while the box has the cursor, no press inside
-  // the area (its edge, the gap in the button row, Send, expand) takes the cursor away, so the
+  // the area (its edge, the gap between the buttons, Send, expand) takes the cursor away, so the
   // keyboard stays up and nothing needs tapping again; the buttons still act (their click still
   // comes). Without the cursor, a press on the edge puts it in the text; a button just acts. The
   // keyboard goes down by tapping the conversation or Back.

@@ -29,7 +29,7 @@ const LIGHT = process.argv[3] === "light";
   };
   const click = (sel) => page.locator(sel).first().click({ timeout: 3000 });
   const base = `http://127.0.0.1:${server.address().port}/`;
-  const steps = [
+  const screens = [
     [
       "1-chat",
       async () => {
@@ -136,7 +136,7 @@ const LIGHT = process.argv[3] === "light";
       },
     ],
   ];
-  for (const [name, run] of steps) {
+  for (const [name, run] of screens) {
     try {
       await page.goto(base);
       await page.waitForSelector("#message", { timeout: 15000 });

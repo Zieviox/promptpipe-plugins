@@ -318,7 +318,7 @@ const back_run = () => {
   // The site view: a panel the site has open over the chat closes first (the provider knows it),
   // then the site view (the site's own history stays on its Back inside the site button: the app
   // moves pages between chats, so it isn't yours). Answered at once (the platform waits only a
-  // second); the steps run after.
+  // second); the rest runs after.
   if (ui.site_view.open) {
     const page = ui.site_view.page;
     (async () => {

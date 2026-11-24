@@ -113,6 +113,12 @@ const storage_verify = async () => {
   return out;
 };
 
+// The log as saved (legacy: entries written before 2026-11-24 named their type `kind`).
+const log_load = (log) => ({
+  ...log,
+  entries: log.entries.map((e) => (e.type ? e : { ...e, type: e.kind })), // legacy: `kind`
+});
+
 // After loading: the provider's site page in the background, so it's ready to log in or send
 // (UC9), and the plugins' update check when it's due (UC31).
 const app_start_run = async (state) => {
@@ -199,7 +205,7 @@ const state_load = async (state) => {
     folders: await read("chats", ".promptpipe/folders.json", []),
     counters: await read("chats", ".promptpipe/counters.json", {}),
     drafts: await read("app", "drafts.json", []),
-    log: await read("app", "log.json", { entries: [], seen_at: "" }),
+    log: log_load(await read("app", "log.json", { entries: [], seen_at: "" })),
     ...outbox_load(await read("app", "outbox.json", { sends: [], held: {} })),
     chats: metas.map((f) => JSON.parse(f.data)),
     chat_data: [],

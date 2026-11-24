@@ -66,7 +66,7 @@ const folder_size = async (folder) => {
 
 const MB = 1024 * 1024;
 
-// A folder marked .nomedia and copied whole by the core (file by file, in pieces) into
+// A folder marked .nomedia and copied whole by the core (file by file, 1 MB at a time) into
 // .promptpipe/backups/, when the phone has room for it (and 500 MB to spare); a copy cut short
 // goes on where it stopped next time. Without room: no backup, and the report says why. The
 // import never changes the old folders apart from the marker, so it goes ahead either way.
@@ -205,7 +205,7 @@ const config_import = (state, old) => {
     file.profiles.push({ id: p.id, name: p.name || "Profile", plugin_settings });
     file.blocks.push(...blocks_build(p, p.id));
     file.groups.push(
-      ...(p.groups || (p.pipe || {}).groups || []).map((g) => ({ ...g, profile: p.id })),
+      ...(p.groups || (p.pipe || {}).groups || []).map((g) => ({ ...g, profile: p.id })), // legacy
     ); // legacy
   }
   const added = PP.record_import(state, {

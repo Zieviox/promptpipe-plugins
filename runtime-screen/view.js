@@ -19,7 +19,7 @@ md.renderer.rules.fence = (
 const ui_get = () => PP.state_get().ui;
 const ui_set = (change) => PP.state_set((s) => ({ ...s, ui: { ...s.ui, ...change(s.ui) } }));
 
-// What went wrong, in plain words: the code says what kind, and the technical text is kept apart
+// What went wrong, in plain words: the code names it, and the technical text is kept apart
 // (the failed message's Details) for whoever fixes a plugin. `site`: the provider's name.
 const error_words = (error, site) => {
   const code = (error && error.code) || "";
@@ -48,12 +48,12 @@ const error_words = (error, site) => {
 // ---------- the log ----------
 
 // One place for all logs (Settings › Advanced › Logs, and Find): every notice shown, failed
-// sends, site page problems, history errors, imports' reports; each with its time, kind and the
+// sends, site page problems, history errors, imports' reports; each with its time, type and the
 // details. Kept in the app's log.json (the newest 500), so a missed one can be read later.
 const LOG_MAX = 500;
 let log_timer = 0;
-const log_add = (kind, text, detail) => {
-  const entry = { at: new Date().toISOString(), kind, text: String(text || "") };
+const log_add = (type, text, detail) => {
+  const entry = { at: new Date().toISOString(), type, text: String(text || "") };
   if (detail) entry.detail = String(detail);
   PP.state_set((s) => {
     const log = s.log || { entries: [], seen_at: "" };
@@ -71,11 +71,11 @@ const log_add = (kind, text, detail) => {
   );
 };
 
-// `action`: a button on the toast, { label, command } (Undo, Redo). `kind`/`detail`: how it goes
+// `action`: a button on the toast, { label, command } (Undo, Redo). `type`/`detail`: how it goes
 // in the log (by default "error" or "notice", without details).
-// `kind` false: not logged (its own fuller entry is already in the log).
-const toast = (text, error, open, action, kind, detail) => {
-  if (kind !== false) log_add(kind || (error ? "error" : "notice"), text, detail);
+// `type` false: not logged (its own fuller entry is already in the log).
+const toast = (text, error, open, action, type, detail) => {
+  if (type !== false) log_add(type || (error ? "error" : "notice"), text, detail);
   const id = PP.id_create();
   ui_set((ui) => ({ toasts: [...ui.toasts, { id, text, error, open, action }] }));
   setTimeout(
@@ -172,8 +172,8 @@ const focus_ref = (el) => {
 };
 
 // A list SortableJS can reorder; lists with the same `group` trade items. A drop is undone on the
-// page and handed to `on_drop({ id, kind, from, to, index, into })` (`from`/`to`: the lists'
-// data-list; `into`: the data-into of a row it was dropped onto, when `into` is on), so Preact
+// page and handed to `on_drop({ id, type, from, to, index, into })` (`from`/`to`: the lists'
+// data-list; `into`: the data-into of the item it was dropped onto, when `into` is on), so Preact
 // stays the only one changing the page.
 const sortable_ref =
   (on_drop, { group, into } = {}) =>
@@ -206,10 +206,10 @@ const sortable_ref =
         e.to.removeChild(e.item);
         e.from.insertBefore(e.item, e.from.children[e.oldIndex] || null);
         if (into_path === null && e.from === e.to && e.oldIndex === e.newIndex) return;
-        const { id, kind } = e.item.dataset;
+        const { id, type } = e.item.dataset;
         on_drop({
           id,
-          kind,
+          type,
           from: e.from.dataset.list,
           to: e.to.dataset.list,
           index: e.newIndex,

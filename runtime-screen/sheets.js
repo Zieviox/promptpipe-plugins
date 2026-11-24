@@ -12,7 +12,7 @@ const label = (text) => html`<div class="label">${text}</div>`;
 // ui.loads under a key starting with the sheet's name (opening the sheet again reads it again);
 // undefined while it's on its way. `loading` only stops a second read starting meanwhile.
 const loading = new Set();
-// The kinds of log entry that count as errors (marked, and a dot on Settings while unseen).
+// The types of log entry that count as errors (marked, and a dot on Settings while unseen).
 const LOG_ERRORS = ["error", "send", "site", "history"];
 
 const load_get = (state, key, load) => {
@@ -44,20 +44,20 @@ const field_render = (state, def, value, on_set) => {
       right: toggle(value, def.label, on_set),
       onClick: () => on_set(!value),
     });
-  // Choices as the wireframe's segments (up to four) or chips; UI scale as its four steps.
-  const steps =
+  // Choices as the wireframe's segments (up to four) or chips; UI scale as its four choices.
+  const scale_choices =
     def.key === "look.scale"
       ? [90, 100, 115, 130].map((v) => ({ value: v, label: `${v}%` }))
       : null;
-  if (def.type === "choice" || steps) {
-    const choices = steps || def.choices || choices_get(state, def.choices_from);
+  if (def.type === "choice" || scale_choices) {
+    const choices = scale_choices || def.choices || choices_get(state, def.choices_from);
     const buttons = choices.map(
       (c) =>
         html`<button key=${String(c.value)} class=${c.value === value ? "on" : ""} onClick=${() => on_set(c.value)}>${c.label}</button>`,
     );
     const odd =
-      steps && !steps.some((c) => c.value === value)
-        ? html`<small>Now ${value}% (Ctrl+= and Ctrl+- change it in 5% steps)</small>`
+      scale_choices && !scale_choices.some((c) => c.value === value)
+        ? html`<small>Now ${value}% (Ctrl+= and Ctrl+- change it 5% at a time)</small>`
         : null;
     return html`<div class="item col" key=${def.key} data-lit=${def.label}>
       <span class="grow">${def.label}${def.description ? html`<small>${def.description}</small>` : null}</span>
@@ -91,7 +91,7 @@ const choices_get = (state, from) => {
 };
 
 // What a block is, for the line under its name.
-const block_kind = (b) =>
+const block_type_format = (b) =>
   b.type === "message" ? "Your text goes here" : b.type === "prompt" ? "System prompt" : "Plugin";
 
 // A profile's blocks in order: drag or the arrows reorder the profile; the switch turns a block on
@@ -123,7 +123,7 @@ const block_rows = (state, profile, chat, open) => {
         i,
       ) => html`<div class=${`item blk${b.type === "message" || on(b) ? "" : " off"}`} key=${b.id} data-id=${b.id}>
         <span class="grip">${PP.icon_svg("grip")}</span>
-        <button class="grow" onClick=${() => open && b.type !== "message" && open(b)}>${PP.block_name_get(state, b)}<small>${block_kind(b)}</small></button>
+        <button class="grow" onClick=${() => open && b.type !== "message" && open(b)}>${PP.block_name_get(state, b)}<small>${block_type_format(b)}</small></button>
         <span class="mv">
           ${PP.icon_render("up", "Move up", () => i > 0 && move(b.id, i - 1), false, "act")}
           ${PP.icon_render("down", "Move down", () => i < blocks.length - 1 && move(b.id, i + 1), false, "act")}
@@ -973,7 +973,7 @@ ${p.text}</textarea
   },
 
   // Plugins (wireframe): Profile (the profile's blocks, as in the editor) | Library (what's
-  // installed, by kind, with updates; more from the catalogue; sources; installing).
+  // installed, by type, with updates; more from the catalogue; sources; installing).
   plugins: (state, { tab = "profile", filter = "all" }) => {
     const reopen = (data) =>
       PP.ui_set((ui) => ({
@@ -1010,31 +1010,31 @@ ${p.text}</textarea
         ],
       };
     }
-    const kinds = [
+    const types = [
       ["all", "All"],
       ["provider", "Providers"],
-      ["plugin", "Plugins"],
+      ["plugin", "Message"],
       ["theme", "Themes"],
       ["passive", "Passive"],
     ];
-    const kind_of = (tags = []) =>
+    const type_get = (tags = []) =>
       tags.includes("runtime")
         ? "runtime"
         : ["provider", "theme", "passive"].find((t) => tags.includes(t)) || "plugin";
     const shown = (tags) =>
-      filter === "all" ? kind_of(tags) !== "runtime" : kind_of(tags) === filter;
+      filter === "all" ? type_get(tags) !== "runtime" : type_get(tags) === filter;
     const update_of = (id) => updates.find((u) => u.id === id);
     const installed = state.plugins.filter((p) => shown(p.manifest.tags));
     const offers = ((catalogue && catalogue.offers) || []).filter(
       (o) => !o.installed && shown(o.tags),
     );
-    const type = (tags) => ["Plugin", ...(tags || [])].join(" · ");
+    const type_format = (tags) => ["Plugin", ...(tags || [])].join(" · ");
     return {
       title: "Plugins",
       head_extra,
       rows: [
         tabs,
-        html`<div class="chips">${kinds.map(([k, l]) => html`<button class=${`pill${k === filter ? " on" : ""}`} key=${k} onClick=${() => reopen({ filter: k })}>${l}</button>`)}</div>`,
+        html`<div class="chips">${types.map(([k, l]) => html`<button class=${`pill${k === filter ? " on" : ""}`} key=${k} onClick=${() => reopen({ filter: k })}>${l}</button>`)}</div>`,
         updates.length
           ? item({
               label: "Update all",
@@ -1048,7 +1048,7 @@ ${p.text}</textarea
           item({
             key: p.id,
             label: p.manifest.name,
-            sub: `${type(p.manifest.tags)} · ${p.manifest.version} · ${p.copy.replace("_", "-")}${p.status !== "loaded" ? ` · ${p.status.replace("_", " ")}` : ""}`,
+            sub: `${type_format(p.manifest.tags)} · ${p.manifest.version} · ${p.copy.replace("_", "-")}${p.status !== "loaded" ? ` · ${p.status.replace("_", " ")}` : ""}`,
             right: update_of(p.id) ? html`<span class="badge">Update</span>` : "›",
             onClick: () => PP.sheet_open("plugin", { id: p.id }),
           }),
@@ -1059,7 +1059,7 @@ ${p.text}</textarea
           item({
             key: `${o.source.id}/${o.id}`,
             label: o.name,
-            sub: `${type(o.tags)} · ${o.version}${o.app_too_old ? ` · needs app ${o.min_app}` : ""}`,
+            sub: `${type_format(o.tags)} · ${o.version}${o.app_too_old ? ` · needs app ${o.min_app}` : ""}`,
             right: html`<span class="pill">Get</span>`,
             onClick: () => PP.command_run("plugin_install", { entry: o }),
           }),
@@ -1120,8 +1120,8 @@ ${p.text}</textarea
           onClick: () => PP.sheet_open("install"),
         }),
         filter === "all"
-          ? html`<details><summary>The app's own parts (${state.plugins.filter((p) => kind_of(p.manifest.tags) === "runtime").length})</summary>
-          ${state.plugins.filter((p) => kind_of(p.manifest.tags) === "runtime").map((p) => item({ key: p.id, label: p.manifest.name, sub: `${p.manifest.version} · ${p.copy.replace("_", "-")}`, right: update_of(p.id) ? html`<span class="badge">Update</span>` : "›", onClick: () => PP.sheet_open("plugin", { id: p.id }) }))}
+          ? html`<details><summary>Runtime plugins (${state.plugins.filter((p) => type_get(p.manifest.tags) === "runtime").length})</summary>
+          ${state.plugins.filter((p) => type_get(p.manifest.tags) === "runtime").map((p) => item({ key: p.id, label: p.manifest.name, sub: `${p.manifest.version} · ${p.copy.replace("_", "-")}`, right: update_of(p.id) ? html`<span class="badge">Update</span>` : "›", onClick: () => PP.sheet_open("plugin", { id: p.id }) }))}
         </details>`
           : null,
       ],
@@ -1387,11 +1387,11 @@ ${p.text}</textarea
     };
   },
 
-  // One place for all logs: what's in the app's log (newest first, by kind), and the core's log
+  // One place for all logs: what's in the app's log (newest first, by type), and the core's log
   // and the platform's crash record from their files.
   log: (state) => {
     const log = state.log || { entries: [], seen_at: "" };
-    const kind = state.ui.log_kind || "all";
+    const type = state.ui.log_type || "all";
     const KINDS = [
       ["all", "All"],
       ["errors", "Errors"],
@@ -1404,14 +1404,14 @@ ${p.text}</textarea
     const shown = log.entries
       .filter(
         (e) =>
-          kind === "all" || e.kind === kind || (kind === "errors" && LOG_ERRORS.includes(e.kind)),
+          type === "all" || e.type === type || (type === "errors" && LOG_ERRORS.includes(e.type)),
       )
       .slice()
       .reverse();
     const text = shown
       .map(
         (e) =>
-          `${new Date(e.at).toLocaleString()} · ${e.kind}: ${e.text}${e.detail ? `\n  ${e.detail}` : ""}`,
+          `${new Date(e.at).toLocaleString()} · ${e.type}: ${e.text}${e.detail ? `\n  ${e.detail}` : ""}`,
       )
       .join("\n");
     return {
@@ -1420,7 +1420,7 @@ ${p.text}</textarea
         html`<div class="chips choose">
           ${KINDS.map(
             ([k, label]) =>
-              html`<button key=${k} class=${`pill${k === kind ? " on" : ""}`} onClick=${() => PP.ui_set(() => ({ log_kind: k }))}>${label}</button>`,
+              html`<button key=${k} class=${`pill${k === type ? " on" : ""}`} onClick=${() => PP.ui_set(() => ({ log_type: k }))}>${label}</button>`,
           )}
         </div>`,
         shown.length
@@ -1429,8 +1429,8 @@ ${p.text}</textarea
                 (
                   e,
                   i,
-                ) => html`<div key=${`${e.at}-${i}`} class=${`logrow${LOG_ERRORS.includes(e.kind) ? " err" : ""}`}>
-                  <small>${new Date(e.at).toLocaleString()} · ${e.kind}</small>
+                ) => html`<div key=${`${e.at}-${i}`} class=${`logrow${LOG_ERRORS.includes(e.type) ? " err" : ""}`}>
+                  <small>${new Date(e.at).toLocaleString()} · ${e.type}</small>
                   <div>${e.text}</div>
                   ${e.detail ? html`<details><summary>Details</summary><pre>${e.detail}</pre></details>` : null}
                 </div>`,

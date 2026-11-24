@@ -53,7 +53,7 @@ mark { background: color-mix(in srgb, var(--warn) 30%, transparent); color: inhe
 .item.off .grow { opacity: .55; }
 .item.danger { color: var(--error); }
 .item.prim { background: var(--accent); color: var(--on-accent); justify-content: center; font-weight: 600; }
-/* A highlighted row's line under its label in the same colour as the label, a little lighter. */
+/* A highlighted item's second line in the same colour as its label, a little lighter. */
 .item.prim small { color: inherit; opacity: .85; font-weight: 400; }
 .badge { background: var(--accent); color: var(--on-accent); border-radius: 99px; font-size: 11px; font-weight: 700; padding: 1px 7px; }
 .switch { width: 38px; height: 22px; border-radius: 99px; background: var(--line); position: relative; flex: none; }
@@ -113,7 +113,7 @@ textarea.field { resize: vertical; min-height: 6em; }
 .composer .boxscroll { flex: 1; min-width: 0; max-height: 40vh; overflow-y: auto; overscroll-behavior: contain; margin: 0 0 4px; }
 .composer textarea { display: block; width: 100%; background: none; border: 0; outline: 0; resize: none; line-height: 1.4; min-height: 1.4em; padding: 0; margin: 0; overflow: hidden; }
 /* The text comes first, its buttons beside it on the right. Once it needs a second line
-   (data-stacked, set from what's typed, never on a tap) the buttons go to a row under it and the
+   (data-stacked, set from what's typed, never on a tap) the buttons go under it and the
    text takes the whole width: its left edge stays put, it only gets wider. */
 .composer:not(.big) .boxscroll { order: -1; }
 .composer[data-stacked]:not(.big) { flex-wrap: wrap; row-gap: 8px; }

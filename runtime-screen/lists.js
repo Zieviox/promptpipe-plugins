@@ -82,7 +82,7 @@ const parent_get = (file) => (file.includes("/") ? file.slice(0, file.lastIndexO
 const chats_in = (state, path) =>
   state.chats.filter((c) => c.file.startsWith(`${path}/`)).map((c) => c.id);
 
-// The ids a drag or a tap acts on: all the selected chats when the row is one of them.
+// The ids a drag or a tap acts on: all the selected chats when the chat is one of them.
 const picked_ids = (state, id) =>
   state.ui.selection.on && state.ui.selection.ids.includes(id) ? state.ui.selection.ids : [id];
 
@@ -93,7 +93,7 @@ const select_toggle = (ids) =>
     return { selection: { on: true, ids: all ? rest : [...rest, ...ids] } };
   });
 
-// Press and hold a row to start selecting (UC17); the tap that ends the press is then ignored.
+// Press and hold a chat to start selecting (UC17); the tap that ends the press is then ignored.
 let held_at = 0;
 const hold_handlers = (ids) => {
   let timer = 0;
@@ -110,7 +110,7 @@ const hold_handlers = (ids) => {
 // An error in the log since it was last opened (a dot on the Settings button).
 const log_unread = (state) => {
   const log = state.log || { entries: [], seen_at: "" };
-  return log.entries.some((e) => PP.LOG_ERRORS.includes(e.kind) && e.at > (log.seen_at || ""));
+  return log.entries.some((e) => PP.LOG_ERRORS.includes(e.type) && e.at > (log.seen_at || ""));
 };
 
 // A chat row: name, its tags (muted), "Didn't send", "Replying…" or "Reply ready", the pin, the grip.
@@ -131,7 +131,7 @@ const chat_row = (state, chat, pinned) => {
     class=${`row${chat.id === state.ui.chat ? " current" : ""}${picked ? " sel" : ""}`}
     key=${chat.id}
     data-id=${chat.id}
-    data-kind="chat"
+    data-type="chat"
   >
     ${selecting ? html`<span class=${`cb${picked ? " on" : ""}`}>${picked ? PP.icon_svg("check") : null}</span>` : null}
     <button class="grow ct" onClick=${open} ...${hold_handlers([chat.id])}>${chat.name}</button>
@@ -156,7 +156,7 @@ const folder_row = (state, path, depth) => {
             ? ui.folders_open.filter((f) => f !== path)
             : [...ui.folders_open, path],
         }));
-  return html`<div key=${path} data-id=${path} data-kind="folder">
+  return html`<div key=${path} data-id=${path} data-type="folder">
     <div class="row folder" data-into=${path}>
       <button class="grow fold" onClick=${toggle}>${PP.icon_svg(open ? "down" : "right")} <span>${path.split("/").pop()}</span></button>
       <small class="count">${ids.length}</small>
@@ -177,9 +177,9 @@ const list_render = (state, path, depth = 0) => {
 
 // A drop: onto a folder = into it; into Pinned = pinned there; between rows = that place, which
 // also takes a chat out of a folder. A folder moves only among its own neighbours.
-const drop_run = ({ id, kind, from, to, index, into }) => {
+const drop_run = ({ id, type, from, to, index, into }) => {
   const state = PP.state_get();
-  if (kind === "folder") {
+  if (type === "folder") {
     if (into !== null || to !== from || to === "pinned") return;
     return PP.apply_try((s) => PP.folder_order_move(s, to, id, index), "chats: folders reordered");
   }
