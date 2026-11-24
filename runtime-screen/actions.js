@@ -300,12 +300,12 @@ const page_report_copy = async (id) => {
   const report = await PP.call_try("site_report_build", { page: id });
   const plugin = state.plugins.find((p) => p.id === page.provider);
   const name = plugin ? plugin.manifest.name : "the site";
-  const text = report && `Page report for ${name} (${report.url})\n\n${report.report}`;
+  const text = report && `Page Report for ${name} (${report.url})\n\n${report.report}`;
   if (text)
     PP.call_try(
       "clipboard_write",
       { text },
-      "Page report copied. Paste it to whoever fixes the provider plugin.",
+      "Page Report copied. Paste it to whoever fixes the provider plugin.",
     );
 };
 

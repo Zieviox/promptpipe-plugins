@@ -267,7 +267,7 @@ const drawer_render = (state) => {
       </div>
       <div class="chips drawerfoot">
         <button class="pill big" onClick=${() => PP.command_run("settings")}>${PP.icon_svg("settings")} Settings${updates ? html`<span class="badge">${updates}</span>` : null}${log_unread(state) ? html`<span class="errdot" title="An error you haven't seen: Settings › Advanced › Logs"></span>` : null}</button>
-        <button class="pill big" onClick=${() => PP.command_run("quick_start")}>${PP.icon_svg("play")} Quick start</button>
+        <button class="pill big" onClick=${() => PP.command_run("quick_start")}>${PP.icon_svg("play")} Quick Start</button>
       </div>
     </div>
   </div>`;
@@ -303,7 +303,7 @@ const site_bar_render = (state) => {
   return html`<div class="site-bar" id="site-bar">
       <div class="top">
         ${PP.icon_render("back", "Back to the chat", close)}
-        <span class="t">AI page${plugin ? ` · ${plugin.manifest.name}` : ""}</span>
+        <span class="t">AI Page${plugin ? ` · ${plugin.manifest.name}` : ""}</span>
         ${PP.setting_get(state, "help.button") ? PP.icon_render("help", "Help: explain things", () => PP.command_run("help_mode"), state.ui.help) : null}
         <button class="pill" onClick=${() => PP.sheet_open("provider")}>Profile and site</button>
       </div>

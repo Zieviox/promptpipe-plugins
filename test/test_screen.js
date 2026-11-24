@@ -42,13 +42,13 @@ test(
       await page.waitForSelector(".drawer", { state: "detached", timeout: 3000 });
 
       await page.keyboard.press("Control+,");
-      await page.waitForSelector("text=Prompt library");
+      await page.waitForSelector("text=Prompt Library");
       await page.click("text=Look");
       await page.waitForSelector("text=UI scale", { timeout: 3000 }).catch(() => null);
       await page.click("[aria-label='Back']");
       await page.click("text=Plugins");
       await page.waitForSelector("text=Sent top to bottom");
-      await page.click(".tabs button:has-text('Library')");
+      await page.click(".tabs button:has-text('Catalogue')");
       await page.waitForSelector("text=Install from a file");
       await page.click("[aria-label='Close']");
 
@@ -57,9 +57,9 @@ test(
       await page.waitForSelector("text=Next profile");
       await page.keyboard.press("Escape");
 
-      // Help mode: a tap explains instead of doing; Do it leaves help mode and does it.
+      // Help Mode: a tap explains instead of doing; Do it leaves help mode and does it.
       await page.click("[aria-label^='Help:']");
-      await page.waitForSelector("text=Help mode. Tap anything to see what it does.");
+      await page.waitForSelector("text=Help Mode. Tap anything to see what it does.");
       await page.click("[aria-label='Chats']");
       await page.waitForSelector(".helpcard >> text=Your chats");
       await page.waitForTimeout(300);

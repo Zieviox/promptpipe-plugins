@@ -195,7 +195,7 @@ test("a cancelled job stops its send (#209)", async () => {
   assert.ok(pp.sent.some((s) => s.name === "site_stop" && s.data.page === pending[0].d.page));
 });
 
-test("Model and options opens its page through the pool: tracked and within the limit", async () => {
+test("Model and Options opens its page through the pool: tracked and within the limit", async () => {
   const { pp } = world_build();
   pp.calls.site_model_list = () => ({ models: ["a"], model: "a", options: [] });
   const listed = await pp.model_list(pp.state, pp.state.chats[0]);
@@ -390,7 +390,7 @@ test("Pause holds a chat's queue until Resume; a reply cut short holds it too", 
   pp.message_send({ chat: "c2", message: "next" });
   // The reply comes in part way, then the page fails: the part is saved, the queue holds.
   pp.events.reply_changed.forEach((f) => f({ page: pp.state.sends[0].page, reply: "half a re" }));
-  pending[0].reject({ code: "unavailable", message: "the AI page reloaded" });
+  pending[0].reject({ code: "unavailable", message: "the AI Page reloaded" });
   await tick();
   await tick();
   await tick();

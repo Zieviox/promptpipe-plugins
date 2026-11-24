@@ -73,7 +73,7 @@ const LIGHT = process.argv[3] === "light";
       async () => {
         await click("[aria-label='Chats']");
         await page.getByText("Harbour story draft").first().click();
-        await click("[aria-label='Quick edit and add']");
+        await click("[aria-label='Quick Edit and add']");
       },
     ],
     [
@@ -132,7 +132,7 @@ const LIGHT = process.argv[3] === "light";
         await click("[aria-label='Chats']");
         await page.getByText("Harbour story draft").first().click();
         await click("[aria-label='Help: tap, then tap anything']");
-        await click("[aria-label='Quick edit and add']");
+        await click("[aria-label='Quick Edit and add']");
       },
     ],
   ];

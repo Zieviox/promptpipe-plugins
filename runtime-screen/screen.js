@@ -58,15 +58,15 @@ const GUIDES = [
     title: "Profiles and blocks",
     stages: [
       [
-        "[aria-label='Quick edit and add']",
-        "Quick edit: turn the profile's blocks on or off for this chat, and add files.",
+        "[aria-label='Quick Edit and add']",
+        "Quick Edit: turn the profile's blocks on or off for this chat, and add files.",
       ],
       ["[aria-label='Chat title']", "The chat's sheet: tags, folder, export and its history."],
     ],
   },
   {
     id: "site",
-    title: "The AI page",
+    title: "The AI Page",
     stages: [
       [
         "[aria-label='Switch provider']",
@@ -201,9 +201,9 @@ const help_render = (state) => {
     ${
       ui.help
         ? html`<div class="help-bar" role="status">
-            <span>Help mode. Tap anything to see what it does.</span>
+            <span>Help Mode. Tap anything to see what it does.</span>
             <span class="row">
-              <button class="pill" onClick=${() => (off(), PP.command_run("quick_start"))}>Quick start</button>
+              <button class="pill" onClick=${() => (off(), PP.command_run("quick_start"))}>Quick Start</button>
               <button class="pill" onClick=${() => off()}>Done</button>
             </span>
           </div>`

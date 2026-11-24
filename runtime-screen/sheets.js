@@ -1,6 +1,6 @@
 "use strict";
 // The sheets, drawn from the schemas where they can be (strategy 1): Settings and its sections,
-// the chat sheet, moving chats, model and options, Quick edit, profiles and their blocks, the
+// the chat sheet, moving chats, model and options, Quick Edit, profiles and their blocks, the
 // prompt library, plugins, credentials, the storage check, history, help, and the outside-change
 // dialog (D7). Each is a function from the State to its rows.
 
@@ -153,7 +153,7 @@ const profile_pick = (chat, id) =>
     chat ? `profile: ${chat.name}` : undefined,
   );
 
-// The profile dropdown (Quick edit, the profile editor): the profile and a line under it; open,
+// The profile dropdown (Quick Edit, the profile editor): the profile and a line under it; open,
 // every profile with Edit, + New, Import…, Export this, Export all. `pick` runs on a choice.
 // `edit`: the Edit button beside it (off where the sheet already has "Edit profile").
 const profile_dropdown = (state, current, sub, pick, edit = true) => {
@@ -190,19 +190,19 @@ const profile_dropdown = (state, current, sub, pick, edit = true) => {
 // The groups of Settings: name, the line under it, its own sheet (else its section), its icon.
 const GROUPS = [
   ["Plugins", "Profile blocks and the plugin library", "plugins", "plugins"],
-  ["Prompt library", "System prompts you keep and link", "prompts", "prompt"],
+  ["Prompt Library", "System prompts you keep and link", "prompts", "prompt"],
   ["Look", "Theme, accent, quick actions", null, "look"],
   ["Sites", "Pages at once, waiting for replies", null, "sites"],
-  ["Chats and storage", "Chat folder, move chats, storage check", null, "storage"],
+  ["Chats and Storage", "Chat folder, move chats, storage check", null, "storage"],
   ["Git", "History and backup", null, "retry"],
   ["Credentials", "API keys, tokens, passwords", "credentials", "char"],
-  ["Import and export", "Profiles, prompts, name clashes", null, "impexp"],
+  ["Import and Export", "Profiles, prompts, name clashes", null, "impexp"],
   ["Local API", "Address, token, folder", null, "api"],
   ["Advanced", "Reset, safe mode, logs", null, "adv"],
   ["Help", "Shortcuts, quick start", null, "help"],
 ];
 
-// Making a plugin with an AI, one section wherever it's offered (the Plugin guide, Install a
+// Making a plugin with an AI, one section wherever it's offered (the Plugin Guide, Install a
 // plugin): copy the guide with a request to fill in first, which AI works well, and the guide
 // itself folded under it.
 const ai_make_rows = (state) => {
@@ -438,12 +438,12 @@ const SHEETS = {
     const options = PP.options_get(state, chat);
     if (!read)
       return {
-        title: "Model and options",
+        title: "Model and Options",
         rows: [item({ label: "Reading the site's model list…" })],
       };
     if (read.error)
       return {
-        title: "Model and options",
+        title: "Model and Options",
         rows: [
           item({
             label: "Couldn't read the page",
@@ -453,7 +453,7 @@ const SHEETS = {
         ],
       };
     return {
-      title: "Model and options",
+      title: "Model and Options",
       rows: [
         ...(read.models.length
           ? read.models.map((m) =>
@@ -503,7 +503,7 @@ const SHEETS = {
         onClick: () => PP.sheet_open("profiles"),
       }),
       item({
-        label: "Model and options",
+        label: "Model and Options",
         sub: PP.model_get(state, PP.chat_get(state)) || "As the site has it",
         right: "›",
         onClick: () => PP.command_run("models"),
@@ -522,7 +522,7 @@ const SHEETS = {
     ],
   }),
 
-  // Quick edit (wireframe): the chat's profile by name (tap to rename), Edit profile, the profile
+  // Quick Edit (wireframe): the chat's profile by name (tap to rename), Edit profile, the profile
   // dropdown, its blocks, and what can be added to your message.
   quick: (state) => {
     const chat = PP.chat_get(state);
@@ -543,7 +543,7 @@ const SHEETS = {
             <button class="pill on" onClick=${name_save}>Save</button>
           </span>`
         : html`<button class="grow titlebtn" aria-label="Rename profile" onClick=${() => PP.ui_set(() => ({ profile_name: profile.name }))}>
-            ${profile.name}<small>Quick edit · tap the name to rename</small>
+            ${profile.name}<small>Quick Edit · tap the name to rename</small>
           </button>`,
       head_extra: html`<button class="pill big" onClick=${() => PP.sheet_open("profile", { id: profile.id })}>${PP.icon_svg("edit")} Edit profile</button>`,
       rows: [
@@ -872,7 +872,7 @@ ${b.text || ""}</textarea
   }),
 
   prompts: (state) => ({
-    title: "Prompt library",
+    title: "Prompt Library",
     rows: [
       html`<small
         >System prompts you keep. A profile links one as a block: change it here and every profile
@@ -972,7 +972,7 @@ ${p.text}</textarea
     };
   },
 
-  // Plugins (wireframe): Profile (the profile's blocks, as in the editor) | Library (what's
+  // Plugins (wireframe): Profile (the profile's blocks, as in the editor) | Catalogue (what's
   // installed, by type, with updates; more from the catalogue; sources; installing).
   plugins: (state, { tab = "profile", filter = "all" }) => {
     const reopen = (data) =>
@@ -984,9 +984,9 @@ ${p.text}</textarea
     const updates = (catalogue && catalogue.updates) || [];
     const tabs = html`<div class="tabs">
       <button class=${tab === "profile" ? "on" : ""} onClick=${() => reopen({ tab: "profile" })}>Profile</button>
-      <button class=${tab === "library" ? "on" : ""} onClick=${() => reopen({ tab: "library" })}>Library${updates.length ? html` <span class="badge">${updates.length}</span>` : null}</button>
+      <button class=${tab === "catalogue" ? "on" : ""} onClick=${() => reopen({ tab: "catalogue" })}>Catalogue${updates.length ? html` <span class="badge">${updates.length}</span>` : null}</button>
     </div>`;
-    const head_extra = PP.icon_render("play", "Plugin guide", () => PP.sheet_open("plugin_guide"));
+    const head_extra = PP.icon_render("play", "Plugin Guide", () => PP.sheet_open("plugin_guide"));
     if (tab === "profile") {
       const editing =
         state.config.profiles.find((p) => p.id === state.ui.plugins_profile) ||
@@ -1072,7 +1072,7 @@ ${p.text}</textarea
             cls: "danger",
           }),
         ),
-        label("Sources"),
+        label("Plugin Sources"),
         item({
           label: "Official",
           sub: "Zieviox/promptpipe-plugins · signed with the key built into the app",
@@ -1097,7 +1097,7 @@ ${p.text}</textarea
           }),
         ),
         item({
-          label: "Add a source…",
+          label: "Add repository…",
           sub: "A friend's plugin repository, with a signed catalogue",
           onClick: () =>
             PP.dialog_open({
@@ -1128,10 +1128,10 @@ ${p.text}</textarea
     };
   },
 
-  // The Plugin guide: making a plugin with an AI (the same section the install sheet has), and
+  // The Plugin Guide: making a plugin with an AI (the same section the install sheet has), and
   // installing what comes back.
   plugin_guide: (state) => ({
-    title: "Plugin guide",
+    title: "Plugin Guide",
     rows: [
       ...ai_make_rows(state),
       item({
@@ -1364,7 +1364,7 @@ ${p.text}</textarea
   storage_check: (state) => {
     const tests = load_get(state, "storage_check", () => PP.call_send("storage_verify", {}));
     return {
-      title: "Storage check",
+      title: "Storage Check",
       rows: (tests || [{ name: "Checking…", ok: true }]).map((s) =>
         item({ key: s.name, label: `${s.ok ? "✓" : "✕"} ${s.name}`, sub: s.why }),
       ),
@@ -1484,7 +1484,7 @@ ${p.text}</textarea
   },
 
   help: () => ({
-    title: "Shortcuts and help",
+    title: "Shortcuts and Help",
     rows: [
       label("Keys"),
       ...PP.COMMANDS.filter((c) => c.key).map((c) =>
@@ -1498,9 +1498,9 @@ ${p.text}</textarea
         "Drag a grip: reorder",
         "Back: closes what is on top",
       ].map((t) => item({ key: t, label: t })),
-      item({ label: "Quick start", right: "›", onClick: () => PP.command_run("quick_start") }),
+      item({ label: "Quick Start", right: "›", onClick: () => PP.command_run("quick_start") }),
       item({
-        label: "Plugin guide",
+        label: "Plugin Guide",
         right: "›",
         onClick: () => PP.sheet_open("guide", { name: "PLUGINS.md" }),
       }),
@@ -1508,7 +1508,7 @@ ${p.text}</textarea
   }),
 
   quick_start: (state) => ({
-    title: "Quick start",
+    title: "Quick Start",
     rows: [
       ...PP.GUIDES.map((g) =>
         item({
@@ -1663,7 +1663,7 @@ const live_render = (turn) => {
 
 // The rows some settings sections have besides their settings.
 const SECTION_EXTRAS = {
-  "Chats and storage": (state) => [
+  "Chats and Storage": (state) => [
     item({
       label: "Remove the old app's nested history folders",
       sub: "Copies the old app made of its chats folder inside itself, hundreds of levels deep",
@@ -1678,7 +1678,7 @@ const SECTION_EXTRAS = {
         if (!r) return;
         if (r.chats)
           return PP.toast(
-            `${r.chats} chats still live in there. Remove chats imported twice first (Settings › Chats and storage), then try again.`,
+            `${r.chats} chats still live in there. Remove chats imported twice first (Settings › Chats and Storage), then try again.`,
             true,
           );
         PP.toast(`Removed (${r.removed} folders)`);
@@ -1699,7 +1699,7 @@ const SECTION_EXTRAS = {
       sub: "Then restart the app",
       onClick: () => PP.call_try("storage_access_open", {}),
     }),
-    item({ label: "Storage check", right: "›", onClick: () => PP.sheet_open("storage_check") }),
+    item({ label: "Storage Check", right: "›", onClick: () => PP.sheet_open("storage_check") }),
   ],
   Git: (state) => [
     item({
@@ -1781,13 +1781,13 @@ const SECTION_EXTRAS = {
       onClick: () => PP.call_try("clipboard_write", { text: state.app.version || "" }, "Copied"),
     }),
   ],
-  "Import and export": () =>
-    PP.COMMANDS.filter((c) => c.place === "Settings › Import and export").map((c) =>
+  "Import and Export": () =>
+    PP.COMMANDS.filter((c) => c.place === "Settings › Import and Export").map((c) =>
       item({ key: c.id, label: c.label, onClick: () => PP.command_run(c.id) }),
     ),
   Help: () => [
     item({ label: "Shortcuts", right: "›", onClick: () => PP.command_run("help") }),
-    item({ label: "Quick start", right: "›", onClick: () => PP.command_run("quick_start") }),
+    item({ label: "Quick Start", right: "›", onClick: () => PP.command_run("quick_start") }),
   ],
 };
 

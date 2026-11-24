@@ -6,7 +6,7 @@
       "type": "text",
       "label": "Chat folder",
       "default": "",
-      "section": "Chats and storage"
+      "section": "Chats and Storage"
     },
     {
       "key": "chats.provider",
@@ -272,7 +272,7 @@
       "type": "choice",
       "label": "Importing a name you already have",
       "default": "ask",
-      "section": "Import and export",
+      "section": "Import and Export",
       "choices": [
         {
           "value": "ask",

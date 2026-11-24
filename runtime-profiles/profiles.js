@@ -182,7 +182,7 @@ const model_list = async (state, chat) => {
   if (!opened)
     throw {
       code: "resource_exhausted",
-      message: "Every page is in use: close one in the AI page, or allow more in Settings › Sites",
+      message: "Every page is in use: close one in the AI Page, or allow more in Settings › Sites",
     };
   return PP.call_send("site_model_list", { page: opened.id });
 };

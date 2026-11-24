@@ -66,8 +66,8 @@
     {
       "id": "old-app-import",
       "name": "Old app import",
-      "version": "1.0.0",
-      "description": "Once, on the first start: marks the old app's folders with .nomedia, backs each up whole (git history included) into a zip, then brings in its chats, Memory's summaries, profiles, prompt library and settings. The old folders are never changed otherwise; Settings › Chats and storage deletes them when you ask. Remove this plugin once you're done.",
+      "version": "1.0.1",
+      "description": "Once, on the first start: marks the old app's folders with .nomedia, backs each up whole (git history included) into a zip, then brings in its chats, Memory's summaries, profiles, prompt library and settings. The old folders are never changed otherwise; Settings › Chats and Storage deletes them when you ask. Remove this plugin once you're done.",
       "tags": [
         "passive"
       ],
@@ -75,14 +75,14 @@
       "path": "old-app-import",
       "built_in": true,
       "hashes": {
-        "plugin.json": "a400dafc13af1d1754d842c6ba544f482efce29849c1a45f8d0f2f8695151ab0",
-        "import.js": "3c5f9a2a853e80915a54328308e1f0e600e22ee434dcb17bfb52786034b7c5c7"
+        "plugin.json": "f74a304cf4400e9899498648c7941397e9960544bae82023c155930e254909d4",
+        "import.js": "647ba53b54570d9dc02e4d9615444126488d486bcd7db01ba61ba3ecc5ecd923"
       }
     },
     {
       "id": "openai",
       "name": "OpenAI-style API",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "Any service with an OpenAI-style chat API (OpenAI, OpenRouter, DeepSeek's API, a local server): its address, a credential for its host, and a model.",
       "tags": [
         "provider",
@@ -92,8 +92,8 @@
       "path": "openai",
       "built_in": true,
       "hashes": {
-        "plugin.json": "a2b22c49c8a5dd6c513074f606778fe3cd0fef35bc0edfb76723d676c56125a3",
-        "api.js": "a8e0bc6a9a85aa337ceb57fa4e24971ade45bae099e838417383be56505e12b6"
+        "plugin.json": "3a478ac17b98f4eb7a576ddfdd307aeb7ed8933d40459c11fdde7eecdde0de49",
+        "api.js": "98a5abf4dd7da341e38517fbdc604facef71fdf6e433db97868f987f029b86a0"
       }
     },
     {
@@ -176,7 +176,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "0e6275a6bf348e83a0a717c0a0e71c95c552cb9c6a15fdee5990e5a571754c65",
-        "profiles.js": "1c7007769d1106b2cc1fe2e1f3a1489151a008ab9a5861d7c88f3634d83a51f7",
+        "profiles.js": "832df26dfb9810c878755269624be1e66c61aac47c02be71c9bea78f2db03b9b",
         "templates.json": "859a8257bf552b8a723ec65e239551363acbc3f7fb02d77a94d23e0f875fa0a8",
         "templates/editor.md": "fc44296694be8d43a7db844deb8c299b22bdc9ab8649b9cf4e59ad40e66290c7",
         "templates/development.md": "eeb8433318d9c753d42280b8cc53321ebfbd397110d1493c34981fc2734c73b3",
@@ -203,7 +203,7 @@
         "plugin.json": "4eb815309c8a9613057ac9af10cbb2b2b9e054a6c1128f144df76272d8afae14",
         "records.js": "903c00be72dbcce1c1196a446246a0224a2af547fe68cf9e64bc8442d8b1207a",
         "export.js": "57c15f6e1952b61d3203a50b1d4d0114d195e489997907958c4707e6d00479dc",
-        "schemas.json": "a18432c6232ee5916d6d6386fe81d2fdcfcb313fa6c2af76d58ba42b76c6c30f"
+        "schemas.json": "5dfbafdf77b51bd1c3d73d2f58a090a6b9deb2154a0423413e073e54c0556a88"
       }
     },
     {
@@ -224,15 +224,15 @@
         "vendor/htm.js": "7a31776e04bd4afde0d4308177d26f377716fcf7e4bd70be590746d6aa594f08",
         "vendor/markdown-it.js": "b06c85174d2b1bb6339dfa1f0bc938cea57f62663f132a77abbf651562542443",
         "vendor/sortable.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
-        "screen.css": "7ace24cca4d2ff3e0ee852ca07d39a148a67e4b9ce8fb39acc409bdc68c49cf0",
+        "screen.css": "8bdce56e092e491c3a076d97ecc9db7c0334a21ad74b300d0ebcb625e0e03305",
         "icons.json": "53dc2b5bab1b94f18db0973921713292b9243dfee62822a78c2832b1fb7706c2",
         "view.js": "a470061398930c66980843c20c7ba1ed7c085e07bd30984a39933e616af3af4a",
-        "commands.js": "6474d5f6387242c9d808b29edba8838ff88fd7b56b0c5c115065f1dbdd2b85dc",
-        "chat.js": "c3e49601fbb55a816372895aa4e2d392c428159cfa5dec67b76b5ac2b7afdf6c",
-        "lists.js": "828b8c406c5ba9537507623d95b49f534d76b5cc4d411b501e96c48ff6e3c5bf",
-        "actions.js": "98bcfd4db2b5c531ea64fe27bcc1ee0fa99866258b92328c139a5280fd2de7f6",
-        "sheets.js": "59ac5a1edcc96e45ab4b1dd9e0f2c453423bde6b14b7f88565b89c71c8bfd0a4",
-        "screen.js": "abb7d290d8435aaaac02f344a75f994c8f134d826bfab8e30e556ed8d9de1d5a"
+        "commands.js": "236c1b565e05f468e84509ba708e5cb471f38c644c30cf325c618b5a75fd4ec1",
+        "chat.js": "d08fb0298c5d519586403e879394abce46fdb0b09f84a3f32addf314047cd195",
+        "lists.js": "317090aa3b0efd8d410c0a4df0fb8a31daf27a5a2f2b6f4c67a5437146675568",
+        "actions.js": "fb7d30259ba2af6e29eb959ac09717926f4136998fbfc69d1e5afe59a9d1f2ac",
+        "sheets.js": "fdad1de76291080cbee5317c35491d605e8bd400c22bf47bd7a8600965609141",
+        "screen.js": "aa56058dbd04b1504813dd219fad92e87746f0f7eb455c2b984191fa86ae42a9"
       }
     },
     {

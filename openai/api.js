@@ -43,7 +43,7 @@ const chat_send = async (text, context) => {
   ];
   const model = PP.model_get(state, chat);
   if (!model)
-    throw { code: "failed_precondition", message: "Pick a model first (Model and options)" };
+    throw { code: "failed_precondition", message: "Pick a model first (Model and Options)" };
   const id = PP.id_create();
   let reply = "";
   let thinking = "";
@@ -73,7 +73,7 @@ const chat_send = async (text, context) => {
   }
 };
 
-// The service's models, for Model and options.
+// The service's models, for Model and Options.
 const model_list = async (state, chat) => {
   const r = response_check(await PP.call_send("http_fetch", request_build(chat, null)));
   const models = (JSON.parse(r.body).data || []).map((m) => m.id).sort();

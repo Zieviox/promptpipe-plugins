@@ -230,11 +230,11 @@ textarea.field { resize: vertical; min-height: 6em; }
 .reply { font-size: var(--reply-size, 14px); }
 .reply > :first-child { margin-top: 0; }
 .reply > :last-child { margin-bottom: 0; }
-/* The chats drawer (wireframe): header, lists, folders, Pinned, the foot with Settings and Quick start. */
+/* The chats drawer (wireframe): header, lists, folders, Pinned, the foot with Settings and Quick Start. */
 .drawer h2 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; font-size: 17px; }
 .drawer .grow, .chips .grow { flex: 1; min-width: 0; }
 .item.auto { width: auto; flex: none; }
-/* Only the chats scroll: the header and search stay at the top and the foot (Settings, Quick start)
+/* Only the chats scroll: the header and search stay at the top and the foot (Settings, Quick Start)
    at the bottom, however many chats there are. */
 .lists { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .drawer > * { flex-shrink: 0; }
@@ -272,7 +272,7 @@ textarea.field { resize: vertical; min-height: 6em; }
 .sheet.tall { height: calc(100% - 44px); }
 .ch .svg svg { width: 16px; height: 16px; }
 .ondot { width: 10px; height: 10px; border-radius: 50%; background: var(--text); flex: none; }
-/* Quick edit and the profile editor (wireframe): name to rename, Edit profile, the dropdown, block rows. */
+/* Quick Edit and the profile editor (wireframe): name to rename, Edit profile, the dropdown, block rows. */
 .sheet h2 .titlebtn { flex: 1; min-width: 0; text-align: left; font-weight: 600; font-size: 15px; }
 .sheet h2 .titlebtn small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
 .sheet h2 .namefield { display: flex; gap: 6px; align-items: center; }

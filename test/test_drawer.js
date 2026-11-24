@@ -109,7 +109,7 @@ test(
   },
 );
 
-// However many chats there are, Settings and Quick start stay at the bottom of the drawer and
+// However many chats there are, Settings and Quick Start stay at the bottom of the drawer and
 // only the chats scroll (the spec's Settings pill, bottom left).
 test("the drawer keeps Settings in reach with many chats (UC16)", { timeout: 60000 }, async () => {
   const core = core_build(pick);
@@ -131,7 +131,7 @@ test("the drawer keeps Settings in reach with many chats (UC16)", { timeout: 600
     const bottom = await page.$eval(".drawerfoot", (e) => e.getBoundingClientRect().bottom);
     assert.ok(bottom <= 800, `the foot is on screen (bottom at ${bottom})`);
     await page.click(".drawerfoot >> text=Settings");
-    await page.waitForSelector("text=Prompt library", { timeout: 3000 });
+    await page.waitForSelector("text=Prompt Library", { timeout: 3000 });
   } finally {
     await browser.close();
     server.close();

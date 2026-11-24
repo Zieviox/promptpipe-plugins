@@ -1,8 +1,8 @@
 {
   "id": "old-app-import",
   "name": "Old app import",
-  "version": "1.0.0",
-  "description": "Once, on the first start: marks the old app's folders with .nomedia, backs each up whole (git history included) into a zip, then brings in its chats, Memory's summaries, profiles, prompt library and settings. The old folders are never changed otherwise; Settings › Chats and storage deletes them when you ask. Remove this plugin once you're done.",
+  "version": "1.0.1",
+  "description": "Once, on the first start: marks the old app's folders with .nomedia, backs each up whole (git history included) into a zip, then brings in its chats, Memory's summaries, profiles, prompt library and settings. The old folders are never changed otherwise; Settings › Chats and Storage deletes them when you ask. Remove this plugin once you're done.",
   "tags": ["passive"],
   "pp": 1,
   "files": ["import.js"]

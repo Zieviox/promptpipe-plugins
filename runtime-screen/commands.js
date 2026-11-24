@@ -263,9 +263,9 @@ const COMMANDS = [
   ),
   C("chat_previous", "Previous chat", "Chats", "Alt+ArrowUp", (s) => chat_step(s, -1)),
   C("chat_next", "Next chat", "Chats", "Alt+ArrowDown", (s) => chat_step(s, 1)),
-  C("site_view", "Show AI page", "Chats", "Alt+S", site_view_toggle),
+  C("site_view", "Show AI Page", "Chats", "Alt+S", site_view_toggle),
   C("site_chats", "Open a chat from the site", "Chats", "", () => sheet_open("site_chats")),
-  C("models", "Model and options", "Provider sheet", "Ctrl+M", () => sheet_open("models")),
+  C("models", "Model and Options", "Provider sheet", "Ctrl+M", () => sheet_open("models")),
   C("site_link", "Link this chat to the open page", "Provider sheet", "", (s) => PP.chat_link(s)),
   C("site_import", "Import messages from the linked site chat", "Provider sheet", "", (s) =>
     PP.site_import(s, "all", true),
@@ -276,7 +276,7 @@ const COMMANDS = [
   C("site_decode", "Decode the page's newest reply (preview)", "Provider sheet", "", (s) =>
     PP.site_import(s, "newest", false),
   ),
-  C("chat_sheet", "Chat details", "Chat", "F2", () => sheet_open("chat")),
+  C("chat_sheet", "Chat Details", "Chat", "F2", () => sheet_open("chat")),
   C("chat_tag", "Add chat tag", "Chat", "Ctrl+T", () =>
     PP.dialog_open({
       title: "Tag for every message in this chat (name# numbers them)",
@@ -296,7 +296,7 @@ const COMMANDS = [
   C("composer_big", "Bigger or smaller message box", "Message box", "Ctrl+E", () =>
     PP.ui_set((ui) => ({ composer: { big: !ui.composer.big } })),
   ),
-  C("quick_edit", "Quick edit", "Message box", "", () => sheet_open("quick")),
+  C("quick_edit", "Quick Edit", "Message box", "", () => sheet_open("quick")),
   C("text_file", "Put a text file in the box", "Message box", "", (s) =>
     PP.text_files_add(s, false),
   ),
@@ -309,25 +309,25 @@ const COMMANDS = [
   ),
   C("profiles", "Profiles: new, import, export", "Profile", "", () => sheet_open("profiles")),
   C("profile_next", "Next profile", "Profile", "Ctrl+P", profile_next),
-  C("prompts", "Prompt library", "Settings", "", () => sheet_open("prompts")),
+  C("prompts", "Prompt Library", "Settings", "", () => sheet_open("prompts")),
   C("plugins", "Plugins", "Settings", "Ctrl+Shift+P", () => sheet_open("plugins")),
-  C("plugin_guide", "Plugin guide", "Settings › Plugins", "", () => sheet_open("plugin_guide")),
+  C("plugin_guide", "Plugin Guide", "Settings › Plugins", "", () => sheet_open("plugin_guide")),
   C("plugins_reload", "Reload plugins", "Settings › Plugins", "Ctrl+Shift+R", () =>
     PP.call_try("app_start", { mode: "normal" }),
   ),
-  C("profiles_export", "Export all profiles", "Settings › Import and export", "", (s, d) =>
+  C("profiles_export", "Export all profiles", "Settings › Import and Export", "", (s, d) =>
     PP.records_export("profiles", (d && d.ids) || s.config.profiles.map((p) => p.id)),
   ),
-  C("profiles_import", "Import a profile", "Settings › Import and export", "", () =>
+  C("profiles_import", "Import a profile", "Settings › Import and Export", "", () =>
     PP.records_import("profiles"),
   ),
-  C("prompts_export", "Export the prompt library", "Settings › Import and export", "", (s) =>
+  C("prompts_export", "Export the prompt library", "Settings › Import and Export", "", (s) =>
     PP.records_export(
       "prompts",
       s.prompts.map((p) => p.id),
     ),
   ),
-  C("prompts_import", "Import prompts", "Settings › Import and export", "", () =>
+  C("prompts_import", "Import prompts", "Settings › Import and Export", "", () =>
     PP.records_import("prompts"),
   ),
   C("plugin_file_install", "Install a plugin from a file", "Settings › Plugins", "", async () => {
@@ -336,21 +336,21 @@ const COMMANDS = [
     if (file) PP.command_run("plugin_install", { zip: PP.base64_decode(file.data) });
   }),
   C("credentials", "Credentials", "Settings", "", () => sheet_open("credentials")),
-  C("storage_check", "Storage check", "Settings › Chats and storage", "", () =>
+  C("storage_check", "Storage Check", "Settings › Chats and Storage", "", () =>
     sheet_open("storage_check"),
   ),
-  C("history", "Git history", "Settings › Chats and storage", "", () =>
+  C("history", "Git History", "Settings › Chats and Storage", "", () =>
     sheet_open("history", { all: true }),
   ),
   C("settings", "Settings", "Settings", "Ctrl+,", () => sheet_open("settings")),
   C("scale_up", "Bigger UI", "Settings › Look", "Ctrl+=", (s) => scale_set(s, 5)),
   C("scale_down", "Smaller UI", "Settings › Look", "Ctrl+-", (s) => scale_set(s, -5)),
   C("scale_reset", "UI scale 100%", "Settings › Look", "Ctrl+0", (s) => scale_set(s, 0)),
-  C("help", "Shortcuts and help", "Help", "Ctrl+?", () => sheet_open("help")),
-  C("help_mode", "Help mode", "Help", "", () =>
+  C("help", "Shortcuts and Help", "Help", "Ctrl+?", () => sheet_open("help")),
+  C("help_mode", "Help Mode", "Help", "", () =>
     PP.ui_set((ui) => ({ help: !ui.help, help_card: null })),
   ),
-  C("quick_start", "Quick start", "Help", "", () => sheet_open("quick_start")),
+  C("quick_start", "Quick Start", "Help", "", () => sheet_open("quick_start")),
   C("find", "Find", "everywhere", "Ctrl+K", () => sheet_open("find")),
   C("undo", "Undo", "everywhere", "Ctrl+Z", undo_run),
   C("logs", "Logs", "Settings › Advanced", "", (state) => {

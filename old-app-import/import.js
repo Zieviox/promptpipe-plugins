@@ -501,7 +501,7 @@ const old_import = async () => {
     ...backups.map((b) =>
       b.backup
         ? `**Backed up:** ${b.path} (${Math.ceil(b.size / MB)} MB) to \`${b.backup}\` in the app folder.`
-        : `**Not backed up:** ${b.path}, ${b.why}. It's unchanged apart from a .nomedia marker, so nothing is lost; free some space and use Settings › Chats and storage › Import the old app's content again for a backup.`,
+        : `**Not backed up:** ${b.path}, ${b.why}. It's unchanged apart from a .nomedia marker, so nothing is lost; free some space and use Settings › Chats and Storage › Import the old app's content again for a backup.`,
     ),
   ]);
 };
@@ -542,19 +542,19 @@ PP.plugin_set({
     {
       id: "old_app_delete",
       label: "Delete the old app's folders",
-      place: "Settings › Chats and storage",
+      place: "Settings › Chats and Storage",
       run: folders_delete,
     },
     {
       id: "old_app_duplicates_remove",
       label: "Remove chats imported twice",
-      place: "Settings › Chats and storage",
+      place: "Settings › Chats and Storage",
       run: duplicates_remove,
     },
     {
       id: "old_app_import",
       label: "Import the old app's content again",
-      place: "Settings › Chats and storage",
+      place: "Settings › Chats and Storage",
       run: () =>
         PP.apply_try((s) =>
           PP.record_set(s, { collection: "settings", fields: { [DONE]: null } }),

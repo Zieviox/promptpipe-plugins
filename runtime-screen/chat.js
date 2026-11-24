@@ -554,7 +554,7 @@ const composer_render = (state) => {
     if (!e.target.closest("button")) e.preventDefault(), el.focus();
   };
   return html`${edit_bar}<div class=${`composer${state.ui.composer.big ? " big" : ""}`} onMouseDown=${edge}>
-    ${PP.icon_render("stackadd", "Quick edit and add", () => (document.activeElement?.blur(), PP.command_run("quick_edit")), false, "icon", "quick_edit")}
+    ${PP.icon_render("stackadd", "Quick Edit and add", () => (document.activeElement?.blur(), PP.command_run("quick_edit")), false, "icon", "quick_edit")}
     <div class="boxscroll">
       <textarea
         id="message"
