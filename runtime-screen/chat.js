@@ -194,25 +194,36 @@ const message_render = (state, turn) => {
   </div>`;
 };
 
-// "Thought for N s · sent with N": opens the thinking, what was sent with the message, and the
-// full text of what went out.
-const thin_render = (state, turn) => {
-  const id = `think:${turn.id}`;
+// The thinking, one block for a reply on its way and a saved one, above the reply: a row saying
+// "Thinking · N s" (pulsing) while it thinks and "Thought for N s" after, and the thinking under
+// it. Open while it thinks; folded once the reply is being written or saved. A tap folds or
+// unfolds it, and that choice stays with the reply (`key`: the turn's id, the same before and
+// after it's saved).
+const thinking_render = (state, key, text, { live = false, ms = 0 } = {}) => {
+  if (!text) return null;
+  const chosen = (state.ui.thinking_open || {})[key];
+  const open = chosen ?? live;
+  const secs = Math.max(1, Math.round(ms / 1000));
+  const label = live ? `Thinking · ${secs} s` : ms ? `Thought for ${secs} s` : "Thought";
+  const toggle = () =>
+    PP.ui_set((ui) => ({ thinking_open: { ...(ui.thinking_open || {}), [key]: !open } }));
+  return html`<button class="thin" aria-expanded=${String(open)} onClick=${toggle}>
+      ${live ? html`<span class="pulse"></span>` : null}${label} ${PP.icon_svg(open ? "up" : "down")}
+    </button>
+    ${open ? html`<div class="thinking">${PP.markdown_render(text, "thought")}</div>` : null}`;
+};
+
+// "Sent with N": what was sent with the message, and the full text of what went out.
+const sent_render = (state, turn) => {
+  const id = `sent:${turn.id}`;
   const open = unfolded(state, id);
   const sent = turn.blocks || [];
-  const label = [
-    turn.thinking ? `Thought for ${Math.max(1, Math.round((turn.thought_ms || 0) / 1000))} s` : "",
-    sent.length ? `sent with ${sent.length}` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  if (!label) return null;
-  return html`<button class="thin" onClick=${() => fold_toggle(id)}>${PP.icon_svg(open ? "up" : "down")} ${label[0].toUpperCase() + label.slice(1)}</button>
+  if (!sent.length) return null;
+  return html`<button class="thin" onClick=${() => fold_toggle(id)}>${PP.icon_svg(open ? "up" : "down")} Sent with ${sent.length}</button>
     ${
       open
         ? html`<div class="thinbox">
-      ${turn.thinking ? html`<div class="thinking">${PP.markdown_render(turn.thinking, "thought")}</div>` : null}
-      ${sent.length ? html`<small>Sent with: ${sent.join(", ")}</small>` : null}
+      <small>Sent with: ${sent.join(", ")}</small>
       <button class="thin" onClick=${() => PP.sheet_open("turn", { id: turn.id })}>Show the full text</button>
     </div>`
         : null
@@ -269,8 +280,9 @@ const turn_render = (state, turn, last) =>
     ${message_render(state, turn)}
     <div class="ai">
       <small>${provider_name_get(state, turn)}${turn.model ? ` · ${turn.model}` : ""}</small>
+      ${thinking_render(state, turn.id, turn.thinking, { ms: turn.thought_ms })}
       ${PP.markdown_render(turn.reply)}
-      ${thin_render(state, turn)}
+      ${sent_render(state, turn)}
       ${
         turn.error
           ? html`<div class="notice">
@@ -344,21 +356,19 @@ const send_render = (state, send) => {
       </div>
     </div>`;
   }
-  // On its way: the thinking in full as it comes, then the reply as it's written. The status line
-  // says what's happening in words (no character counts); a pulsing dot while it's alive.
-  const secs = Math.max(1, Math.round((Date.now() - Date.parse(send.at || 0)) / 1000));
-  const live = send.thinking && !send.reply;
-  const status = live
-    ? `Thinking · ${secs} s`
-    : send.reply
-      ? "Writing…"
-      : /chars$/.test(send.progress || "")
-        ? "Thinking…"
-        : send.progress || `Waiting for ${site || "the site"}…`;
+  // On its way: the thinking (the same block a saved reply has: open while it thinks, folded once
+  // the reply is written), then the reply as it's written. While it thinks the thinking's row is
+  // the status; otherwise a status line says what's happening in words, with a pulsing dot.
+  const thinking_live = !!send.thinking && !send.reply;
+  const status = send.reply
+    ? "Writing…"
+    : /chars$/.test(send.progress || "")
+      ? "Thinking…"
+      : send.progress || `Waiting for ${site || "the site"}…`;
   return html`<div class="turn" key=${send.id}>
     ${you}
-    <div class="live"><span class="pulse"></span>${status}</div>
-    ${live ? html`<div class="thinking live">${PP.markdown_render(send.thinking, "thought")}</div>` : null}
+    ${thinking_live ? null : html`<div class="live"><span class="pulse"></span>${status}</div>`}
+    ${thinking_render(state, send.turn, send.thinking, { live: thinking_live, ms: PP.thought_ms_get(send) })}
     ${send.reply ? PP.markdown_render(send.reply) : null}
   </div>`;
 };

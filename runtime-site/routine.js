@@ -127,20 +127,33 @@ const site_ref_get = (el) => {
   return "";
 };
 
-const snapshot_take = (provider) =>
-  Object.fromEntries(
+// Before sending: the replies on the page (per selector), and under THOUGHT the thinking already
+// there with its text, so an earlier reply's thinking isn't taken for the new one's (Object.entries
+// leaves the symbol out).
+const THOUGHT = Symbol("thinking before");
+const snapshot_take = (provider) => ({
+  ...Object.fromEntries(
     selectors_get(provider, "reply").map((s) => {
       const els = all_find(s);
       return [s, { count: els.length, last: text_get(els[els.length - 1]) }];
     }),
-  );
+  ),
+  [THOUGHT]: new Map(
+    selectors_get(provider, "thinking").flatMap(all_find).map((el) => [el, text_get(el)]),
+  ),
+});
 
-// The newest thinking on the page: a shown one first, from the selectors in order (a site can keep
+// The newest reply's thinking: a shown one first, from the selectors in order (a site can keep
 // an earlier reply's thinking in a closed panel; Qwen keeps its drawer's, so the live step title
 // in the reply was never reached); only when none is shown, a folded one (DeepSeek folds its
-// thinking in place). `from` says which selector (and "h" for hidden), for the reply's log.
-const thinking_pick = (provider) => {
-  const lists = selectors_get(provider, "thinking").map(all_find);
+// thinking in place). Thinking that was on the page before sending (`before`) and hasn't changed
+// is an earlier reply's, and left out. `from` says which selector (and "h" for hidden), for the
+// reply's log.
+const thinking_pick = (provider, before = {}) => {
+  const old = before[THOUGHT] || new Map();
+  const lists = selectors_get(provider, "thinking").map((s) =>
+    all_find(s).filter((el) => !old.has(el) || old.get(el) !== text_get(el)),
+  );
   for (let i = 0; i < lists.length; i += 1) {
     const shown = lists[i].filter(visible);
     if (shown.length) return { el: shown[shown.length - 1], from: String(i) };
@@ -197,7 +210,7 @@ const reply_read = async (provider, before, limits = {}, old = null) => {
       }
     }
     const busy = !!element_find(selectors_get(provider, "stop"));
-    const picked = thinking_pick(provider);
+    const picked = thinking_pick(provider, before);
     const th = thinking_format(provider, picked.el);
     const next = [
       busy,

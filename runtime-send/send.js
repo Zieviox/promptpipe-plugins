@@ -17,14 +17,21 @@ const send_remove = (state, id) => ({ ...state, sends: state.sends.filter((s) =>
 
 const send_get = (id) => PP.state_get().sends.find((s) => s.id === id);
 
-// A streaming reply's parts into the send: progress, the thinking and the reply so far.
+// A streaming reply's parts into the send: progress, the thinking and the reply so far, and when
+// the thinking and the writing first showed (how long it thought: the sites don't say).
 const reply_apply = (send, part) => ({
   ...send,
   progress: part.progress ?? send.progress,
   thinking: part.thinking || send.thinking,
   reply: part.reply || send.reply,
+  thinking_at: send.thinking_at || (part.thinking ? Date.now() : 0),
+  writing_at: send.writing_at || (part.reply ? Date.now() : 0),
   updates_got: (send.updates_got || 0) + 1,
 });
+// How long it thought: from the first thinking to the first of the reply (or now); 0 when the
+// thinking only came with the finished reply.
+const thought_ms_get = (send) =>
+  send.thinking_at ? (send.writing_at || Date.now()) - send.thinking_at : 0;
 
 // ---------- attachments (UC48) ----------
 
@@ -446,7 +453,7 @@ const turn_save = async (id, answer) => {
     received: answer.received,
     reply: answer.reply,
     thinking: answer.thinking || "",
-    thought_ms: answer.thought_ms || 0,
+    thought_ms: answer.thought_ms || thought_ms_get(send),
     tags: tagged.tags,
     profile: answer.profile || "",
     model: answer.model || "",
@@ -740,6 +747,7 @@ const reply_changed = (event) => {
 
 PP.plugin_set({
   functions: {
+    thought_ms_get,
     page_add,
     message_send,
     attachments_check,

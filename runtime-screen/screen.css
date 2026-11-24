@@ -84,7 +84,8 @@ textarea.field { resize: vertical; min-height: 6em; }
 .code-copy { position: absolute; top: 4px; right: 4px; padding: 2px 8px; font-size: 12px; color: var(--muted); background: var(--raise2); border-radius: 8px; }
 .thinking { border-left: 2px solid var(--line); padding-left: 10px; color: var(--muted); font-size: 13px; user-select: text; }
 .md.thought { font-size: 13px; color: var(--muted); }
-.thinking.live { margin: 4px 0 6px; }
+.thin[aria-expanded] { gap: 6px; }
+.thin + .thinking { margin: 2px 0 8px; }
 .actions { display: flex; gap: 2px; margin-top: 4px; align-items: center; }
 .failed .you, .queued .you { opacity: .7; }
 /* A message's state under it: on its way, failed, waiting its turn. */

@@ -115,7 +115,7 @@
     {
       "id": "qwen-chat",
       "name": "Qwen Chat",
-      "version": "3.4.0",
+      "version": "3.5.0",
       "description": "The Qwen web chat (chat.qwen.ai) with your own login (guests get \"no permission\"); Thinking and Search options.",
       "tags": [
         "provider",
@@ -125,8 +125,8 @@
       "path": "qwen-chat",
       "built_in": true,
       "hashes": {
-        "plugin.json": "081f1a16dea65043614be81729bcc41eb39e1d9b17e9389b2821504f63939022",
-        "site.js": "0badd88482bf8b5692970673617a49640ffe361daf9370de08348e31b202954d"
+        "plugin.json": "e9743eab606854459321b1f84673e98f9fc731433dae49601758e26d93da0c4a",
+        "site.js": "c6cb38e81a42cfa4685da0e7713a9669dc9d81e7a07a328837fb583a44c13933"
       }
     },
     {
@@ -224,11 +224,11 @@
         "vendor/htm.js": "7a31776e04bd4afde0d4308177d26f377716fcf7e4bd70be590746d6aa594f08",
         "vendor/markdown-it.js": "b06c85174d2b1bb6339dfa1f0bc938cea57f62663f132a77abbf651562542443",
         "vendor/sortable.js": "bf4241bc73fef7f11c59a283a69fe8051cdd31c6d8ff5a2b9ba219e7831fcf76",
-        "screen.css": "0744155c14ca151ea9e971d75527688d75f9211e94b79b091dda6f2e0598596d",
+        "screen.css": "ddda378ef5c827d5af5d0ebd556e7ba8e043cbbcc4b466fb05188b7528d198b8",
         "icons.json": "53dc2b5bab1b94f18db0973921713292b9243dfee62822a78c2832b1fb7706c2",
         "view.js": "bf8d4517f4626febcbf8198a887bb76042f9c7b275c37d87fca665f98f5916d6",
         "commands.js": "0d33236636661a9bbf8c6f1834e6c217afdd2da2fd9ab38495ac24c5c1bca7ed",
-        "chat.js": "2a2fcc9df68f828ca006911a04a906693f3604a1e0e819cb5872664175bdd2f0",
+        "chat.js": "29cc73f611400f2bd26d0790d225cfcdc543afcff4b6190ae70c5c5cfae33fa6",
         "lists.js": "d78c9723856d61aa623ae584dc5003138a2b4d0cb45da090daba77c0489c38bc",
         "actions.js": "98bcfd4db2b5c531ea64fe27bcc1ee0fa99866258b92328c139a5280fd2de7f6",
         "sheets.js": "6447a6da549d2eb1d49943b39d7923675a788278427e5738f60eb5cd255f74e2",
@@ -248,7 +248,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "9b6436de5ba8bf82b576f1d84d6ef894efdec2a349718352595ae84929323b3c",
-        "send.js": "620ef18c7ebb506f7415bb559a340a28260a375324f51c672cf12864fabd8492"
+        "send.js": "8b6bf9785798f9c14b111c84ea4f479b2070ce891828fc461deb5cf9459fd5a2"
       }
     },
     {
@@ -266,7 +266,7 @@
         "plugin.json": "dff315a38622c60d535a39e731a79ce71624c5e60e73b8da6ae157fc542eeb3a",
         "vendor/turndown.js": "ead805af2012a8434b58f1dab07b452370a7dcd3e9665ff64fc1d61dd2e38e9a",
         "vendor/turndown-plugin-gfm.js": "cf744cc1b7580f06d64ce236a4ff2630a53d389eccf2133a09d71ca443511912",
-        "routine.js": "3216f52ee770a966c82a1ebe987ff82ff65614d439b23f13a9cc8cfb8f961b72"
+        "routine.js": "74aae86a5e1fe23dca2e1757c338cb9c0e31af188cc943002ffe4d75c4c0dcbe"
       }
     },
     {

@@ -262,6 +262,65 @@ test(
 );
 
 test(
+  "an earlier reply's thinking still shown on the page is not taken for the new reply's",
+  { timeout: 30000 },
+  async () => {
+    const browser = await chromium.launch();
+    try {
+      const page = await browser.newPage();
+      await page.setContent(`<div class="drawer-think">an earlier reply's thinking</div>
+      <textarea id="in"></textarea><button id="send">Send</button><div id="log"></div>
+      <script>
+        document.getElementById("send").onclick = () => {
+          const box = document.getElementById("in"); box.value = "";
+          const u = document.createElement("div"); u.className = "user"; u.textContent = "hi"; log.append(u);
+          const stop = document.createElement("button"); stop.id = "stop"; document.body.appendChild(stop);
+          const title = document.createElement("div"); title.className = "step"; log.append(title);
+          const answer = document.createElement("div"); answer.className = "answer"; log.append(answer);
+          const steps = ["Reading the question", "Weighing it up", "Writing"];
+          let i = 0;
+          const t = setInterval(() => {
+            if (i < steps.length) title.textContent = steps[i];
+            else answer.textContent += " word";
+            if (++i >= 8) clearInterval(t), stop.remove();
+          }, 250);
+        };
+      </script>`);
+      const events = await page.evaluate(async (code) => {
+        const events = [];
+        const PP = {
+          event_send: (n, d) => events.push(d),
+          pause: (ms) => new Promise((r) => setTimeout(r, ms)),
+          cancelled: () => false,
+          stages: {},
+          defaults: {},
+        };
+        const provider = {
+          id: "x",
+          settle_ms: 600,
+          selectors: {
+            input: ["#in"],
+            send: ["#send"],
+            stop: ["#stop"],
+            reply: [".answer"],
+            user: [".user"],
+            thinking: [".drawer-think", ".step"],
+          },
+        };
+        const stages = new Function("PP", "provider", code)(PP, provider);
+        await stages.site_send({ text: "hi", limits: {} }, provider);
+        return events;
+      }, CODE);
+      const thoughts = [...new Set(events.map((e) => e.thinking).filter(Boolean))];
+      assert.ok(!thoughts.includes("an earlier reply's thinking"), `not the earlier one: ${thoughts}`);
+      assert.deepEqual(thoughts.slice(0, 3), ["Reading the question", "Weighing it up", "Writing"]);
+    } finally {
+      await browser.close();
+    }
+  },
+);
+
+test(
   "Send again uses the reply's Regenerate; the version arrows bring the wanted version back",
   { timeout: 30000 },
   async () => {
