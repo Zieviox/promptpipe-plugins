@@ -39,7 +39,8 @@ const core_build = (pick = (id) => id.startsWith("runtime-")) => {
         : [{ path: p, data: files[`${root}/${p}`], revision: "r" }];
     },
     file_write: ({ root, path: p, data }) => (
-      (files[`${root}/${p}`] = data), { revision: `r${(n += 1)}` }
+      (files[`${root}/${p}`] = data),
+      { revision: `r${(n += 1)}` }
     ),
     file_delete: ({ root, path: p }) => (delete files[`${root}/${p}`], {}),
     chats_folder_get: () => ({ folder: "/phone/chats", default: "/phone/chats" }),
@@ -74,10 +75,14 @@ const server_start = (core) =>
         return req.on("end", () => {
           const e = JSON.parse(body);
           const answer = core[e.name];
-          const reply = answer
-            ? { type: "reply", id: e.id, data: answer(e.data) }
-            : { type: "reply", id: e.id, error: { code: "unimplemented", message: e.name } };
-          send("application/json", JSON.stringify(reply));
+          if (!answer) {
+            const error = { code: "unimplemented", message: e.name };
+            return send("application/json", JSON.stringify({ type: "reply", id: e.id, error }));
+          }
+          // An answer can take its time (a test's slow call).
+          Promise.resolve(answer(e.data)).then((data) =>
+            send("application/json", JSON.stringify({ type: "reply", id: e.id, data })),
+          );
         });
       }
       res.writeHead(404);

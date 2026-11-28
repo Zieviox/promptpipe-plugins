@@ -238,38 +238,44 @@ const chat_rename = (state, name) => {
   );
 };
 
-// Deleted chats leave the State and the folder; they stay in the history (UC17). Their messages
-// are loaded first, so Undo brings the whole chat back.
+// A chat's files deleted (their saved revisions expected, so an outside edit is kept); the paths.
+const chat_files_delete = async (state, chats) => {
+  const paths = chats.flatMap((c) => [
+    `.promptpipe/chats/${c.id}/meta.json`,
+    `.promptpipe/chats/${c.id}/turns.json`,
+    c.file,
+  ]);
+  for (const path of paths) {
+    const expected = (state.revisions || {})[`chats/${path}`];
+    await PP.call_send("file_delete", { root: "chats", path, expected }).catch(() => null);
+  }
+  return paths;
+};
+
+// Deleted chats leave the folder, then the State; they stay in the history (UC17). Their messages
+// are loaded first, and the files go before Undo is offered, so an Undo writes them back after
+// the deletes, never between them (N5).
 const chats_delete = async (ids) => {
   for (const id of ids) await PP.chat_load(id);
   const state = PP.state_get();
   const gone = state.chats.filter((c) => ids.includes(c.id));
   if (!gone.length) return;
   const label = gone.length === 1 ? `deleted: ${gone[0].name}` : `deleted: ${gone.length} chats`;
+  const paths = await chat_files_delete(state, gone);
+  const remove = (s) => ({
+    state: {
+      ...s,
+      chats: s.chats.filter((c) => !ids.includes(c.id)),
+      turns: s.turns.filter((t) => !ids.includes(t.chat)),
+    },
+    targets: [],
+  });
   await PP.apply_try(
-    (s) => ({
-      state: {
-        ...s,
-        chats: s.chats.filter((c) => !ids.includes(c.id)),
-        turns: s.turns.filter((t) => !ids.includes(t.chat)),
-      },
-      targets: [],
-    }),
+    remove,
     label,
     gone.length === 1 ? "Chat deleted" : `${gone.length} chats deleted`,
   );
   PP.ui_set((ui) => ({ chat: ids.includes(ui.chat) ? null : ui.chat, sheets: [] }));
-  const paths = gone.flatMap((c) => [
-    `.promptpipe/chats/${c.id}/meta.json`,
-    `.promptpipe/chats/${c.id}/turns.json`,
-    c.file,
-  ]);
-  for (const path of paths)
-    await PP.call_send("file_delete", {
-      root: "chats",
-      path,
-      expected: (state.revisions || {})[`chats/${path}`],
-    }).catch(() => null);
   await PP.repo_commit(paths, label).catch((e) => PP.toast(e.message, true));
 };
 

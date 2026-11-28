@@ -1,7 +1,7 @@
 {
   "id": "runtime-screen",
   "name": "Screen",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The app's screen: the chat, the chats list, the site view's bar, Find, every sheet, help mode and the guides, drawn from the State with Preact.",
   "tags": ["runtime", "ui"],
   "pp": 1,

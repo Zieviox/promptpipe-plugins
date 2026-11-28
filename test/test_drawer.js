@@ -70,9 +70,27 @@ test(
         await page.evaluate(() => PP.state_get().chats.some((c) => c.id === "c4")),
         "Cancel kept it",
       );
+      // Undo tapped the moment it's offered brings the chat back with its files (N5).
+      const quick_delete = core.file_delete;
+      core.file_delete = (d) => new Promise((r) => setTimeout(() => r(quick_delete(d)), 150));
+      await page.evaluate(() => {
+        const tap = new MutationObserver(() => {
+          const toast = [...document.querySelectorAll(".act-toast")].find((t) =>
+            t.textContent.includes("Chat deleted"),
+          );
+          if (!toast) return;
+          tap.disconnect();
+          toast.querySelector(".ta").click();
+        });
+        tap.observe(document.body, { childList: true, subtree: true });
+      });
       await page.evaluate(() => PP.chats_delete_ask(["c4"]));
       await page.click(".dialog .pill:has-text('Delete')");
-      await page.waitForFunction(() => !PP.state_get().chats.some((c) => c.id === "c4"));
+      await page.waitForFunction(() => PP.state_get().chats.some((c) => c.id === "c4"));
+      await page.waitForTimeout(300);
+      await page.waitForTimeout(600);
+      assert.ok(has(".promptpipe/chats/c4/meta.json"), "an Undo right away keeps the chat's files");
+      core.file_delete = quick_delete;
 
       // A profile picked in a chat is the chat's own, and new chats start with it.
       await page.evaluate(() =>

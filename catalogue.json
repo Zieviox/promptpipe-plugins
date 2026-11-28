@@ -209,7 +209,7 @@
     {
       "id": "runtime-screen",
       "name": "Screen",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "The app's screen: the chat, the chats list, the site view's bar, Find, every sheet, help mode and the guides, drawn from the State with Preact.",
       "tags": [
         "runtime",
@@ -219,7 +219,7 @@
       "path": "runtime-screen",
       "built_in": true,
       "hashes": {
-        "plugin.json": "cb0703b80c34ed7b2bde5082b4468c06d70b08f567b3eab81dfa46cc69e10071",
+        "plugin.json": "8599fee418cde6ffac26e6999c5ca14418d5fe24003fd4506a5e0e1ff30ad37a",
         "vendor/preact.js": "934b1716dd0c9bc6155258230f0d5fed01354fc4525abc120a645b3d295db049",
         "vendor/htm.js": "7a31776e04bd4afde0d4308177d26f377716fcf7e4bd70be590746d6aa594f08",
         "vendor/markdown-it.js": "b06c85174d2b1bb6339dfa1f0bc938cea57f62663f132a77abbf651562542443",
@@ -230,7 +230,7 @@
         "commands.js": "236c1b565e05f468e84509ba708e5cb471f38c644c30cf325c618b5a75fd4ec1",
         "chat.js": "d08fb0298c5d519586403e879394abce46fdb0b09f84a3f32addf314047cd195",
         "lists.js": "317090aa3b0efd8d410c0a4df0fb8a31daf27a5a2f2b6f4c67a5437146675568",
-        "actions.js": "fb7d30259ba2af6e29eb959ac09717926f4136998fbfc69d1e5afe59a9d1f2ac",
+        "actions.js": "d81aad01d3cc458c1f327cad20b5d6dce627c662823e4a0e7faa6236cdbd0426",
         "sheets.js": "fdad1de76291080cbee5317c35491d605e8bd400c22bf47bd7a8600965609141",
         "screen.js": "aa56058dbd04b1504813dd219fad92e87746f0f7eb455c2b984191fa86ae42a9"
       }
