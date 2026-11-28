@@ -312,7 +312,8 @@ const send_near = (box) => {
 
 // Files into the site's own upload input (the provider's "upload" selectors), as a file picked
 // there would arrive; then a moment for the site to take them (and its "uploading" selectors, if
-// it names any, gone: up to 2 minutes).
+// it names any, gone: up to 2 minutes, else the send fails with why, before anything is typed,
+// like the other limits: never sent without its files, N6).
 const files_put = async (provider, files) => {
   const input = selectors_get(provider, "upload")
     .flatMap(all_find)
@@ -331,7 +332,13 @@ const files_put = async (provider, files) => {
   input.dispatchEvent(new Event("change", { bubbles: true }));
   await PP.pause(1500);
   const uploading = selectors_get(provider, "uploading");
-  if (uploading.length) await wait_for(() => (element_find(uploading) ? null : true), 120000);
+  if (!uploading.length) return;
+  if (await wait_for(() => (element_find(uploading) ? null : true), 120000)) return;
+  const names = files.map((f) => f.name).join(", ");
+  throw fail(
+    "deadline_exceeded",
+    `The site was still uploading ${names} after 2 minutes, so the message wasn't sent. Try again, or attach a smaller file.`,
+  );
 };
 
 const site_send = async ({ text, limits, attachments = [] }, provider) => {

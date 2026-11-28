@@ -1,7 +1,7 @@
 {
   "id": "runtime-site",
   "name": "Using a site",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "The default way of using an AI website: type, send, wait for the reply, read it as Markdown, the model and options, the site's chats, the page report. Providers replace single stages.",
   "tags": ["runtime"],
   "pp": 1,

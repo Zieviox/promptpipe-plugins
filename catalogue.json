@@ -132,7 +132,7 @@
     {
       "id": "runtime-chats",
       "name": "Chats",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Chats: the readable chat file both ways, tags and counting tags, the search over every chat, folders and their order, site chats, attachments, and the chats folder.",
       "tags": [
         "runtime"
@@ -141,9 +141,9 @@
       "path": "runtime-chats",
       "built_in": true,
       "hashes": {
-        "plugin.json": "c746d331460478fd69dbf0e7373af84ad0f0868be1219e265c326136ae7198e2",
+        "plugin.json": "3030e85ef6a64c5cdffb162d2940c077e5cee46ab80cae38113f323c49963e96",
         "text.js": "eb01e3fcff093d6ad4119d5e22249fe0214788a9c1a4cf661ed2dff9d2d77d8d",
-        "chats.js": "30fef4345fafe710d153d1197fe3b15811879e629346c8bfd37dfba136932fe2"
+        "chats.js": "3992f563a5be6b7fff26602b94d88263b1cfed3a8de7751b9b0cf249647cfd33"
       }
     },
     {
@@ -254,7 +254,7 @@
     {
       "id": "runtime-site",
       "name": "Using a site",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "The default way of using an AI website: type, send, wait for the reply, read it as Markdown, the model and options, the site's chats, the page report. Providers replace single stages.",
       "tags": [
         "runtime"
@@ -263,10 +263,10 @@
       "path": "runtime-site",
       "built_in": true,
       "hashes": {
-        "plugin.json": "dff315a38622c60d535a39e731a79ce71624c5e60e73b8da6ae157fc542eeb3a",
+        "plugin.json": "2550813c4080414d1fb7ccc4d763e7c1808f080a302d700787a33b83ef3f20de",
         "vendor/turndown.js": "ead805af2012a8434b58f1dab07b452370a7dcd3e9665ff64fc1d61dd2e38e9a",
         "vendor/turndown-plugin-gfm.js": "cf744cc1b7580f06d64ce236a4ff2630a53d389eccf2133a09d71ca443511912",
-        "routine.js": "a35f14aa460bc4861f3c6e6cce761ff4ae5bb95a0044b6b89b967286a728e266"
+        "routine.js": "28b32bd18348f695939c08c69341e506d8dc634043c17273a6cb96894dadcbb6"
       }
     },
     {

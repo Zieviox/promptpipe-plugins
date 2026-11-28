@@ -90,3 +90,57 @@ test("the default routine sends, waits and reads the reply as Markdown (UC1, D5)
     await browser.close();
   }
 });
+
+test("a file the site is still uploading after 2 minutes fails the send, nothing typed (N6)", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.setContent(
+      `${PAGE.replace('<div id="chat">', '<input id="up" type="file"><div class="uploading">Uploading</div><div id="chat">')}`,
+    );
+    const result = await page.evaluate(
+      async ({ code, provider }) => {
+        const real = Date.now;
+        let skip = 0;
+        Date.now = () => real() + (skip += 30000); // the 2 minutes pass in a moment
+        const PP = {
+          event_send: () => {},
+          pause: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 50))),
+          cancelled: () => false,
+          stages: {},
+        };
+        const stages = new Function("PP", "provider", code)(PP, provider);
+        Object.assign(PP.stages, stages);
+        const file = { name: "notes.txt", mime_type: "text/plain", data: btoa("hi") };
+        try {
+          await stages.site_send(
+            { text: "with a file", limits: {}, attachments: [file] },
+            provider,
+          );
+          return { sent: true };
+        } catch (e) {
+          const typed = document.getElementById("box").value;
+          return {
+            code: e.code,
+            message: e.message,
+            typed,
+            mine: document.querySelectorAll(".you").length,
+          };
+        }
+      },
+      {
+        code,
+        provider: {
+          ...provider,
+          selectors: { ...provider.selectors, upload: ["#up"], uploading: [".uploading"] },
+        },
+      },
+    );
+    assert.equal(result.code, "deadline_exceeded");
+    assert.match(result.message, /still uploading notes\.txt after 2 minutes/);
+    assert.equal(result.typed, "", "nothing was typed");
+    assert.equal(result.mine, 0, "nothing was sent");
+  } finally {
+    await browser.close();
+  }
+});
