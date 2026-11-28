@@ -479,34 +479,46 @@ const chats_folder_move = async (state, { folder, how }) => {
 
 // ---------- a chat's turns ----------
 
+const file_name = (f) =>
+  f.path
+    .split("/")
+    .pop()
+    .replace(/\.json$/, "");
+
+// A chat's turns: from the files a pattern read, or by its own path if the pattern didn't bring
+// it: a chat must never look empty (and then be saved empty) because a listing missed its messages.
+const turns_read = async (dir, files) => {
+  const by_path = () =>
+    PP.call_send("file_read", { root: "chats", path: `${dir}/turns.json` }).catch(() => []);
+  const file = files.find((f) => file_name(f) === "turns") || (await by_path())[0];
+  return file ? JSON.parse(file.data) : [];
+};
+
 // Read a chat's turns and its plugins' data into the State once (record_get on chats brings
-// them, UC16; plugin data D6).
+// them, UC16; plugin data D6). Once even when two loads run side by side: the check that it isn't
+// in yet goes with the change that puts it in (M4).
 const chat_load = async (id) => {
   if ((PP.state_get().loaded || []).includes(id)) return;
   const dir = `.promptpipe/chats/${id}`;
   const files = await PP.call_send("file_read", { root: "chats", pattern: `${dir}/*.json` });
-  const name = (f) =>
-    f.path
-      .split("/")
-      .pop()
-      .replace(/\.json$/, "");
-  // By its own path too, if the pattern didn't bring it: a chat must never look empty (and then be
-  // saved empty) because a listing missed its messages.
-  const turns_file =
-    files.find((f) => name(f) === "turns") ||
-    (
-      await PP.call_send("file_read", { root: "chats", path: `${dir}/turns.json` }).catch(() => [])
-    )[0];
-  const turns = turns_file ? JSON.parse(turns_file.data) : [];
+  const turns = await turns_read(dir, files);
   const data = files
-    .filter((f) => !["turns", "meta"].includes(name(f)))
-    .map((f) => ({ id: `${id}/${name(f)}`, chat: id, plugin: name(f), data: JSON.parse(f.data) }));
-  PP.state_set((s) => ({
-    ...s,
-    turns: [...s.turns, ...turns],
-    chat_data: [...(s.chat_data || []).filter((d) => d.chat !== id), ...data],
-    loaded: [...(s.loaded || []), id],
-  }));
+    .filter((f) => !["turns", "meta"].includes(file_name(f)))
+    .map((f) => ({
+      id: `${id}/${file_name(f)}`,
+      chat: id,
+      plugin: file_name(f),
+      data: JSON.parse(f.data),
+    }));
+  PP.state_set((s) => {
+    if ((s.loaded || []).includes(id)) return s;
+    return {
+      ...s,
+      turns: [...s.turns, ...turns],
+      chat_data: [...(s.chat_data || []).filter((d) => d.chat !== id), ...data],
+      loaded: [...(s.loaded || []), id],
+    };
+  });
 };
 
 // A plugin's data for a chat (D6), and the operation that sets it.

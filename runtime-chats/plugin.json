@@ -1,7 +1,7 @@
 {
   "id": "runtime-chats",
   "name": "Chats",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Chats: the readable chat file both ways, tags and counting tags, the search over every chat, folders and their order, site chats, attachments, and the chats folder.",
   "tags": ["runtime"],
   "pp": 1,

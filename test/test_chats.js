@@ -453,3 +453,16 @@ test("branches: a chat's messages as a tree, the path shown, and a message's ver
     "the older version, and what follows it (nothing yet)",
   );
 });
+
+test("two loads of a chat at once bring its messages in once (M4)", async () => {
+  const turns = [{ id: "t1", chat: "c9", message: "a", reply: "b" }];
+  const files = [{ path: ".promptpipe/chats/c9/turns.json", data: JSON.stringify(turns) }];
+  const loader = plugins_load(["runtime-records", "runtime-chats"], { file_read: () => files });
+  loader.state = { turns: [], chat_data: [], loaded: [] };
+  await Promise.all([loader.chat_load("c9"), loader.chat_load("c9")]);
+  assert.deepEqual(
+    loader.state.turns.map((t) => t.id),
+    ["t1"],
+  );
+  assert.deepEqual(loader.state.loaded, ["c9"]);
+});
