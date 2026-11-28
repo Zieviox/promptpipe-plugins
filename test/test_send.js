@@ -168,6 +168,55 @@ test("pages at once: a send waits for a free page (UC1.4)", async () => {
   assert.equal(pending.length, 2);
 });
 
+test("two chats never share a site page; a freed page starts one waiting send (H2)", async () => {
+  const { pp, pending } = world_build();
+  pp.state.config.settings = { "sites.pages": 1 };
+  pp.state.pages = [{ id: "page0", provider: "deepseek", url: "https://ds" }];
+  pp.state.chats.push({ id: "c3", name: "Third", file: "c3.md", tags: [] });
+  pp.state.loaded.push("c3");
+  const loads = [];
+  const load = pp.chat_load;
+  pp.chat_load = (id) => (loads.push(id), load(id));
+  for (const chat of ["c1", "c2", "c3"]) pp.message_send({ chat, message: chat });
+  for (let i = 0; i < 4; i += 1) await tick();
+  assert.equal(pending.length, 1, "one page, one send typing");
+  const status = () => pp.state.sends.map((s) => `${s.chat}:${s.status}`).sort();
+  assert.deepEqual(status(), ["c1:sending", "c2:waiting", "c3:waiting"]);
+  pending[0].resolve({ reply: "ok" });
+  for (let i = 0; i < 4; i += 1) await tick();
+  assert.equal(pending.length, 2);
+  assert.deepEqual(status(), ["c2:sending", "c3:waiting"]);
+  assert.equal(
+    loads.filter((c) => c === "c3").length,
+    1,
+    "the send still waiting wasn't run again",
+  );
+});
+
+test("pages opened at once each go to their own send (H2)", async () => {
+  const { pp, pending } = world_build();
+  pp.message_send({ chat: "c1", message: "a" });
+  pp.message_send({ chat: "c2", message: "b" });
+  for (let i = 0; i < 4; i += 1) await tick();
+  assert.deepEqual(pending.map((p) => p.d.page).sort(), ["page1", "page2"]);
+});
+
+test("a failed or stopped job answers its caller with job_changed, failed (H3)", async () => {
+  const { pp, pending } = world_build();
+  await pp.job_run({ id: "j4", request: "chat", chat: "c2", message: "hi" });
+  await tick();
+  await pp.job_run({ id: "j5", request: "chat", chat: "c2", message: "after" });
+  pending[0].reject({ code: "unavailable", message: "the site is down" });
+  for (let i = 0; i < 3; i += 1) await tick();
+  const changed = (job) => pp.sent.filter((s) => s.event === "job_changed" && s.data.job === job);
+  const failed = changed("j4").pop().data;
+  assert.equal(failed.status, "failed");
+  assert.equal(failed.error.message, "the site is down");
+  const queued = pp.state.sends.find((s) => s.job === "j5");
+  await pp.send_stop(queued.id);
+  assert.equal(changed("j5").pop().data.status, "failed", "a job's send stopped before it went");
+});
+
 test("a job becomes a send in a new chat and answers with job_changed (UC41)", async () => {
   const { pp, pending } = world_build();
   pp.state.schemas.collections.chats.fields = [];

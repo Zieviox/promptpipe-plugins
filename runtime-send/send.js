@@ -66,7 +66,7 @@ const outbox_save = async () => {
   try {
     const saved = await PP.store_save(PP.state_get(), [{ file: "outbox" }]);
     PP.state_set((s) => ({ ...s, revisions: { ...s.revisions, ...saved.revisions } }));
-  } catch (error) {
+  } catch {
     // kept in memory; the next change saves it again
   }
 };
@@ -150,7 +150,11 @@ const message_send = (draft) => {
     progress: "",
   };
   PP.state_set((state) => ({ ...state, sends: [...state.sends, send] }));
-  if (send.chat) return outbox_save(), queue_run(), send;
+  if (send.chat) {
+    outbox_save();
+    queue_run();
+    return send;
+  }
   // A side request runs at once; its answer is what the call returns (UC42.3).
   PP.state_set((state) => send_set(state, send.id, { status: "sending" }));
   return send_run(send.id);
@@ -178,19 +182,24 @@ const queue_run = () => {
 const page_busy = (state, page) =>
   state.sends.some((s) => s.page === page.id && ACTIVE.includes(s.status));
 
-// A free page of the provider, preferring the chat's own site chat; a new one up to the setting.
-const pool_remove = async (send, provider, url) => {
-  const state = PP.state_get();
-  const free = state.pages.filter((p) => p.provider === provider.id && !page_busy(state, p));
-  const same = free.find((p) => PP.url_same(p.url, url));
-  if (same || free[0]) return (same || free[0]).id;
-  const page = await page_add(provider, url);
-  return page ? page.id : null;
+// A free page of the provider for this send, preferring the chat's own site chat, taken for it in
+// the same change that finds it, so two sends never share a page (H2); a new one up to the setting.
+const pool_remove = async (id, provider, url) => {
+  let page = null;
+  PP.state_set((state) => {
+    const free = state.pages.filter((p) => p.provider === provider.id && !page_busy(state, p));
+    page = free.find((p) => PP.url_same(p.url, url)) || free[0] || null;
+    return page ? send_set(state, id, { page: page.id }) : state;
+  });
+  if (page) return page.id;
+  const added = await page_add(provider, url, id);
+  return added ? added.id : null;
 };
 
 // The one way to open a site page: within "Pages at once" (pages being opened count too, so two
-// sends can't both open the last one), kept in the pool. Null when there's no room.
-const page_add = async (provider, url) => {
+// sends can't both open the last one), kept in the pool, and taken by the send it's opened for in
+// the same change. Null when there's no room.
+const page_add = async (provider, url, send) => {
   let room = false;
   PP.state_set((s) => {
     room = s.pages.length + (s.opening || 0) < PP.setting_get(s, "sites.pages");
@@ -199,17 +208,28 @@ const page_add = async (provider, url) => {
   if (!room) return null;
   try {
     const page = await PP.call_send("page_open", { url: url || provider.url, provider });
-    PP.state_set((s) => ({ ...s, pages: [...s.pages, page] }));
+    PP.state_set((s) => {
+      const next = { ...s, pages: [...s.pages, page] };
+      return send ? send_set(next, send, { page: page.id }) : next;
+    });
     return page;
   } finally {
     PP.state_set((s) => ({ ...s, opening: s.opening - 1 }));
   }
 };
 
-// A page is free again: sends waiting for one can go.
+// A page is free again: the sends waiting for one go, as many as there are free pages of their
+// provider and room for new ones (the others keep waiting, nothing is started for nothing).
 const pool_add = () => {
-  for (const s of PP.state_get().sends.filter((x) => x.status === "waiting")) {
-    PP.state_set((state) => send_set(state, s.id, { status: "sending" }));
+  const state = PP.state_get();
+  const free = state.pages.filter((p) => !page_busy(state, p));
+  let room = PP.setting_get(state, "sites.pages") - state.pages.length - (state.opening || 0);
+  for (const s of state.sends.filter((x) => x.status === "waiting")) {
+    const at = free.findIndex((p) => p.provider === s.provider);
+    if (at >= 0) free.splice(at, 1);
+    else if (room > 0) room -= 1;
+    else continue;
+    PP.state_set((next) => send_set(next, s.id, { status: "sending" }));
     send_run(s.id);
   }
 };
@@ -229,181 +249,189 @@ const provider_build = (state, plugin) => {
 
 // ---------- the sequence ----------
 
+// One send, start to end (strategy 8): its plan, the message, the provider, the reply's hooks,
+// saved (a side request's answer goes back to its caller). No free page yet: it waits.
 const send_run = async (id) => {
   if (send_get(id).chat) await PP.chat_load(send_get(id).chat);
-  const send = send_get(id);
   const state = PP.state_get();
+  const send = send_get(id);
   const chat = send.chat && state.chats.find((c) => c.id === send.chat);
-  // The messages as shown (with branches, the path you see); the new one follows the last of them,
-  // or, as a new version of a message (an edit, Send again), the message that one follows.
-  const turns = chat ? PP.turns_shown(state, chat.id) : [];
-  const versioned =
-    send.replaces &&
-    PP.turns_tree(state.turns.filter((t) => t.chat === send.chat)).find(
-      (t) => t.id === send.replaces,
-    );
-  const parent = versioned
-    ? versioned.parent || null
-    : turns.length
-      ? turns[turns.length - 1].id
-      : null;
-  if (chat) PP.state_set((s) => send_set(s, id, { parent }));
+  const path = parent_find(state, send, chat ? PP.turns_shown(state, chat.id) : []);
+  if (chat) PP.state_set((s) => send_set(s, id, { parent: path.parent }));
   let waiting = false;
   try {
-    const route = (await PP.hook_run("chat_route", null, { chat, message: send.message })) || {};
-    // A route can pick the profile, or lend only a provider (its site and model, UC44).
-    const own = {
-      ...(chat ? chat.own : {}),
-      ...(route.profile && { profile: route.profile }),
-      ...(route.provider && { provider: route.provider, model: undefined }),
-    };
-    const view = chat ? { ...chat, own } : send.profile ? { own: { profile: send.profile } } : null;
-    const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, view));
-    if (!plugin)
-      throw { code: "failed_precondition", message: "No provider yet: get one from the header" };
-    const refused = attachments_check(plugin, send.attachments);
-    if (refused) throw { code: "failed_precondition", message: refused };
-    const provider = provider_build(state, plugin);
-    const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
-    const first = !chat || !turns.length || route.url === "new";
-    const context = { chat: view, message: send.message, count: turns.length + 1, first };
-    // Send again (a regenerate): the same message as it went, the site re-answering it.
-    const built =
-      send.regenerate && versioned
-        ? {
-            text: versioned.sent || versioned.message,
-            trace: [],
-            notes: [],
-            blocks: versioned.blocks || [],
-          }
-        : send.plain
-          ? { text: send.message, trace: [], notes: [], blocks: [] }
-          : await PP.message_build(state, context, PP.hook_get);
-    let answer;
-    if (plugin.manifest.tags.includes("api")) {
-      PP.state_set((s) =>
-        send_set(s, id, { status: "sending", progress: `Sending to ${plugin.manifest.name}…` }),
-      );
-      const progress = (part) =>
-        PP.state_set((s) => ({
-          ...s,
-          sends: s.sends.map((x) => (x.id === id ? reply_apply(x, part) : x)),
-        }));
-      answer = await PP.hook_get(plugin.id, "chat_send")(built.text, { ...context, progress });
-    } else {
-      let page = await pool_remove(send, provider, url || provider.url);
-      // A chat's send waits for `pool_add`; a side request's caller waits for its answer here.
-      while (!page && !chat)
-        page = await PP.pause(500).then(() => pool_remove(send, provider, url || provider.url));
-      if (!page) {
-        PP.state_set((s) =>
-          send_set(s, id, { status: "waiting", progress: "Waiting for a free site page…" }),
-        );
-        return void (waiting = true);
-      }
-      PP.state_set((s) => ({
-        ...send_set(s, id, {
-          status: "sending",
-          page,
-          progress: `Sending to ${plugin.manifest.name}…`,
-        }),
-        pages: s.pages.map((p) => (p.id === page ? { ...p, chat: chat ? chat.id : null } : p)),
-      }));
-      // The page shows this chat's conversation before anything is typed: a chat's own site
-      // chat, or the site's start (a new site chat) for a new chat or a side request. A free page
-      // may still show another chat's conversation.
-      const target = url || provider.url;
-      const shown = PP.state_get().pages.find((p) => p.id === page);
-      if (!shown || !PP.url_same(shown.url, target)) {
-        PP.state_set((s) =>
-          send_set(s, id, {
-            progress: `Opening ${first ? "a new chat on" : "this chat on"} ${plugin.manifest.name}…`,
-          }),
-        );
-        await PP.call_send("page_navigate", { page, to: target, wait: true });
-        PP.state_set((s) => ({
-          ...s,
-          pages: s.pages.map((p) => (p.id === page ? { ...p, url: target } : p)),
-        }));
-      }
-      const model = PP.model_get(state, view);
-      const options = PP.options_get(state, view);
-      if (model || Object.keys(options).length)
-        await PP.call_send("site_model_set", { page, model, options });
-      const limits = {
-        idle_min: PP.setting_get(state, "sites.idle_min"),
-        total_min: PP.setting_get(state, "sites.total_min"),
-      };
-      // The attachments' contents, read from the chat's folder, for the page to hand the site.
-      const files = [];
-      for (const a of send.attachments || []) {
-        const [file] = await PP.call_send("file_read", {
-          root: "chats",
-          path: a.path,
-          encoding: "base64",
-        });
-        if (!file)
-          throw { code: "not_found", message: `The attached file ${a.name} isn't there any more` };
-        files.push({ name: a.name, mime_type: a.mime_type, data: file.data });
-      }
-      // The site shows the versions the app shows, on the way to where this goes (a message
-      // switched to another version in the app is switched on the site first), so it continues
-      // the same branch.
-      const tree = PP.turns_tree(PP.state_get().turns.filter((t) => t.chat === send.chat));
-      for (const t of turns.slice(0, parent ? turns.findIndex((x) => x.id === parent) + 1 : 0)) {
-        const versions = tree.filter((x) => (x.parent || null) === (t.parent || null));
-        if (versions.length > 1 && t.site_ref)
-          await PP.call_send("site_version_set", {
-            page,
-            want: t.site_ref,
-            refs: versions.map((x) => x.site_ref).filter(Boolean),
-          }).catch(() => null);
-      }
-      answer =
-        send.regenerate && versioned && versioned.site_ref
-          ? await PP.call_send("site_regenerate", { page, site_ref: versioned.site_ref, limits })
-          : await PP.call_send("site_send", {
-              page,
-              text: built.text,
-              attachments: files,
-              limits,
-            });
-    }
+    const plan = await send_plan(state, send, chat, path.turns);
+    const built = await message_get(state, send, path.versioned, plan.context);
+    const api = plan.plugin.manifest.tags.includes("api");
+    const answer = api ? await api_send(id, plan, built) : await site_send(id, plan, built, path);
+    waiting = !answer;
+    if (waiting) return;
     // A message sent as typed (the profile off) gets its reply as it came, too.
-    const reply = send.plain
-      ? answer.reply
-      : await PP.hook_run("reply_after", answer.reply, { chat: view, notes: built.notes });
-    if (!chat) return send_done(id, { ...answer, received: answer.reply, reply });
-    await turn_save(id, {
-      ...built,
-      ...answer,
-      received: answer.reply,
-      reply,
-      profile: PP.profile_get(state, view).name,
-    });
+    const notes = { chat: plan.view, notes: built.notes };
+    const reply = send.plain ? answer.reply : await PP.hook_run("reply_after", answer.reply, notes);
+    const got = { ...answer, received: answer.reply, reply };
+    if (!chat) return send_done(id, got);
+    await turn_save(id, { ...built, ...got, profile: PP.profile_get(state, plan.view).name });
   } catch (error) {
-    const part = (send_get(id) || {}).reply;
-    if (part && chat) {
-      await turn_save(id, {
-        reply: part,
-        received: part,
-        error,
-        notes: [`cut short: ${error.message}`],
-      });
-      hold_set(chat.id, "cut short");
-    } else {
-      PP.state_set((s) => send_set(s, id, { status: "failed", error, progress: "", force: false }));
-      outbox_save();
-      PP.event_send("send_failed", {
-        send: id,
-        chat: chat && chat.id,
-        message: send.message,
-        error: { code: error.code || "", message: error.message || String(error) },
-      });
-    }
+    await send_fail(id, error);
   } finally {
-    if (!waiting) queue_run(), pool_add();
+    if (!waiting) {
+      queue_run();
+      pool_add();
+    }
   }
+};
+
+// The messages as shown (with branches, the path you see); the new one follows the last of them,
+// or, as a new version of a message (an edit, Send again), the message that one follows.
+const parent_find = (state, send, turns) => {
+  const tree = () => PP.turns_tree(state.turns.filter((t) => t.chat === send.chat));
+  const versioned = send.replaces && tree().find((t) => t.id === send.replaces);
+  const last = turns.length ? turns[turns.length - 1].id : null;
+  return { turns, versioned, parent: versioned ? versioned.parent || null : last };
+};
+
+// What the send goes through: the chat as its route sees it (a route can pick the profile, or lend
+// only a provider: its site and model, UC44), the provider, and the site chat's address.
+const send_plan = async (state, send, chat, turns) => {
+  const route = (await PP.hook_run("chat_route", null, { chat, message: send.message })) || {};
+  const own = {
+    ...(chat ? chat.own : {}),
+    ...(route.profile && { profile: route.profile }),
+    ...(route.provider && { provider: route.provider, model: undefined }),
+  };
+  const view = chat ? { ...chat, own } : send.profile ? { own: { profile: send.profile } } : null;
+  const plugin = state.plugins.find((p) => p.id === PP.provider_get(state, view));
+  if (!plugin)
+    throw { code: "failed_precondition", message: "No provider yet: get one from the header" };
+  const refused = attachments_check(plugin, send.attachments);
+  if (refused) throw { code: "failed_precondition", message: refused };
+  const provider = provider_build(state, plugin);
+  const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
+  const first = !chat || !turns.length || route.url === "new";
+  const context = { chat: view, message: send.message, count: turns.length + 1, first };
+  return { view, plugin, provider, url: url || provider.url, first, context };
+};
+
+// The message as it goes: Send again's as it went (the site re-answering it), a plain one as
+// typed, else built from the profile's blocks.
+const message_get = (state, send, versioned, context) => {
+  const as_is = (text, blocks = []) => ({ text, trace: [], notes: [], blocks });
+  if (send.regenerate && versioned)
+    return as_is(versioned.sent || versioned.message, versioned.blocks || []);
+  if (send.plain) return as_is(send.message);
+  return PP.message_build(state, context, PP.hook_get);
+};
+
+// An API provider: its plugin's `chat_send`, the reply streaming into the send.
+const api_send = (id, plan, built) => {
+  const progress_text = `Sending to ${plan.plugin.manifest.name}…`;
+  PP.state_set((s) => send_set(s, id, { status: "sending", progress: progress_text }));
+  const progress = (part) =>
+    PP.state_set((s) => ({
+      ...s,
+      sends: s.sends.map((x) => (x.id === id ? reply_apply(x, part) : x)),
+    }));
+  return PP.hook_get(plan.plugin.id, "chat_send")(built.text, { ...plan.context, progress });
+};
+
+// A site provider: a page of the pool showing this chat's conversation, on the versions the app
+// shows, then the message typed there (or the site's own Regenerate). Null: no free page yet.
+const site_send = async (id, plan, built, path) => {
+  const page = await page_take(id, plan);
+  if (!page) return null;
+  await page_show(id, page, plan);
+  const state = PP.state_get();
+  const limits = {
+    idle_min: PP.setting_get(state, "sites.idle_min"),
+    total_min: PP.setting_get(state, "sites.total_min"),
+  };
+  const send = send_get(id);
+  const attachments = await files_read(send);
+  await versions_show(page, send, path);
+  const site_ref = send.regenerate && path.versioned && path.versioned.site_ref;
+  if (site_ref) return PP.call_send("site_regenerate", { page, site_ref, limits });
+  return PP.call_send("site_send", { page, text: built.text, attachments, limits });
+};
+
+// A page for the send: a free one of the pool, or a new one. A side request's caller waits for one
+// here; a chat's send waits for `pool_add`.
+const page_take = async (id, plan) => {
+  const { provider, plugin, url } = plan;
+  const chat = send_get(id).chat;
+  let page = await pool_remove(id, provider, url);
+  while (!page && !chat) page = await PP.pause(500).then(() => pool_remove(id, provider, url));
+  if (!page) {
+    const progress = "Waiting for a free site page…";
+    PP.state_set((s) => send_set(s, id, { status: "waiting", provider: provider.id, progress }));
+    return null;
+  }
+  PP.state_set((s) => ({
+    ...send_set(s, id, { status: "sending", progress: `Sending to ${plugin.manifest.name}…` }),
+    pages: s.pages.map((p) => (p.id === page ? { ...p, chat } : p)),
+  }));
+  return page;
+};
+
+// The page shows this chat's conversation before anything is typed: a chat's own site chat, or
+// the site's start (a new site chat) for a new chat or a side request; a free page may still show
+// another chat's. Then the chat's model and options.
+const page_show = async (id, page, { url, first, plugin, view }) => {
+  const shown = PP.state_get().pages.find((p) => p.id === page);
+  if (!shown || !PP.url_same(shown.url, url)) {
+    const where = `${first ? "a new chat on" : "this chat on"} ${plugin.manifest.name}`;
+    PP.state_set((s) => send_set(s, id, { progress: `Opening ${where}…` }));
+    await PP.call_send("page_navigate", { page, to: url, wait: true });
+    PP.state_set((s) => ({ ...s, pages: s.pages.map((p) => (p.id === page ? { ...p, url } : p)) }));
+  }
+  const state = PP.state_get();
+  const model = PP.model_get(state, view);
+  const options = PP.options_get(state, view);
+  if (model || Object.keys(options).length)
+    await PP.call_send("site_model_set", { page, model, options });
+};
+
+// The attachments' contents, read from the chat's folder, for the page to hand the site.
+const files_read = async (send) => {
+  const files = [];
+  for (const a of send.attachments || []) {
+    const read = { root: "chats", path: a.path, encoding: "base64" };
+    const [file] = await PP.call_send("file_read", read);
+    if (!file)
+      throw { code: "not_found", message: `The attached file ${a.name} isn't there any more` };
+    files.push({ name: a.name, mime_type: a.mime_type, data: file.data });
+  }
+  return files;
+};
+
+// The site shows the versions the app shows on the way to where this goes (a message switched to
+// another version in the app is switched on the site first), so it continues the same branch.
+const versions_show = async (page, send, { turns, parent }) => {
+  const tree = PP.turns_tree(PP.state_get().turns.filter((t) => t.chat === send.chat));
+  for (const t of turns.slice(0, parent ? turns.findIndex((x) => x.id === parent) + 1 : 0)) {
+    const versions = tree.filter((x) => (x.parent || null) === (t.parent || null));
+    const refs = versions.map((x) => x.site_ref).filter(Boolean);
+    if (versions.length > 1 && t.site_ref)
+      await PP.call_send("site_version_set", { page, want: t.site_ref, refs }).catch(() => null);
+  }
+};
+
+// A send that failed. A reply cut short is kept with the error, and the chat's queue holds. Else
+// the message waits in the failed list with its reason, and whoever asked hears why: the screen
+// (`send_failed`), another app (its job's `job_changed`, failed, H3).
+const send_fail = async (id, error) => {
+  const send = send_get(id);
+  if (!send) return;
+  if (send.reply && send.chat) {
+    const notes = [`cut short: ${error.message}`];
+    await turn_save(id, { reply: send.reply, received: send.reply, error, notes });
+    return hold_set(send.chat, "cut short");
+  }
+  const reason = { code: error.code || "", message: error.message || String(error) };
+  PP.state_set((s) => send_set(s, id, { status: "failed", error, progress: "", force: false }));
+  outbox_save();
+  PP.event_send("send_failed", { send: id, chat: send.chat, message: send.message, error: reason });
+  if (send.job) PP.event_send("job_changed", { job: send.job, status: "failed", error: reason });
 };
 
 // A side request is done: the send goes away and its answer goes back to whoever asked.
@@ -511,11 +539,18 @@ const turn_save = async (id, answer) => {
 
 // ---------- stopping and failures (UC3, UC4) ----------
 
+// Stop a send: one typing on its page is stopped there (what came is kept); one not sent yet goes
+// away, and another app waiting for it hears it was stopped (H3).
 const send_stop = async (id) => {
   const send = send_get(id);
   if (!send) return;
-  if (send.status === "sending" && send.page) await PP.call_send("site_stop", { page: send.page });
-  else PP.state_set((s) => send_remove(s, id));
+  if (send.status === "sending" && send.page) {
+    await PP.call_send("site_stop", { page: send.page });
+    return;
+  }
+  PP.state_set((s) => send_remove(s, id));
+  const error = { code: "cancelled", message: "Stopped in promptpipe" };
+  if (send.job) PP.event_send("job_changed", { job: send.job, status: "failed", error });
 };
 
 // Retry: queue it again. Check: keep what the page shows now. Edit: back into the box. Dismiss.
@@ -608,13 +643,12 @@ const turn_check = async (id) => {
   const check = { id: PP.id_create(), chat: null, status: "checking", message: "" };
   PP.state_set((s) => ({ ...s, sends: [...s.sends, check] })); // holds the page while it reads
   try {
-    const page = await pool_remove(check, provider, chat.site_url);
+    const page = await pool_remove(check.id, provider, chat.site_url);
     if (!page)
       return {
         status: "missing",
         why: "Every site page is busy. Try again when the replies are in.",
       };
-    PP.state_set((s) => send_set(s, check.id, { page }));
     const shown = PP.state_get().pages.find((p) => p.id === page);
     if (!shown || !PP.url_same(shown.url, chat.site_url))
       await PP.call_send("page_navigate", { page, to: chat.site_url, wait: true });
