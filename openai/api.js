@@ -21,21 +21,44 @@ const response_check = (r) => {
   let message = r.body;
   try {
     message = JSON.parse(r.body).error.message;
-  } catch {}
+  } catch {
+    // not JSON: the body as it came
+  }
   throw {
     code: r.status === 401 || r.status === 403 ? "permission_denied" : "unavailable",
     message: `The API said (${r.status}): ${String(message).slice(0, 300)}`,
   };
 };
 
+// The earlier messages sent along: the path shown (with branches, only the branch you see) up to
+// the one this message follows, the last `history` of them (0: none).
+const earlier_get = (state, context) => {
+  const chat = context.chat;
+  if (!chat) return [];
+  const before = PP.turns_shown(state, chat.id).slice(0, context.count - 1);
+  const n = setting(chat, "history");
+  return n > 0 ? before.slice(-n) : [];
+};
+
+// Each streamed line ("data: {...}") into what came so far, handed on to `progress`.
+const line_read = (got, progress) => (line) => {
+  const data = line.startsWith("data:") ? line.slice(5).trim() : "";
+  if (!data || data === "[DONE]") return;
+  try {
+    const delta = JSON.parse(data).choices[0].delta || {};
+    got.reply += delta.content || "";
+    got.thinking += delta.reasoning_content || delta.reasoning || "";
+    progress({ reply: got.reply, thinking: got.thinking });
+  } catch {
+    // a line that isn't a part of the answer (a comment, a keep-alive)
+  }
+};
+
 const chat_send = async (text, context) => {
   const state = PP.state_get();
   const chat = context.chat;
-  const earlier = chat
-    ? state.turns.filter((t) => t.chat === chat.id).slice(-setting(chat, "history"))
-    : [];
   const messages = [
-    ...earlier.flatMap((t) => [
+    ...earlier_get(state, context).flatMap((t) => [
       { role: "user", content: t.sent || t.message },
       { role: "assistant", content: t.received || t.reply },
     ]),
@@ -45,29 +68,14 @@ const chat_send = async (text, context) => {
   if (!model)
     throw { code: "failed_precondition", message: "Pick a model first (Model and Options)" };
   const id = PP.id_create();
-  let reply = "";
-  let thinking = "";
-  streams[id] = (line) => {
-    const data = line.startsWith("data:") ? line.slice(5).trim() : "";
-    if (!data || data === "[DONE]") return;
-    try {
-      const delta = JSON.parse(data).choices[0].delta || {};
-      reply += delta.content || "";
-      thinking += delta.reasoning_content || delta.reasoning || "";
-      context.progress({ reply, thinking });
-    } catch {}
-  };
+  const got = { reply: "", thinking: "" };
+  streams[id] = line_read(got, context.progress);
   try {
-    const r = response_check(
-      await PP.call_send("http_fetch", {
-        ...request_build(chat, { model, messages, stream: true }),
-        id,
-        stream: true,
-      }),
-    );
-    if (!reply && r.body)
-      reply = (JSON.parse(r.body).choices || [{ message: {} }])[0].message.content || "";
-    return { reply, thinking, model };
+    const request = { ...request_build(chat, { model, messages, stream: true }), id, stream: true };
+    const r = response_check(await PP.call_send("http_fetch", request));
+    if (!got.reply && r.body)
+      got.reply = (JSON.parse(r.body).choices || [{ message: {} }])[0].message.content || "";
+    return { ...got, model };
   } finally {
     delete streams[id];
   }

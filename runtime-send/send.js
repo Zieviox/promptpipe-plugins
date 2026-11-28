@@ -260,7 +260,7 @@ const send_run = async (id) => {
   if (chat) PP.state_set((s) => send_set(s, id, { parent: path.parent }));
   let waiting = false;
   try {
-    const plan = await send_plan(state, send, chat, path.turns);
+    const plan = await send_plan(state, send, chat, path);
     const built = await message_get(state, send, path.versioned, plan.context);
     const api = plan.plugin.manifest.tags.includes("api");
     const answer = api ? await api_send(id, plan, built) : await site_send(id, plan, built, path);
@@ -293,7 +293,7 @@ const parent_find = (state, send, turns) => {
 
 // What the send goes through: the chat as its route sees it (a route can pick the profile, or lend
 // only a provider: its site and model, UC44), the provider, and the site chat's address.
-const send_plan = async (state, send, chat, turns) => {
+const send_plan = async (state, send, chat, { turns, parent }) => {
   const route = (await PP.hook_run("chat_route", null, { chat, message: send.message })) || {};
   const own = {
     ...(chat ? chat.own : {}),
@@ -309,7 +309,10 @@ const send_plan = async (state, send, chat, turns) => {
   const provider = provider_build(state, plugin);
   const url = route.url === "new" ? provider.url : route.url || (chat && chat.site_url);
   const first = !chat || !turns.length || route.url === "new";
-  const context = { chat: view, message: send.message, count: turns.length + 1, first };
+  // Its place on the path shown: after the message it follows (for a new version, the one before).
+  const at = turns.findIndex((t) => t.id === parent);
+  const count = !parent ? 1 : at >= 0 ? at + 2 : turns.length + 1;
+  const context = { chat: view, message: send.message, count, first };
   return { view, plugin, provider, url: url || provider.url, first, context };
 };
 

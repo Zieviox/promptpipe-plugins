@@ -120,3 +120,25 @@ test("Sub-chats draws a divider per site chat and routes the next message to a n
     branches: [{ start: 3, cut: 1 }],
   });
 });
+
+test("the OpenAI provider sends only the branch shown, up to the message it follows", async () => {
+  const pp = plugins_load(["runtime-records", "runtime-chats", "runtime-profiles", "openai"], {
+    http_fetch: (d) => ((sent = JSON.parse(d.body).messages), { status: 200, body: "" }),
+  });
+  let sent = [];
+  const t = (id, parent) => ({ id, chat: "c1", parent, message: id, reply: `re ${id}` });
+  pp.state = state_build([t("t1", null), t("t2", "t1"), t("t2b", "t1"), t("t3", "t2")], {});
+  pp.state.plugins = [{ id: "openai", manifest: manifest("openai") }];
+  pp.state.chats[0].shown = { t1: "t2" };
+  const chat = { ...pp.state.chats[0], own: { model: "m1", profile: "p1" } };
+  const send = (count) =>
+    pp.hook_get("openai", "chat_send")("new", { chat, count, progress: () => {} });
+  const users = () => sent.filter((m) => m.role === "user").map((m) => m.content);
+  await send(4);
+  assert.deepEqual(users(), ["t1", "t2", "t3", "new"], "the other version (t2b) stays out");
+  await send(3);
+  assert.deepEqual(users(), ["t1", "t2", "new"], "a new version of t3 follows t2");
+  pp.state.config.provider_choices = { openai: { settings: { history: 0 } } };
+  await send(4);
+  assert.deepEqual(users(), ["new"], "history 0 sends no earlier messages");
+});

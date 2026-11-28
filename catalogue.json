@@ -82,7 +82,7 @@
     {
       "id": "openai",
       "name": "OpenAI-style API",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "description": "Any service with an OpenAI-style chat API (OpenAI, OpenRouter, DeepSeek's API, a local server): its address, a credential for its host, and a model.",
       "tags": [
         "provider",
@@ -92,8 +92,8 @@
       "path": "openai",
       "built_in": true,
       "hashes": {
-        "plugin.json": "3a478ac17b98f4eb7a576ddfdd307aeb7ed8933d40459c11fdde7eecdde0de49",
-        "api.js": "98a5abf4dd7da341e38517fbdc604facef71fdf6e433db97868f987f029b86a0"
+        "plugin.json": "3e5999f9c3cc05d63f09e80cf718bb113af2c84e2dcf65a00f58ed78ec2f5287",
+        "api.js": "afdfeb1149c7f08992b60fee6bc972052f91d36e8942607774bb9b062969ca42"
       }
     },
     {
@@ -248,7 +248,7 @@
       "built_in": true,
       "hashes": {
         "plugin.json": "e27ac4b32ba94443ac17ee1378d7e44e30ebc897c7a7169b0f0d81aae6c083d3",
-        "send.js": "0c6d210aa39b998bc85f614553fecdb296ecc84f0c85d6adb7221de8536c5d86"
+        "send.js": "46b5b80f33a7321585e3d89d94c79b497196ea8f4e103f27e00aff62b47c6e82"
       }
     },
     {
