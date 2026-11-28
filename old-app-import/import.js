@@ -68,8 +68,9 @@ const MB = 1024 * 1024;
 
 // A folder marked .nomedia and copied whole by the core (file by file, 1 MB at a time) into
 // .promptpipe/backups/, when the phone has room for it (and 500 MB to spare); a copy cut short
-// goes on where it stopped next time. Without room: no backup, and the report says why. The
-// import never changes the old folders apart from the marker, so it goes ahead either way.
+// goes on where it stopped next time. Without room, or with files the copy couldn't take: no
+// backup, and the report says why (H6). The import never changes the old folders apart from the
+// marker, so it goes ahead either way.
 const folder_back_up = async (state, base) => {
   await device("file_write", { path: `${base}/.nomedia`, data: "" }).catch(() => null);
   const size = await folder_size(base);
@@ -79,8 +80,11 @@ const folder_back_up = async (state, base) => {
     return { path: base, size, backup: null, why };
   }
   const to = `.promptpipe/backups/old-app-${base.includes("/Android/") ? "own" : "shared"}`;
-  await device("file_move", { from: base, to_root: "app", to, copy: true, overwrite: false });
-  return { path: base, size, backup: to };
+  const copy = { from: base, to_root: "app", to, copy: true, overwrite: false };
+  const done = await device("file_move", copy);
+  if (!done.failed) return { path: base, size, backup: to };
+  const why = `${done.failed} files couldn't be copied (the first: ${done.first_failed})`;
+  return { path: base, size, backup: null, why };
 };
 
 // What the import did, on screen (not only in a toast).
@@ -501,25 +505,34 @@ const old_import = async () => {
     ...backups.map((b) =>
       b.backup
         ? `**Backed up:** ${b.path} (${Math.ceil(b.size / MB)} MB) to \`${b.backup}\` in the app folder.`
-        : `**Not backed up:** ${b.path}, ${b.why}. It's unchanged apart from a .nomedia marker, so nothing is lost; free some space and use Settings › Chats and Storage › Import the old app's content again for a backup.`,
+        : `**Not backed up:** ${b.path}, ${b.why}. It's unchanged apart from a .nomedia marker, so nothing is lost, and it isn't deleted while it has no backup. Once that's fixed (free some space, say), use Settings › Chats and Storage › Import the old app's content again for a backup.`,
     ),
   ]);
 };
 
-// Delete the old app's folders, after you say so (only folders named PromptPipe can go).
+// Delete the old app's folders, after you say so (only folders named PromptPipe can go): only the
+// ones with a whole backup; the others are named and stay (H6).
 const folders_delete = async (state, data) => {
   const done = PP.setting_get(state, DONE);
-  const folders = ((done && done.folders) || []).map((f) => f.path);
+  const folders = (done && done.folders) || [];
   if (!folders.length) return PP.toast("No old app folders were found");
+  const names = (list) => list.map((f) => f.path).join(" and ");
+  const backed = folders.filter((f) => f.backup);
+  const kept = folders.filter((f) => !f.backup);
+  const note = kept.length ? ` Kept, with no backup: ${names(kept)}.` : "";
+  if (!backed.length)
+    return PP.toast(`Nothing deleted: no backup of ${names(kept)}. Import again for one.`, true);
   if (data.choice !== "yes")
     return PP.dialog_open({
-      title: `Delete ${folders.join(" and ")}? Their backups stay in .promptpipe/backups.`, // legacy
+      title: `Delete ${names(backed)}? Their backups stay in .promptpipe/backups.${note}`, // legacy
       choices: [["yes", "Delete"]],
       command: "old_app_delete",
     });
-  for (const folder of folders)
-    await device("file_delete", { path: folder }).catch((e) => PP.toast(e.message, true));
-  PP.toast("The old app's folders are deleted");
+  const failed = [];
+  for (const folder of backed)
+    await device("file_delete", { path: folder.path }).catch((e) => failed.push(e.message));
+  if (failed.length) return PP.toast(`Not all deleted: ${failed.join("; ")}`, true);
+  PP.toast(`Deleted ${names(backed)}.${note}`);
 };
 
 PP.plugin_set({

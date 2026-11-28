@@ -66,7 +66,7 @@
     {
       "id": "old-app-import",
       "name": "Old app import",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "description": "Once, on the first start: marks the old app's folders with .nomedia, backs each up whole (git history included) into a zip, then brings in its chats, Memory's summaries, profiles, prompt library and settings. The old folders are never changed otherwise; Settings › Chats and Storage deletes them when you ask. Remove this plugin once you're done.",
       "tags": [
         "passive"
@@ -75,8 +75,8 @@
       "path": "old-app-import",
       "built_in": true,
       "hashes": {
-        "plugin.json": "f74a304cf4400e9899498648c7941397e9960544bae82023c155930e254909d4",
-        "import.js": "647ba53b54570d9dc02e4d9615444126488d486bcd7db01ba61ba3ecc5ecd923"
+        "plugin.json": "ab8de11082ec412fcfa1917818b4cc3de5f57fc83db2772e6abd8e4445f91992",
+        "import.js": "68dfce26f2d74f483007f8c186756d51006231089eff79311a6634cee82e2118"
       }
     },
     {
@@ -238,7 +238,7 @@
     {
       "id": "runtime-send",
       "name": "Sending",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Sending: the queue of each chat, the page pool, one sequence for every send (your messages, side requests, other apps' jobs), stopping, and failed sends.",
       "tags": [
         "runtime"
@@ -247,8 +247,8 @@
       "path": "runtime-send",
       "built_in": true,
       "hashes": {
-        "plugin.json": "9b6436de5ba8bf82b576f1d84d6ef894efdec2a349718352595ae84929323b3c",
-        "send.js": "e2786a28b13468186cdcdb854f1a8cbb9daf4a14f95c23e3d97bcbcfc5d2fc7f"
+        "plugin.json": "e27ac4b32ba94443ac17ee1378d7e44e30ebc897c7a7169b0f0d81aae6c083d3",
+        "send.js": "0c6d210aa39b998bc85f614553fecdb296ecc84f0c85d6adb7221de8536c5d86"
       }
     },
     {

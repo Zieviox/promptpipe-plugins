@@ -128,7 +128,9 @@ const device_build = (files, written) => ({
     ];
   },
   file_write: (d) => (
-    written.push(d), d.root === "device" && (files[d.path] = d.data), { revision: "w" }
+    written.push(d),
+    d.root === "device" && (files[d.path] = d.data),
+    { revision: "w" }
   ),
   file_move: (d) => (written.push({ move: d }), { copied: 1 }),
   repo_commit: () => ({}),
@@ -245,6 +247,35 @@ test("without room for the backup, the old content still comes in and the report
     reports[0].text,
     /Not backed up:\*\* .*not enough space: it needs 1 MB and 100 MB are free/,
   );
+});
+
+test("an old folder is deleted only when its backup is whole (H6)", async () => {
+  const files = files_build();
+  const deleted = [];
+  const device = {
+    ...device_build(files, []),
+    file_move: () => ({ copied: 0, failed: 2, first_failed: `${OLD}/history/.git/pack` }),
+    file_delete: (d) => (deleted.push(d.path), { done: true }),
+  };
+  const pp = plugins_load(
+    ["runtime-records", "runtime-chats", "runtime-profiles", "runtime-plugins", "old-app-import"],
+    device,
+  );
+  const toasts = [];
+  const dialogs = [];
+  pp.toast = (text) => toasts.push(text);
+  pp.dialog_open = (d) => dialogs.push(d);
+  const reports = [];
+  pp.sheet_open = (name, data) => reports.push(data);
+  pp.state = state_build();
+  await pp.hook_get("old-app-import", "app_start")();
+  assert.match(reports[0].text, /Not backed up:\*\* .*2 files couldn't be copied/);
+  const remove = pp.commands.find((c) => c.id === "old_app_delete").run;
+  await remove(pp.state, {});
+  await remove(pp.state, { choice: "yes" });
+  assert.deepEqual(deleted, [], "a folder without a whole backup stays");
+  assert.equal(dialogs.length, 0, "no dialog claims there's a backup");
+  assert.match(toasts.pop(), /Nothing deleted: no backup of \/storage\/emulated\/0\/PromptPipe/);
 });
 
 test("a chat file written by the old app's own code comes in with every field", async () => {
